@@ -1,6 +1,3 @@
-
-
-
 import React, { useState } from 'react';
 import {
   View,
@@ -12,63 +9,88 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useAuth } from './landlord/AuthContext';
 
 export default function Login() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
-  const [userType, setUserType] = useState('tenant'); // 'tenant' or 'landlord'
+  const [userType, setUserType] = useState('tenant'); 
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (email && password) {
-      // In a real app, you would fetch user data from an API here
-      if (userType === 'tenant') {
-        // For now, we just navigate for tenants
-        router.replace('/(tenant)/home');
-      } else {
-        // For landlords, simulate a login and set user data
-        const landlordData = {
-          name: 'Walter White', // This would come from your API
-          email: email,
-          photoURL: 'https://i.insider.com/5d9f454ee94e865e924818da?width=700'
-        };
-        login(landlordData);
-        router.replace('/landlord');
+      setIsLoading(true);
+      
+      try {
+       
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        if (userType === 'tenant') {
+          router.replace('/(tenant)/home');
+        } else {
+          const landlordData = {
+            name: 'Walter White',
+            email: email,
+            photoURL: 'https://i.insider.com/5d9f454ee94e865e924818da?width=700'
+          };
+          login(landlordData);
+          router.replace('/landlord');
+        }
+      } catch (error) {
+        console.log('Login error:', error);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
 
-    const handleSignUpPress = () => {
-      if (userType === 'landlord') {
-        router.push('/(auth)/landlord-signup');
-      } else {
-        // Tenant signup remains under the auth group
-        router.push('/(auth)/tenant-signup');
-      }
-    };
+  const handleSignUpPress = () => {
+    if (userType === 'landlord') {
+      router.push('/(auth)/landlord-signup');
+    } else {
+      router.push('/(auth)/tenant-signup');
+    }
+  };
+
   return (
     <KeyboardAvoidingView 
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.gradient}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+            disabled={isLoading}
+          >
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Sign In</Text>
+          <View style={styles.placeholder} />
+        </View>
+
+        <View style={styles.content}>
+          
           <View style={styles.logoContainer}>
-            <Text style={styles.logo}>🏠</Text>
+            <Image 
+              source={{ uri: 'https://img.freepik.com/premium-vector/house-logo-design-concept_761413-5937.jpg' }} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>BoardEase</Text>
-            <Text style={styles.subtitle}>Find Your Perfect Boarding House</Text>
+            <Text style={styles.subtitle}>Find your perfect boarding house in CDO</Text>
           </View>
 
+          
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Welcome Back</Text>
             
             <View style={styles.userTypeContainer}>
               <TouchableOpacity
@@ -77,7 +99,13 @@ export default function Login() {
                   userType === 'tenant' && styles.userTypeButtonActive
                 ]}
                 onPress={() => setUserType('tenant')}
+                disabled={isLoading}
               >
+                <Ionicons 
+                  name="person-outline" 
+                  size={20} 
+                  color={userType === 'tenant' ? '#667eea' : '#666'} 
+                />
                 <Text style={[
                   styles.userTypeText,
                   userType === 'tenant' && styles.userTypeTextActive
@@ -85,13 +113,20 @@ export default function Login() {
                   Tenant
                 </Text>
               </TouchableOpacity>
+              
               <TouchableOpacity
                 style={[
                   styles.userTypeButton,
                   userType === 'landlord' && styles.userTypeButtonActive
                 ]}
                 onPress={() => setUserType('landlord')}
+                disabled={isLoading}
               >
+                <Ionicons 
+                  name="business-outline" 
+                  size={20} 
+                  color={userType === 'landlord' ? '#667eea' : '#666'} 
+                />
                 <Text style={[
                   styles.userTypeText,
                   userType === 'landlord' && styles.userTypeTextActive
@@ -101,17 +136,19 @@ export default function Login() {
               </TouchableOpacity>
             </View>
 
+            
             <View style={styles.form}>
               <View style={styles.inputContainer}>
                 <Feather name="mail" size={20} color="#999" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Email"
+                  placeholder="Enter your email"
                   placeholderTextColor="#999"
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  editable={!isLoading}
                 />
               </View>
               
@@ -119,36 +156,82 @@ export default function Login() {
                 <Feather name="lock" size={20} color="#999" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Password"
+                  placeholder="Enter your password"
                   placeholderTextColor="#999"
                   value={password}
                   onChangeText={setPassword}
-                  secureTextEntry
+                  secureTextEntry={!showPassword}
+                  editable={!isLoading}
                 />
+                <TouchableOpacity 
+                  style={styles.passwordToggle}
+                  onPress={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  <Ionicons 
+                    name={showPassword ? "eye-off-outline" : "eye-outline"} 
+                    size={20} 
+                    color="#999" 
+                  />
+                </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.forgotPassword}>
+              <TouchableOpacity 
+                style={styles.forgotPassword}
+                disabled={isLoading}
+              >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-                <LinearGradient
-                  colors={['#667eea', '#764ba2']}
-                  style={styles.gradientButton}
-                >
+
+              <TouchableOpacity 
+                style={[
+                  styles.loginButton,
+                  (!email || !password) && styles.loginButtonDisabled,
+                  isLoading && styles.loginButtonLoading
+                ]}
+                onPress={handleLogin}
+                disabled={!email || !password || isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
                   <Text style={styles.loginButtonText}>Sign In</Text>
-                </LinearGradient>
+                )}
               </TouchableOpacity>
+
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
 
               <View style={styles.signupContainer}>
                 <Text style={styles.signupText}>Don't have an account? </Text>
-                <TouchableOpacity onPress={handleSignUpPress}>
-                  <Text style={styles.signupLink}>Sign Up</Text>
+                <TouchableOpacity 
+                  onPress={handleSignUpPress}
+                  disabled={isLoading}
+                >
+                  <Text style={[
+                    styles.signupLink,
+                    isLoading && styles.signupLinkDisabled
+                  ]}>
+                    Sign Up
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
-        </ScrollView>
-      </LinearGradient>
+
+          
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              By signing in, you agree to our{' '}
+              <Text style={styles.footerLink}>Terms of Service</Text> and{' '}
+              <Text style={styles.footerLink}>Privacy Policy</Text>
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -156,69 +239,89 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  gradient: {
-    flex: 1,
+    backgroundColor: '#fff',
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5e5',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  placeholder: {
+    width: 40,
+  },
+  content: {
+    flex: 1,
     padding: 20,
   },
   logoContainer: {
     alignItems: 'center',
     marginBottom: 40,
+    marginTop: 20,
   },
   logo: {
-    fontSize: 60,
-    marginBottom: 10,
+    width: 80,
+    height: 80,
+    marginBottom: 16,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#333',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: 'white',
-    opacity: 0.8,
+    color: '#666',
+    textAlign: 'center',
   },
   card: {
     backgroundColor: 'white',
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
   },
-  cardTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 24,
-    color: '#333',
-  },
   userTypeContainer: {
     flexDirection: 'row',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
     borderRadius: 12,
     padding: 4,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   userTypeButton: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    gap: 8,
   },
   userTypeButtonActive: {
     backgroundColor: 'white',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 1.41,
     elevation: 2,
   },
@@ -229,7 +332,7 @@ const styles = StyleSheet.create({
   },
   userTypeTextActive: {
     color: '#667eea',
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   form: {
     gap: 16,
@@ -241,9 +344,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e9ecef',
     borderRadius: 12,
+    overflow: 'hidden',
   },
   inputIcon: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
   },
   input: {
     flex: 1,
@@ -252,31 +356,63 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  loginButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 12,
+  passwordToggle: {
+    paddingHorizontal: 16,
   },
-  gradientButton: {
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginTop: -8,
+  },
+  forgotPasswordText: {
+    color: '#667eea',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  loginButton: {
+    backgroundColor: '#667eea',
     paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
+    marginTop: 8,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+    minHeight: 54,
+    justifyContent: 'center',
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#ccc',
+    shadowColor: '#ccc',
+  },
+  loginButtonLoading: {
+    opacity: 0.8,
   },
   loginButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
   },
-  forgotPasswordText: {
-    color: '#667eea',
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e5e5',
+  },
+  dividerText: {
+    paddingHorizontal: 16,
+    color: '#666',
     fontSize: 14,
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    alignItems: 'center',
   },
   signupText: {
     color: '#666',
@@ -286,5 +422,22 @@ const styles = StyleSheet.create({
     color: '#667eea',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  signupLinkDisabled: {
+    color: '#ccc',
+  },
+  footer: {
+    marginTop: 32,
+    paddingHorizontal: 20,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  footerLink: {
+    color: '#667eea',
+    fontWeight: '500',
   },
 });
