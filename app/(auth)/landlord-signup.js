@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   View,
@@ -10,45 +11,39 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Feather, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
 const SignUpForm = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    // Personal Information
     firstName: '',
     lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
     phoneNumber: '',
-        
-    // Document Information
     profileImage: null,
     idPhoto: null,
     businessPermit: null,
-    
-    // Terms and Verification
-    isTermsAccepted: false,
-    isEmailVerified: false,
   });
 
   const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Validation functions
+ 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
   const validatePassword = (password) => {
-    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number, 1 special character
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=])[A-Za-z\d!@#$%^&*()_+\-=]{8,}$/;
-    return passwordRegex.test(password);
+    return password.length >= 6;
   };
 
   const validatePhoneNumber = (phone) => {
@@ -56,8 +51,10 @@ const SignUpForm = () => {
     return phoneRegex.test(phone);
   };
 
-  // Image picker function
+
   const pickImage = async (field) => {
+    if (isLoading) return;
+    
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -70,7 +67,7 @@ const SignUpForm = () => {
     }
   };
 
-  // Validate current step
+
   const validateStep = () => {
     const newErrors = {};
 
@@ -81,46 +78,50 @@ const SignUpForm = () => {
       else if (!validateEmail(formData.email)) newErrors.email = 'Invalid email format';
       if (!formData.password) newErrors.password = 'Password is required';
       else if (!validatePassword(formData.password)) 
-        newErrors.password = 'Password must contain at least 8 characters, including uppercase, lowercase, number and special character';
+        newErrors.password = 'Password must be at least 6 characters long';
       if (!formData.confirmPassword) {
         newErrors.confirmPassword = 'Please confirm your password';
       } else if (formData.password !== formData.confirmPassword) {
         newErrors.confirmPassword = 'Passwords do not match';
       }
-      if (!validatePhoneNumber(formData.phoneNumber)) 
+      if (!formData.phoneNumber) newErrors.phoneNumber = 'Phone number is required';
+      else if (!validatePhoneNumber(formData.phoneNumber)) 
         newErrors.phoneNumber = 'Invalid phone number format';
     }
 
     if (step === 2) {
       if (!formData.profileImage) newErrors.profileImage = 'Profile image is required';
       if (!formData.idPhoto) newErrors.idPhoto = 'ID photo is required';
-      // Business permit can be optional
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle next step
+
   const handleNextStep = () => {
     if (validateStep()) {
       setStep(step + 1);
     }
   };
 
-  // Handle form submission
+  
   const handleSubmit = async () => {
     if (validateStep()) {
+      setIsLoading(true);
+      
       try {
-        // Here you would typically make an API call to register the landlord
+       
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
         console.log('Form submitted:', formData);
-        Alert.alert(
-          'Success',
-          'Your registration has been submitted for review. We will notify you once your account is verified.',
-          [{ text: 'OK', onPress: () => router.replace('/index') }]
-        );
+        
+        
+        router.replace('/landlord');
       } catch (error) {
         Alert.alert('Error', 'Something went wrong. Please try again later.');
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -129,68 +130,123 @@ const SignUpForm = () => {
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Personal Information</Text>
       
-      <TextInput
-        style={[styles.input, errors.firstName && styles.inputError]}
-        placeholder="First Name"
-        value={formData.firstName}
-        onChangeText={(text) => setFormData({ ...formData, firstName: text })}
-      />
+      <View style={styles.inputContainer}>
+        <Ionicons name="person-outline" size={20} color="#999" style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, errors.firstName && styles.inputError]}
+          placeholder="First Name"
+          placeholderTextColor="#999"
+          value={formData.firstName}
+          onChangeText={(text) => setFormData({ ...formData, firstName: text })}
+          autoCapitalize="words"
+          editable={!isLoading}
+        />
+      </View>
       {errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
 
-      <TextInput
-        style={[styles.input, errors.lastName && styles.inputError]}
-        placeholder="Last Name"
-        value={formData.lastName}
-        onChangeText={(text) => setFormData({ ...formData, lastName: text })}
-      />
+      <View style={styles.inputContainer}>
+        <Ionicons name="person-outline" size={20} color="#999" style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, errors.lastName && styles.inputError]}
+          placeholder="Last Name"
+          placeholderTextColor="#999"
+          value={formData.lastName}
+          onChangeText={(text) => setFormData({ ...formData, lastName: text })}
+          autoCapitalize="words"
+          editable={!isLoading}
+        />
+      </View>
       {errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
 
-      <TextInput
-        style={[styles.input, errors.email && styles.inputError]}
-        placeholder="Email"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        value={formData.email}
-        onChangeText={(text) => setFormData({ ...formData, email: text })}
-      />
+      <View style={styles.inputContainer}>
+        <Ionicons name="mail-outline" size={20} color="#999" style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, errors.email && styles.inputError]}
+          placeholder="Email Address"
+          placeholderTextColor="#999"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={formData.email}
+          onChangeText={(text) => setFormData({ ...formData, email: text })}
+          editable={!isLoading}
+        />
+      </View>
       {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
 
-      <TextInput
-        style={[styles.input, errors.password && styles.inputError]}
-        placeholder="Password"
-        secureTextEntry
-        value={formData.password}
-        onChangeText={(text) => setFormData({ ...formData, password: text })}
-      />
+      <View style={styles.inputContainer}>
+        <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, errors.password && styles.inputError]}
+          placeholder="Password (min. 6 characters)"
+          placeholderTextColor="#999"
+          secureTextEntry={!showPassword}
+          value={formData.password}
+          onChangeText={(text) => setFormData({ ...formData, password: text })}
+          editable={!isLoading}
+        />
+        <TouchableOpacity 
+          style={styles.passwordToggle}
+          onPress={() => setShowPassword(!showPassword)}
+          disabled={isLoading}
+        >
+          <Ionicons 
+            name={showPassword ? "eye-off-outline" : "eye-outline"} 
+            size={20} 
+            color="#999" 
+          />
+        </TouchableOpacity>
+      </View>
       {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-      <TextInput
-        style={[styles.input, errors.confirmPassword && styles.inputError]}
-        placeholder="Confirm Password"
-        secureTextEntry
-        value={formData.confirmPassword}
-        onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
-      />
+      <View style={styles.inputContainer}>
+        <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, errors.confirmPassword && styles.inputError]}
+          placeholder="Confirm Password"
+          placeholderTextColor="#999"
+          secureTextEntry={!showConfirmPassword}
+          value={formData.confirmPassword}
+          onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+          editable={!isLoading}
+        />
+        <TouchableOpacity 
+          style={styles.passwordToggle}
+          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+          disabled={isLoading}
+        >
+          <Ionicons 
+            name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} 
+            size={20} 
+            color="#999" 
+          />
+        </TouchableOpacity>
+      </View>
       {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
 
-      <TextInput
-        style={[styles.input, errors.phoneNumber && styles.inputError]}
-        placeholder="Phone Number"
-        keyboardType="phone-pad"
-        value={formData.phoneNumber}
-        onChangeText={(text) => setFormData({ ...formData, phoneNumber: text })}
-      />
+      <View style={styles.inputContainer}>
+        <Ionicons name="call-outline" size={20} color="#999" style={styles.inputIcon} />
+        <TextInput
+          style={[styles.input, errors.phoneNumber && styles.inputError]}
+          placeholder="Phone Number"
+          placeholderTextColor="#999"
+          keyboardType="phone-pad"
+          value={formData.phoneNumber}
+          onChangeText={(text) => setFormData({ ...formData, phoneNumber: text })}
+          editable={!isLoading}
+        />
+      </View>
       {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber}</Text>}
     </View>
   );
 
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Document Upload</Text>
+      <Text style={styles.stepTitle}>Document Verification</Text>
 
       <TouchableOpacity
-        style={styles.uploadButton}
+        style={[styles.uploadButton, errors.profileImage && styles.uploadButtonError]}
         onPress={() => pickImage('profileImage')}
+        disabled={isLoading}
       >
         <MaterialIcons name="add-photo-alternate" size={24} color="#667eea" />
         <Text style={styles.uploadButtonText}>Upload Profile Picture</Text>
@@ -201,8 +257,9 @@ const SignUpForm = () => {
       {errors.profileImage && <Text style={styles.errorText}>{errors.profileImage}</Text>}
 
       <TouchableOpacity
-        style={styles.uploadButton}
+        style={[styles.uploadButton, errors.idPhoto && styles.uploadButtonError]}
         onPress={() => pickImage('idPhoto')}
+        disabled={isLoading}
       >
         <MaterialIcons name="badge" size={24} color="#667eea" />
         <Text style={styles.uploadButtonText}>Upload Valid ID</Text>
@@ -215,6 +272,7 @@ const SignUpForm = () => {
       <TouchableOpacity
         style={styles.uploadButton}
         onPress={() => pickImage('businessPermit')}
+        disabled={isLoading}
       >
         <FontAwesome5 name="file-certificate" size={24} color="#667eea" />
         <Text style={styles.uploadButtonText}>Upload Business Permit (Optional)</Text>
@@ -222,7 +280,14 @@ const SignUpForm = () => {
       {formData.businessPermit && (
         <Image source={{ uri: formData.businessPermit }} style={styles.uploadedImage} />
       )}
-      {errors.businessPermit && <Text style={styles.errorText}>{errors.businessPermit}</Text>}
+
+      <View style={styles.termsContainer}>
+        <Text style={styles.termsText}>
+          By registering as a landlord, you agree to our{' '}
+          <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
+          <Text style={styles.termsLink}>Privacy Policy</Text>
+        </Text>
+      </View>
     </View>
   );
 
@@ -231,150 +296,278 @@ const SignUpForm = () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <LinearGradient colors={['#667eea', '#764ba2']} style={styles.gradient}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Landlord Registration</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+            disabled={isLoading}
+          >
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Become a Landlord</Text>
+          <View style={styles.placeholder} />
+        </View>
+
+        <View style={styles.content}>
+
+          <View style={styles.logoContainer}>
+            <Image 
+              source={{ uri: 'https://img.freepik.com/premium-vector/house-logo-design-concept_761413-5937.jpg' }} 
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.title}>Register as Landlord</Text>
+            <Text style={styles.subtitle}>List and manage your boarding houses</Text>
           </View>
 
+          
           <View style={styles.card}>
+            
             <View style={styles.progressContainer}>
               {[1, 2].map((item) => (
                 <View
-              key={item}
-              style={[
-                styles.progressDot,
-                item <= step ? styles.progressDotActive : null,
-              ]}
-            />
-          ))}
+                  key={item}
+                  style={[
+                    styles.progressStep,
+                    item < step && styles.progressStepCompleted,
+                    item === step && styles.progressStepActive,
+                  ]}
+                >
+                  <Text style={[
+                    styles.progressText,
+                    (item <= step) && styles.progressTextActive
+                  ]}>
+                    {item}
+                  </Text>
+                </View>
+              ))}
+              <View style={styles.progressLine} />
             </View>
 
             {step === 1 && renderStep1()}            
             {step === 2 && renderStep2()}
 
+           
             <View style={styles.buttonContainer}>
               {step > 1 && (
                 <TouchableOpacity
                   style={[styles.button, styles.buttonSecondary]}
                   onPress={() => setStep(step - 1)}
+                  disabled={isLoading}
                 >
-                  <Text style={styles.buttonTextSecondary}>Previous</Text>
+                  <Text style={styles.buttonTextSecondary}>Back</Text>
                 </TouchableOpacity>
               )}
 
               {step < 2 ? (
-                <TouchableOpacity style={styles.button} onPress={handleNextStep}>
-                  <LinearGradient colors={['#667eea', '#764ba2']} style={styles.gradientButton}>
-                    <Text style={styles.buttonTextPrimary}>Next</Text>
-                  </LinearGradient>
+                <TouchableOpacity 
+                  style={[
+                    styles.button, 
+                    styles.buttonPrimary,
+                    (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword || !formData.phoneNumber) && styles.buttonDisabled,
+                    isLoading && styles.buttonLoading
+                  ]}
+                  onPress={handleNextStep}
+                  disabled={!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword || !formData.phoneNumber || isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.buttonTextPrimary}>Continue</Text>
+                  )}
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                  <LinearGradient colors={['#667eea', '#764ba2']} style={styles.gradientButton}>
-                    <Text style={styles.buttonTextPrimary}>Submit</Text>
-                  </LinearGradient>
+                <TouchableOpacity 
+                  style={[
+                    styles.button, 
+                    styles.buttonPrimary,
+                    (!formData.profileImage || !formData.idPhoto) && styles.buttonDisabled,
+                    isLoading && styles.buttonLoading
+                  ]}
+                  onPress={handleSubmit}
+                  disabled={!formData.profileImage || !formData.idPhoto || isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.buttonTextPrimary}>Complete Registration</Text>
+                  )}
                 </TouchableOpacity>
               )}
             </View>
           </View>
-        </ScrollView>
-      </LinearGradient>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1 
-  },
-  gradient: { 
-    flex: 1 
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5e5',
   },
-  backButton: {},
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  placeholder: {
+    width: 40,
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+    marginTop: 10,
+  },
+  logo: {
+    width: 70,
+    height: 70,
+    marginBottom: 16,
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#333',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
   card: {
     backgroundColor: 'white',
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
+    shadowRadius: 3.84,
     elevation: 5,
   },
   progressContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 30,
+    position: 'relative',
   },
-  progressDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#e9ecef',
-    marginHorizontal: 8,
+  progressStep: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 2,
+    borderColor: '#e5e5e5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
   },
-  progressDotActive: {
+  progressStepActive: {
     backgroundColor: '#667eea',
+    borderColor: '#667eea',
+  },
+  progressStepCompleted: {
+    backgroundColor: '#667eea',
+    borderColor: '#667eea',
+  },
+  progressText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#999',
+  },
+  progressTextActive: {
+    color: 'white',
+  },
+  progressLine: {
+    position: 'absolute',
+    top: 15,
+    left: '25%',
+    right: '25%',
+    height: 2,
+    backgroundColor: '#e5e5e5',
+    zIndex: 1,
   },
   stepContainer: {
     marginBottom: 10,
   },
   stepTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 20,
     color: '#333',
     textAlign: 'center',
   },
-  input: {
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#f8f9fa',
     borderWidth: 1,
     borderColor: '#e9ecef',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 15,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  inputIcon: {
+    paddingHorizontal: 16,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingRight: 16,
     fontSize: 16,
     color: '#333',
   },
   inputError: {
-    borderColor: 'red',
+    borderColor: '#ef4444',
+  },
+  passwordToggle: {
+    paddingHorizontal: 16,
   },
   errorText: {
-    color: 'red',
-    fontSize: 13,
-    marginTop: -10,
-    marginBottom: 10,
+    color: '#ef4444',
+    fontSize: 12,
+    marginBottom: 12,
     paddingLeft: 4,
   },
   uploadButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: '#667eea',
     borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
-    justifyContent: 'center',
+    padding: 20,
+    marginBottom: 16,
+    backgroundColor: '#f8f9fa',
+  },
+  uploadButtonError: {
+    borderColor: '#ef4444',
   },
   uploadButtonText: {
     marginLeft: 10,
@@ -384,43 +577,66 @@ const styles = StyleSheet.create({
   },
   uploadedImage: {
     width: '100%',
-    height: 200,
+    height: 150,
     borderRadius: 12,
-    marginBottom: 15,
+    marginBottom: 16,
+  },
+  termsContainer: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  termsText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  termsLink: {
+    color: '#667eea',
+    fontWeight: '500',
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    gap: 12,
     marginTop: 20,
   },
   button: {
     flex: 1,
+    paddingVertical: 16,
     borderRadius: 12,
-    overflow: 'hidden',
-    marginHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 54,
+  },
+  buttonPrimary: {
+    backgroundColor: '#667eea',
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   buttonSecondary: {
-    backgroundColor: '#fff',
+    backgroundColor: 'white',
     borderWidth: 1,
     borderColor: '#667eea',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  gradientButton: {
-    paddingVertical: 16,
-    alignItems: 'center',
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+    shadowColor: '#ccc',
+  },
+  buttonLoading: {
+    opacity: 0.8,
   },
   buttonTextPrimary: {
-    color: '#fff',
-    fontSize: 18,
+    color: 'white',
+    fontSize: 16,
     fontWeight: 'bold',
-    textAlign: 'center',
   },
   buttonTextSecondary: {
     color: '#667eea',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    textAlign: 'center',
   },
 });
 
