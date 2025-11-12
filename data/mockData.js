@@ -1,4 +1,3 @@
-// Mock data for development 
 export const boardingHouses = [
   {
     id: '1',
@@ -8,9 +7,9 @@ export const boardingHouses = [
     rating: 4.5,
     reviews: 128,    
     images: [
-      'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400',
-      'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400',
-      'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400'
+      'https://q-xx.bstatic.com/xdata/images/hotel/max500/410394094.jpg?k=cce2a4d520a8a46c2188d53163afe508d71c3e43f3dc8a64448ba09cda13b116&o=',
+      'https://q-xx.bstatic.com/xdata/images/hotel/max500/160733814.jpg?k=5ee8bfbefc802123d9c3970cea3c2f51953b7854e10c665456407437c5fbe1d2&o=',
+      'https://cf.bstatic.com/xdata/images/hotel/max1024x768/497806866.jpg?k=4a330f6ff9d5a80ae4613403826d225632b149851e5b085a8080e451c08ad8f2&o='
     ],
     floorPlans: ['https://example.com/floorplan1.jpg'],
     virtualTourUrl: 'https://example.com/virtual-tour',
@@ -32,7 +31,8 @@ export const boardingHouses = [
     rating: 4.2,
     reviews: 95,    
     images: [
-      'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400'
+      'https://i.ytimg.com/vi/yEwHy_U9ZKE/hq720.jpg?sqp=-oaymwE7CK4FEIIDSFryq4qpAy0IARUAAAAAGAElAADIQj0AgKJD8AEB-AH-CYAC0AWKAgwIABABGFUgXyhlMA8=&rs=AOn4CLCh2RvNAlKiqAwmrofXeupwFcvEFg',
+      'https://cf.bstatic.com/xdata/images/hotel/max1024x768/560858655.jpg?k=37451059691736cd90e025ea14705eebafb92b2793f25b43da91aa40dff8ec3e&o='
     ],
     floorPlans: [],
     virtualTourUrl: null,
@@ -54,11 +54,12 @@ export const boardingHouses = [
     rating: 4.8,
     reviews: 203,    
     images: [
-      'https://images.unsplash.com/photo-1513584684374-8bab748fbf90?w=400'
+      'https://josoromabuilders.wordpress.com/wp-content/uploads/2019/04/pers-01.jpg',
+      'https://jcs-boarding-house.getmanilahotels.com/data/Pictures/OriginalPhoto/6009/600927/600927660/manila-jcs-boarding-house-picture-5.JPEG'
     ],
     floorPlans: [],
     virtualTourUrl: null,
-    type: 'Studio Unit',
+    type: 'Shared Room',
     amenities: ['WiFi', 'Aircon', 'Kitchen', 'CR', 'Parking', 'Pets Allowed'],
     distance: '2.1 km',
     description: 'Modern studio units with complete amenities for comfortable living.',
@@ -76,7 +77,8 @@ export const boardingHouses = [
     rating: 4.3,
     reviews: 87,    
     images: [
-      'https://images.unsplash.com/photo-1574362848149-11496d93a7c7?w=400'
+      'https://img1.wsimg.com/isteam/ip/a19e7d0d-593a-464c-a9c8-b3a2fe8b40e8/68771ea1-50da-41f1-bb68-88599351ce8d.jpeg/:/rs=h:1000,cg:true,m',
+      'https://media-cdn.tripadvisor.com/media/photo-s/06/e2/98/b0/chill-out-guesthouse.jpg'
     ],
     floorPlans: [],
     virtualTourUrl: null,
@@ -98,11 +100,12 @@ export const boardingHouses = [
     rating: 4.6,
     reviews: 156,    
     images: [
-      'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=400'
+      'https://kaoonta.com/wp-content/uploads/2025/05/Tirasol-Boarding-House-Ma-a.webp',
+      'https://www.piliko.com/media/fotos/casita_starosa_1_1407230229.jpg'
     ],
     floorPlans: [],
     virtualTourUrl: null,
-    type: 'Studio Unit',
+    type: 'Shared Room',
     amenities: ['WiFi', 'Aircon', 'Kitchen', 'CR', 'Parking', 'Laundry'],
     distance: '1.8 km',
     description: 'Premium studio units with complete facilities and security.',
