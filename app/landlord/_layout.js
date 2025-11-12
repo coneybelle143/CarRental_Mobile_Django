@@ -3,9 +3,9 @@ import { Tabs, router } from 'expo-router';
 import { TouchableOpacity, Alert } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { boardingHouses } from '../../data/mockData'; // Import mock data
+import { boardingHouses } from '../../data/mockData'; 
 
-// Create a simple, global context object to hold and share state and functions
+
 export const GlobalListingContext = React.createContext({
     listings: boardingHouses,
     updateListing: () => {},
@@ -15,28 +15,28 @@ export const GlobalListingContext = React.createContext({
 export default function LandlordLayout() {
   const primaryColor = Colors.primary || '#667eea'; 
 
-  // 1. Lift the listing state here
+ 
   const [listingsData, setListingsData] = useState(boardingHouses);
 
-  // 2. Create the update function
+  
   const updateListing = useCallback((id, updatedPayload) => {
     setListingsData(prevListings => {
-      // Find the index of the listing being updated
+     
       const index = prevListings.findIndex(l => String(l.id) === String(id));
       if (index === -1) {
-        // If the ID is new (e.g., in a real app, assign a new ID)
+        
         const newId = Date.now();
         return [...prevListings, { id: newId, ...updatedPayload }];
       }
 
-      // If the listing exists, replace it with the new data
+      
       const newArray = [...prevListings];
       newArray[index] = { ...newArray[index], ...updatedPayload };
       return newArray;
     });
   }, []);
 
-  // 3. Create the delete function
+  
   const deleteListing = useCallback((id) => {
     setListingsData(prevListings => prevListings.filter(l => String(l.id) !== String(id)));
   }, []);
@@ -49,7 +49,7 @@ export default function LandlordLayout() {
   };
 
   return (
-    // 4. Wrap the entire application in the context provider
+    
     <GlobalListingContext.Provider value={contextValue}>
       <Tabs
         screenOptions={{
@@ -72,12 +72,12 @@ export default function LandlordLayout() {
           },
         }}
       >
-        {/* ... (Tabs.Screen components remain unchanged) ... */}
+        
         <Tabs.Screen
           name="index" 
           options={{
             title: 'Dashboard',
-            headerShown: true,
+            headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="home" size={size} color={color} />
             ),
@@ -88,7 +88,7 @@ export default function LandlordLayout() {
           name="inquiries" 
           options={{
             title: 'Messages',
-            headerShown: true,
+            headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="chatbubbles" size={size} color={color} />
             ),
@@ -109,8 +109,8 @@ export default function LandlordLayout() {
         <Tabs.Screen
           name="notifications" 
           options={{
-            title: 'Alerts',
-            headerShown: true,
+            title: 'Notifications',
+            headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="notifications" size={size} color={color} />
             ),
@@ -121,7 +121,7 @@ export default function LandlordLayout() {
           name="menu" 
           options={{
             title: 'Account',
-            headerShown: true,
+            headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="menu" size={size} color={color} />
             ),
