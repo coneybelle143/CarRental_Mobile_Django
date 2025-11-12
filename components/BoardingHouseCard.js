@@ -1,25 +1,68 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const BoardingHouseCard = ({ house, onPress }) => {
+  const [imageError, setImageError] = useState(false);
+  
+ 
+  const imageUrl = house.images && house.images.length > 0 ? house.images[0] : house.image;
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
-      <Image source={{ uri: house.image }} style={styles.image} />
+      <View style={styles.imageContainer}>
+        {!imageError ? (
+          <Image 
+            source={{ uri: imageUrl }} 
+            style={styles.image} 
+            onError={handleImageError}
+          />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Ionicons name="home-outline" size={40} color="#ccc" />
+            <Text style={styles.placeholderText}>No Image</Text>
+          </View>
+        )}
+        
+       
+        <TouchableOpacity style={styles.favoriteButton}>
+          <Ionicons name="heart-outline" size={20} color="white" />
+        </TouchableOpacity>
+        
+       
+        <View style={styles.availabilityBadge}>
+          <Text style={styles.availabilityText}>Available</Text>
+        </View>
+      </View>
+      
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.name}>{house.name}</Text>
+          <Text style={styles.name} numberOfLines={1}>{house.name}</Text>
           <Text style={styles.price}>₱{house.price}/mo</Text>
         </View>
-        <Text style={styles.location}>{house.location}</Text>
+        
+        <View style={styles.locationContainer}>
+          <Ionicons name="location-outline" size={14} color="#666" />
+          <Text style={styles.location} numberOfLines={1}>{house.location}</Text>
+        </View>
+        
         <View style={styles.ratingContainer}>
-          <Ionicons name="star" size={16} color="#FFD700" />
-          <Text style={styles.rating}>{house.rating}</Text>
-          <Text style={styles.reviews}>({house.reviews} reviews)</Text>
+          <View style={styles.ratingGroup}>
+            <Ionicons name="star" size={16} color="#FFD700" />
+            <Text style={styles.rating}>{house.rating}</Text>
+            <Text style={styles.reviews}>({house.reviews})</Text>
+          </View>
           <Text style={styles.distance}>{house.distance}</Text>
         </View>
-        <Text style={styles.houseType}>{house.type}</Text>
+        
+        <View style={styles.typeContainer}>
+          <Text style={styles.houseType}>{house.type}</Text>
+        </View>
+        
         <View style={styles.amenitiesContainer}>
           {house.amenities.slice(0, 3).map((amenity, index) => (
             <View key={index} style={styles.amenityTag}>
@@ -32,15 +75,18 @@ const BoardingHouseCard = ({ house, onPress }) => {
             </View>
           )}
         </View>
+        
         <View style={styles.landlordInfo}>
           <Ionicons 
             name={house.landlord.verified ? "checkmark-circle" : "person-circle"} 
             size={16} 
             color={house.landlord.verified ? "#10b981" : "#666"} 
           />
-          <Text style={styles.landlordName}>{house.landlord.name}</Text>
+          <Text style={styles.landlordName} numberOfLines={1}>{house.landlord.name}</Text>
           {house.landlord.verified && (
-            <Text style={styles.verifiedText}>Verified</Text>
+            <View style={styles.verifiedBadge}>
+              <Text style={styles.verifiedText}>Verified</Text>
+            </View>
           )}
         </View>
       </View>
@@ -60,9 +106,50 @@ const styles = StyleSheet.create({
     elevation: 5,
     overflow: 'hidden',
   },
+  imageContainer: {
+    position: 'relative',
+    height: 200,
+  },
   image: {
     width: '100%',
-    height: 200,
+    height: '100%',
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    marginTop: 8,
+    color: '#999',
+    fontSize: 14,
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  availabilityBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: '#10b981',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  availabilityText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
   },
   content: {
     padding: 16,
@@ -78,45 +165,61 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     flex: 1,
-    marginRight: 8,
+    marginRight: 12,
   },
   price: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#667eea',
   },
-  location: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  ratingContainer: {
+  locationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    gap: 4,
+  },
+  location: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  ratingGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   rating: {
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
-    marginLeft: 4,
-    marginRight: 8,
   },
   reviews: {
     fontSize: 12,
     color: '#666',
-    marginRight: 'auto',
   },
   distance: {
     fontSize: 12,
     color: '#667eea',
     fontWeight: '500',
   },
+  typeContainer: {
+    marginBottom: 8,
+  },
   houseType: {
     fontSize: 14,
     color: '#667eea',
     fontWeight: '500',
-    marginBottom: 8,
+    backgroundColor: '#f0f4ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
   },
   amenitiesContainer: {
     flexDirection: 'row',
@@ -143,16 +246,18 @@ const styles = StyleSheet.create({
   landlordName: {
     fontSize: 12,
     color: '#666',
-    marginRight: 8,
+    flex: 1,
+  },
+  verifiedBadge: {
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
   verifiedText: {
     fontSize: 10,
     color: '#10b981',
     fontWeight: '500',
-    backgroundColor: '#f0fdf4',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
   },
 });
 
