@@ -1,4 +1,4 @@
-// app/(tenant)/boarding-house-details.js
+
 import React, { useState, useRef } from 'react';
 import {
   View,
@@ -11,6 +11,8 @@ import {
   Dimensions,
   Linking,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -22,9 +24,14 @@ export default function BoardingHouseDetails() {
   const { id } = useLocalSearchParams();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [inquiryMessage, setInquiryMessage] = useState('');
+  const [bookingDate, setBookingDate] = useState('');
+  const [bookingGuests, setBookingGuests] = useState('1');
   const scrollViewRef = useRef(null);
     
-  // Find the boarding house by ID
+  
   const house = boardingHouses.find(h => h.id === id);
 
   if (!house) {
@@ -42,7 +49,12 @@ export default function BoardingHouseDetails() {
   const handleMessageLandlord = () => {
     router.push({
       pathname: '/(tenant)/messages',
-      params: { landlordName: house.landlord.name }
+      params: { 
+        landlordName: house.landlord.name,
+        landlordId: house.landlord.id,
+        houseId: house.id,
+        houseName: house.name
+      }
     });
   };
 
@@ -59,14 +71,82 @@ export default function BoardingHouseDetails() {
 
   const handleShare = async () => {
     try {
-      
-      Alert.alert('Share', `Share ${house.name} with others`);
+      const shareMessage = `Check out ${house.name} - ₱${house.price}/month at ${house.location}. ${house.description.substring(0, 100)}...`;
+      Alert.alert('Share', shareMessage);
     } catch (error) {
       console.log('Share error:', error);
     }
   };
-  
-  
+
+  const handleExpressInterest = () => {
+    setShowInquiryModal(true);
+  };
+
+  const handleReadyToBook = () => {
+    setShowBookingModal(true);
+  };
+
+  const submitInquiry = () => {
+   
+    const inquiryData = {
+      houseId: house.id,
+      houseName: house.name,
+      landlordId: house.landlord.id,
+      message: inquiryMessage || `I'm interested in ${house.name}. Can you provide more details?`,
+      timestamp: new Date().toISOString(),
+      type: 'inquiry'
+    };
+    
+    console.log('Inquiry submitted:', inquiryData);
+    Alert.alert(
+      'Inquiry Sent!',
+      `Your interest in ${house.name} has been sent to ${house.landlord.name}. They will contact you soon.`
+    );
+    setShowInquiryModal(false);
+    setInquiryMessage('');
+    
+    
+    router.push({
+      pathname: '/(tenant)/inquiries',
+      params: { inquirySubmitted: true }
+    });
+  };
+
+  const submitBooking = () => {
+    
+    const bookingData = {
+      houseId: house.id,
+      houseName: house.name,
+      landlordId: house.landlord.id,
+      checkInDate: bookingDate,
+      numberOfGuests: parseInt(bookingGuests),
+      timestamp: new Date().toISOString(),
+      status: 'pending'
+    };
+    
+    console.log('Booking submitted:', bookingData);
+    Alert.alert(
+      'Booking Request Sent!',
+      `Your booking request for ${house.name} has been sent to ${house.landlord.name}. They will confirm shortly.`
+    );
+    setShowBookingModal(false);
+    setBookingDate('');
+    setBookingGuests('1');
+    
+    
+    router.push({
+      pathname: '/(tenant)/bookings',
+      params: { bookingSubmitted: true }
+    });
+  };
+
+  const handleViewLandlordProfile = () => {
+    router.push({
+      pathname: '/(tenant)/landlord-profile',
+      params: { landlordId: house.landlord.id }
+    });
+  };
+
   
   const reviews = [
     {
@@ -85,14 +165,6 @@ export default function BoardingHouseDetails() {
       comment: 'Good value for money. Location is perfect for students. The room was clean and well-maintained.',
       userImage: 'https://static.wikia.nocookie.net/breakingbad/images/2/23/Gomez_2009.png/revision/latest?cb=20200528094509'
     },
-    {
-      id: '3',
-      user: 'Hank Schrader',
-      rating: 5,
-      date: '2 months ago',
-      comment: 'Loved my stay here! The landlord was very helpful and the minerals are amazing.',
-      userImage: 'https://static.wikia.nocookie.net/breakingbad/images/4/4f/Season_2_-_Hank.jpg/revision/latest/scale-to-width/360?cb=20250728070712'
-    }
   ];
 
   const renderReview = ({ item }) => (
@@ -120,7 +192,7 @@ export default function BoardingHouseDetails() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -135,7 +207,7 @@ export default function BoardingHouseDetails() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Image Carousel */}
+        
         <View style={styles.imageSection}>
           <ScrollView
             ref={scrollViewRef}
@@ -154,7 +226,7 @@ export default function BoardingHouseDetails() {
             ))}
           </ScrollView>
           
-          {/* Image Indicators */}
+          
           {house.images.length > 1 && (
             <View style={styles.imageIndicators}>
               {house.images.map((_, index) => (
@@ -169,7 +241,7 @@ export default function BoardingHouseDetails() {
             </View>
           )}
 
-          {/* Favorite Button */}
+          
           <TouchableOpacity 
             style={styles.favoriteButton}
             onPress={toggleFavorite}
@@ -182,7 +254,7 @@ export default function BoardingHouseDetails() {
           </TouchableOpacity>
         </View>
 
-        {/* Basic Info */}
+        
         <View style={styles.section}>
           <View style={styles.titleSection}>
             <Text style={styles.houseName}>{house.name}</Text>
@@ -205,9 +277,36 @@ export default function BoardingHouseDetails() {
           </View>
         </View>
 
-        {/* Landlord Info */}
+       
+        <View style={styles.quickActions}>
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={handleExpressInterest}
+          >
+            <Ionicons name="heart-outline" size={20} color="#667eea" />
+            <Text style={styles.quickActionText}>Interested</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={handleReadyToBook}
+          >
+            <Ionicons name="calendar-outline" size={20} color="#667eea" />
+            <Text style={styles.quickActionText}>Book Now</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={handleViewLandlordProfile}
+          >
+            <Ionicons name="business-outline" size={20} color="#667eea" />
+            <Text style={styles.quickActionText}>Landlord</Text>
+          </TouchableOpacity>
+        </View>
+
+        
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Landlord</Text>
+          <Text style={styles.sectionTitle}>Landlord Information</Text>
           <View style={styles.landlordCard}>
             <View style={styles.landlordInfo}>
               <Ionicons 
@@ -218,6 +317,7 @@ export default function BoardingHouseDetails() {
               <View style={styles.landlordDetails}>
                 <Text style={styles.landlordName}>{house.landlord.name}</Text>
                 <Text style={styles.landlordPhone}>{house.landlord.phone}</Text>
+                <Text style={styles.landlordEmail}>{house.landlord.email}</Text>
                 <View style={styles.verificationBadge}>
                   <Ionicons 
                     name={house.landlord.verified ? "shield-checkmark" : "time"} 
@@ -233,16 +333,22 @@ export default function BoardingHouseDetails() {
                 </View>
               </View>
             </View>
+            <TouchableOpacity 
+              style={styles.viewProfileButton}
+              onPress={handleViewLandlordProfile}
+            >
+              <Text style={styles.viewProfileText}>View Profile</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Description */}
+        
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Description</Text>
           <Text style={styles.descriptionText}>{house.description}</Text>
         </View>
 
-        {/* Amenities */}
+        
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Amenities</Text>
           <View style={styles.amenitiesGrid}>
@@ -255,7 +361,51 @@ export default function BoardingHouseDetails() {
           </View>
         </View>
 
-        {/* Reviews */}
+        
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>House Rules</Text>
+          <View style={styles.rulesList}>
+            {house.rules?.map((rule, index) => (
+              <View key={index} style={styles.ruleItem}>
+                <Ionicons name="information-circle" size={18} color="#667eea" />
+                <Text style={styles.ruleText}>{rule}</Text>
+              </View>
+            )) || (
+              <>
+                <View style={styles.ruleItem}>
+                  <Ionicons name="information-circle" size={18} color="#667eea" />
+                  <Text style={styles.ruleText}>No smoking inside the rooms</Text>
+                </View>
+                <View style={styles.ruleItem}>
+                  <Ionicons name="information-circle" size={18} color="#667eea" />
+                  <Text style={styles.ruleText}>No pets allowed</Text>
+                </View>
+                <View style={styles.ruleItem}>
+                  <Ionicons name="information-circle" size={18} color="#667eea" />
+                  <Text style={styles.ruleText}>Quiet hours from 10 PM to 6 AM</Text>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+
+        
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Availability</Text>
+          <View style={styles.availabilityInfo}>
+            <Ionicons name="calendar" size={20} color="#10b981" />
+            <Text style={styles.availabilityText}>
+              {house.available ? 'Available Now' : 'Currently Occupied'}
+            </Text>
+          </View>
+          {house.availableFrom && (
+            <Text style={styles.availableFromText}>
+              Available from: {house.availableFrom}
+            </Text>
+          )}
+        </View>
+
+        
         <View style={styles.section}>
           <View style={styles.reviewsHeader}>
             <Text style={styles.sectionTitle}>Reviews</Text>
@@ -274,7 +424,101 @@ export default function BoardingHouseDetails() {
         </View>
       </ScrollView>
 
-      {/* Fixed Bottom Action Bar */}
+      
+      <Modal
+        visible={showInquiryModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Express Interest</Text>
+            <Text style={styles.modalSubtitle}>
+              Send a message to {house.landlord.name} about {house.name}
+            </Text>
+            
+            <TextInput
+              style={styles.messageInput}
+              multiline
+              numberOfLines={4}
+              placeholder="Tell the landlord why you're interested... (optional)"
+              value={inquiryMessage}
+              onChangeText={setInquiryMessage}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowInquiryModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.submitButton]}
+                onPress={submitInquiry}
+              >
+                <Text style={styles.submitButtonText}>Send Interest</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      
+      <Modal
+        visible={showBookingModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Ready to Book</Text>
+            <Text style={styles.modalSubtitle}>
+              Send booking request for {house.name}
+            </Text>
+            
+            <View style={styles.bookingForm}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Preferred Move-in Date</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="YYYY-MM-DD"
+                  value={bookingDate}
+                  onChangeText={setBookingDate}
+                />
+              </View>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Number of Guests</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="1"
+                  keyboardType="numeric"
+                  value={bookingGuests}
+                  onChangeText={setBookingGuests}
+                />
+              </View>
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowBookingModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.submitButton]}
+                onPress={submitBooking}
+              >
+                <Text style={styles.submitButtonText}>Request Booking</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      
       <View style={styles.bottomActionBar}>
         <TouchableOpacity 
           style={styles.callButton}
@@ -285,11 +529,19 @@ export default function BoardingHouseDetails() {
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={styles.messageButton}
-          onPress={handleMessageLandlord}
+          style={styles.interestButton}
+          onPress={handleExpressInterest}
         >
-          <Ionicons name="chatbubble" size={20} color="white" />
-          <Text style={styles.messageButtonText}>Message</Text>
+          <Ionicons name="heart-outline" size={20} color="white" />
+          <Text style={styles.interestButtonText}>Interested</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.bookButton}
+          onPress={handleReadyToBook}
+        >
+          <Ionicons name="calendar" size={20} color="white" />
+          <Text style={styles.bookButtonText}>Book Now</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -428,6 +680,27 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
   },
+  // Quick Actions
+  quickActions: {
+    flexDirection: 'row',
+    padding: 20,
+    gap: 12,
+  },
+  quickActionButton: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+  },
+  quickActionText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#667eea',
+    fontWeight: '500',
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -443,6 +716,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    marginBottom: 12,
   },
   landlordDetails: {
     flex: 1,
@@ -456,6 +730,11 @@ const styles = StyleSheet.create({
   landlordPhone: {
     fontSize: 16,
     color: '#666',
+    marginBottom: 4,
+  },
+  landlordEmail: {
+    fontSize: 14,
+    color: '#666',
     marginBottom: 8,
   },
   verificationBadge: {
@@ -466,6 +745,17 @@ const styles = StyleSheet.create({
   verificationText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  viewProfileButton: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#667eea',
+    borderRadius: 8,
+  },
+  viewProfileText: {
+    color: 'white',
+    fontWeight: '600',
   },
   descriptionText: {
     fontSize: 16,
@@ -488,6 +778,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     flex: 1,
+  },
+  // Rules
+  rulesList: {
+    gap: 12,
+  },
+  ruleItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  ruleText: {
+    fontSize: 16,
+    color: '#666',
+    flex: 1,
+    lineHeight: 22,
+  },
+  // Availability
+  availabilityInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  availabilityText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  availableFromText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 28,
   },
   reviewsHeader: {
     flexDirection: 'row',
@@ -537,6 +859,91 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 20,
   },
+  // Modals
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    margin: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  messageInput: {
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 20,
+  },
+  bookingForm: {
+    gap: 16,
+    marginBottom: 20,
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  submitButton: {
+    backgroundColor: '#667eea',
+  },
+  submitButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  
   bottomActionBar: {
     flexDirection: 'row',
     backgroundColor: 'white',
@@ -562,17 +969,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  messageButton: {
-    flex: 2,
+  interestButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#667eea',
+    backgroundColor: '#f59e0b',
     borderRadius: 12,
     paddingVertical: 16,
     gap: 8,
   },
-  messageButtonText: {
+  interestButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  bookButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10b981',
+    borderRadius: 12,
+    paddingVertical: 16,
+    gap: 8,
+  },
+  bookButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
