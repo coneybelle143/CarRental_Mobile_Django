@@ -21,7 +21,7 @@ export default function TenantLayout() {
         name="home"
         options={{
           title: 'Home',
-          headerShown: true,
+          headerShown: false,
           headerStyle: {
             backgroundColor: '#667eea',
           },
@@ -38,7 +38,7 @@ export default function TenantLayout() {
         name="messages" 
         options={{
           title: 'Messages',
-          headerShown: true,
+          headerShown: false,
           headerStyle: {
             backgroundColor: '#667eea',
           },
@@ -55,7 +55,7 @@ export default function TenantLayout() {
         name="notifications" 
         options={{
           title: 'Notifications',
-          headerShown: true,
+          headerShown: false,
           headerStyle: {
             backgroundColor: '#667eea',
           },
@@ -72,7 +72,7 @@ export default function TenantLayout() {
         name="menu" 
         options={{
           title: 'Menu',
-          headerShown: true,
+          headerShown: false,
           headerStyle: {
             backgroundColor: '#667eea',
           },
@@ -87,6 +87,12 @@ export default function TenantLayout() {
       />
       <Tabs.Screen
         name="profile"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="boarding-house-details"
         options={{
           href: null,
         }}
