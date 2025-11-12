@@ -6,21 +6,13 @@ export default function AuthLayout() {
       <Stack.Screen 
         name="tenant-signup" 
         options={{ 
-          headerTitle: "Tenant Sign Up",
-          headerStyle: {
-            backgroundColor: '#667eea',
-          },
-          headerTintColor: '#fff',
+          headerShown: false
         }} 
       />
       <Stack.Screen 
         name="landlord-signup" 
         options={{ 
-          headerTitle: "Landlord Sign Up",
-          headerStyle: {
-            backgroundColor: '#667eea',
-          },
-          headerTintColor: '#fff',
+          headerShown: false
         }} 
       />
     </Stack>
