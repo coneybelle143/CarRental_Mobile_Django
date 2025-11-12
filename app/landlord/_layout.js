@@ -127,12 +127,10 @@ export default function LandlordLayout() {
             ),
           }}
         />
-        <Tabs.Screen
-        name="edit-profile"
-        options={{
-          href: null,
-        }}
-      />
+        <Tabs.Screen name="edit-profile" options={{ href: null }} />
+        <Tabs.Screen name="settings" options={{ href: null }} />
+        <Tabs.Screen name="support" options={{ href: null }} />
+        <Tabs.Screen name="financials" options={{ href: null }} />
       </Tabs>
     </GlobalListingContext.Provider>
   );

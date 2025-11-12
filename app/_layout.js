@@ -29,6 +29,33 @@ export default function RootLayout() {
               tabBarStyle: { display: 'none' }, 
             }} 
           />
+          <Stack.Screen 
+            name="landlord/financials" 
+            options={{ 
+              title: 'Financials & Payments', 
+              headerTintColor: 'white', 
+              headerStyle: { backgroundColor: primaryColor }, 
+              tabBarStyle: { display: 'none' }, 
+            }} 
+          />
+          <Stack.Screen 
+            name="landlord/settings" 
+            options={{ 
+              title: 'App Settings', 
+              headerTintColor: 'white', 
+              headerStyle: { backgroundColor: primaryColor }, 
+              tabBarStyle: { display: 'none' }, 
+            }} 
+          />
+          <Stack.Screen 
+            name="landlord/support" 
+            options={{ 
+              title: 'Help & Support', 
+              headerTintColor: 'white', 
+              headerStyle: { backgroundColor: primaryColor }, 
+              tabBarStyle: { display: 'none' }, 
+            }} 
+          />
 
           
         </Stack>

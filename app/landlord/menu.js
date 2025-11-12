@@ -81,7 +81,7 @@ export default function LandlordMenuScreen() {
     // ... other items ...
 ];
 
-  const handleMenuPress = (item) => {
+  {/*const handleMenuPress = (item) => {
     // Navigate to the specified screen. For tabs (like inquiries), we use the name.
     if (item.screen === 'profile') {
       router.push('/landlord/edit-profile');
@@ -93,6 +93,36 @@ export default function LandlordMenuScreen() {
       console.log(`Navigating to ${item.screen}`);
     }
   };
+  */}
+  const handleMenuPress = (item) => {
+  switch (item.screen) {
+    case 'profile':
+      router.push('/landlord/edit-profile');
+      break;
+
+    case 'inquiries':
+      router.push('/landlord/inquiries');
+      break;
+
+    case 'financials':
+      router.push('/landlord/financials');
+      break;
+
+    case 'settings':
+      router.push('/landlord/settings');
+      break;
+
+    case 'support':
+      router.push('/landlord/support');
+      break;
+
+    default:
+      console.warn(`Unknown screen: ${item.screen}`);
+      break;
+  }
+};
+
+  
 
   return (
     <>

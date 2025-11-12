@@ -9,7 +9,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { router } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../../constants/Colors';
@@ -83,6 +83,18 @@ export default function EditLandlordProfile() {
   };
 
   return (
+    <>
+      <Stack.Screen
+            options={{
+              title: 'Edit Profile',
+              headerShown: true,
+              headerLeft: () => (
+                <TouchableOpacity onPress={() => router.push('/landlord/menu')} style={{ paddingLeft: 16 }}>
+                  <Ionicons name="arrow-back" size={24} color="#fff" />
+                </TouchableOpacity>
+              ),
+            }}
+          />
     <ScrollView style={styles.page} contentContainerStyle={styles.container}>
       <View style={styles.card}>
         <Text style={styles.heading}>Edit Your Profile</Text>
@@ -152,6 +164,7 @@ export default function EditLandlordProfile() {
 
       </View>
     </ScrollView>
+    </>
   );
 }
 
