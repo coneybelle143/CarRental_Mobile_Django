@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import FilterModal from '../../components/FilterModal';
+import { router } from 'expo-router'; 
 import BoardingHouseCard from '../../components/BoardingHouseCard';
 import SearchBar from '../../components/SearchBar';
 import { useListings } from '../../hooks/useListings';
@@ -63,8 +64,11 @@ export default function Home() {
   };
 
   const handleHousePress = (house) => {
-    console.log('Pressed house:', house.name);
-  };
+  router.push({
+    pathname: '/(tenant)/boarding-house-details',
+    params: { id: house.id }
+  });
+};
 
   const renderBoardingHouse = ({ item }) => (
     <BoardingHouseCard 
@@ -226,7 +230,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 60,
     paddingBottom: 20,
     backgroundColor: 'white',
   },
