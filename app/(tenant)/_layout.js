@@ -103,6 +103,16 @@ export default function TenantLayout() {
           href: null,
         }}
       />
+      
+      {/* --- ADDED THIS SECTION --- */}
+      <Tabs.Screen
+        name="landlord-profile"
+        options={{
+          href: null,
+        }}
+      />
+      {/* --- END OF ADDED SECTION --- */}
+
     </Tabs>
     
   );

@@ -194,7 +194,9 @@ export default function BoardingHouseDetails() {
   const handleViewLandlordProfile = () => {
     router.push({
       pathname: '/(tenant)/landlord-profile',
-      params: { landlordId: house.landlord.id }
+      // --- THIS IS THE FIX ---
+      // We pass the email as the ID, because we know it's saved.
+      params: { landlordId: house.landlord.email }
     });
   };
 

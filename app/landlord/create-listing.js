@@ -17,20 +17,19 @@ import PropertyImageGrid from '../../components/PropertyImageGrid';
 import { boardingHouses } from '../../data/mockData'; 
 import { GlobalListingContext } from './_layout'; 
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from './AuthContext'; // This line is correct
+import { useAuth } from './AuthContext'; // 1. MODIFIED: Import useAuth
 
 
 export default function CreateListing() {
   const params = useLocalSearchParams(); 
   const navigation = useNavigation();
   const { listings, updateListing } = useContext(GlobalListingContext); 
-  const { user } = useAuth(); // 1. MODIFIED: Get the logged-in user
+  const { user } = useAuth(); // <--- 1. ADDED THIS LINE
 
   const [isEditing, setIsEditing] = useState(false);
-  // ... (all other state definitions are unchanged) ...
+  // ... (all other useState hooks are unchanged) ...
   const [heading, setHeading] = useState('Create Property Listing');
   const [submitText, setSubmitText] = useState('Create Listing');
-
   const [title, setTitle] = useState('');
   const [address, setAddress] = useState('');
   const [rent, setRent] = useState('');
@@ -38,16 +37,11 @@ export default function CreateListing() {
   const [virtualTour, setVirtualTour] = useState('');
   const [houseType, setHouseType] = useState('Single Room');
   const [distance, setDistance] = useState('');
-
-  
   const [rules, setRules] = useState([]);
   const [newRule, setNewRule] = useState('');
   const [showRulesModal, setShowRulesModal] = useState(false);
-
-  
   const [available, setAvailable] = useState(true);
   const [availableFrom, setAvailableFrom] = useState('');
-
   const [amenities, setAmenities] = useState({
     wifi: false,
     airConditioning: false,
@@ -60,7 +54,6 @@ export default function CreateListing() {
     electricityIncluded: false,
     petsAllowed: false,
   });
-
   const [photos, setPhotos] = useState([]);
   const [floorPlans, setFloorPlans] = useState([]);
 
@@ -108,7 +101,7 @@ export default function CreateListing() {
     
     router.setParams({});
   };
-
+  
   // ... (useEffect for editing is unchanged) ...
   useEffect(() => {
     console.log('Params changed:', params.id);
@@ -165,7 +158,7 @@ export default function CreateListing() {
       resetForm();
     }
   }, [params.id, listings]);
-
+ 
   // ... (useEffect for reset is unchanged) ...
   useEffect(() => {
     
@@ -199,7 +192,6 @@ export default function CreateListing() {
   const toggleAmenity = (key) => {
     setAmenities((prev) => ({ ...prev, [key]: !prev[key] }));
   };
-
   
   const addRule = () => {
     if (newRule.trim()) {
@@ -220,7 +212,6 @@ export default function CreateListing() {
     setShowRulesModal(false);
     setNewRule('');
   };
-
   
   const getAmenitiesArray = () => {
     const amenitiesMap = {
@@ -241,9 +232,8 @@ export default function CreateListing() {
       .map(([key]) => amenitiesMap[key] || key);
   };
 
-
   const validateAndSubmit = () => {
-    // ... (validation code is unchanged) ...
+    // ... (validation is unchanged) ...
     if (!title.trim()) return Alert.alert('Validation', 'Title is required');
     if (!address.trim()) return Alert.alert('Validation', 'Address is required');
     if (!rent.trim() || isNaN(Number(rent))) return Alert.alert('Validation', 'Rent must be a number');
@@ -252,7 +242,7 @@ export default function CreateListing() {
     const amenitiesArray = getAmenitiesArray();
 
     const payload = {
-      // ... (all other payload properties are unchanged) ...
+      // ... (other listing data is unchanged) ...
       images: photos.length > 0 ? photos : ['https://via.placeholder.com/150/0000FF/808080?text=New+Listing'],
       description: description,
       location: address,
@@ -268,17 +258,19 @@ export default function CreateListing() {
       floorPlans,
       rating: isEditing ? undefined : 4.5, 
       reviews: isEditing ? undefined : 0, 
-      
-      // 2. MODIFIED: Use the real user data instead of "Your Name"
+
+      // <--- 2. MODIFIED THIS OBJECT
       landlord: {
+        id: user?.id, // <-- This MUST be here
         name: user?.name || 'Landlord',
         phone: user?.phone || 'Not Provided',
-        verified: user?.verified || true, // (Assuming 'verified' is part of your user object)
-        email: user?.email || 'Not Provided'
+        verified: user?.verified || true, 
+        email: user?.email || 'Not Provided',
+        image: user?.photoURL // <-- This MUST be here
       }
     };
     
-    // ... (rest of the submit logic is unchanged) ...
+    // ... (rest of submit logic is unchanged) ...
     if (isEditing && params.id) {
       updateListing(params.id, payload);
       console.log(`Updating listing ${params.id}`);
@@ -308,13 +300,12 @@ export default function CreateListing() {
     }
   };
 
-  // ... (handleCancel function is unchanged) ...
   const handleCancel = () => {
     resetForm();
     router.back();
   };
 
-  // ... (The entire <ScrollView> and all styles are unchanged) ...
+  // ... (RETURN JSX AND STYLES ARE UNCHANGED) ...
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.container}>
       <View style={styles.card}>
@@ -535,7 +526,7 @@ export default function CreateListing() {
   );
 }
 
-// ... (all styles are unchanged) ...
+// ... (Styles are all unchanged) ...
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#f6f7fb',
