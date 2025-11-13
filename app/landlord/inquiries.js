@@ -1,76 +1,49 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
-import { Stack, router } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ScrollView, 
+  Image, 
+  ActivityIndicator // ADDED
+} from 'react-native';
+import { Stack, router, useFocusEffect } from 'expo-router'; // ADDED useFocusEffect
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // ADDED
+
+const INQUIRIES_STORAGE_KEY = '@landlord_inquiries'; // ADDED
 
 export default function InquiriesScreen() {
-  const [messages, setMessages] = useState([
-    {
-      id: '1',
-      tenant: {
-        name: 'Jesse Pinkman',
-        image: 'https://i.insider.com/5d9f454ee94e865e924818da?width=700',
-        phone: '+1 234 567 8900'
-      },
-      property: 'Sunrise Boarding House',
-      lastMessage: 'Hi, is the room still available for March? I\'d like to schedule a viewing.',
-      time: '2 hours ago',
-      unread: true,
-      status: 'new'
-    },
-    {
-      id: '2',
-      tenant: {
-        name: 'Walter White',
-        image: 'https://i.pinimg.com/736x/50/4d/ab/504dab425e2cda6b74b3fd57e56baa30.jpg',
-        phone: '+1 234 567 8901'
-      },
-      property: 'CDO Student Dorm',
-      lastMessage: 'Can you send me more photos of the shared bathroom?',
-      time: '5 hours ago',
-      unread: true,
-      status: 'interested'
-    },
-    {
-      id: '3',
-      tenant: {
-        name: 'Mike Ehrmantraut',
-        image: 'https://static.wikia.nocookie.net/breakingbad/images/9/9f/Season_4_-_Mike.jpg/revision/latest?cb=20250728074206',
-        phone: '+1 234 567 8902'
-      },
-      property: 'Green Valley Apartelle',
-      lastMessage: 'I\'ll take it. When can I move in?',
-      time: '1 day ago',
-      unread: false,
-      status: 'ready_to_book'
-    },
-    {
-      id: '4',
-      tenant: {
-        name: 'Skyler White',
-        image: 'https://ew.com/thmb/c-e9oofgxwj9jDc9qWm2RLVND1I=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/breaking-bad-anna-gunn-1-101ba7b9fc7443709d9b75e47aeb2e93.jpg',
-        phone: '+1 234 567 8903'
-      },
-      property: 'Downtown Comfort',
-      lastMessage: 'Do you allow pets? I have a small dog.',
-      time: '2 days ago',
-      unread: false,
-      status: 'inquiry'
-    },
-    {
-      id: '5',
-      tenant: {
-        name: 'Gustavo Fring',
-        image: 'https://shapes.inc/api/public/avatar/gustavofring',
-        phone: '+1 234 567 8904'
-      },
-      property: 'XU Area Boarding',
-      lastMessage: 'The location is perfect for my employees. Do you offer corporate rates?',
-      time: '3 days ago',
-      unread: false,
-      status: 'corporate'
+  const [messages, setMessages] = useState([]); // MODIFIED: Start empty
+  const [isLoading, setIsLoading] = useState(true); // ADDED
+
+  // ADDED: Load inquiries from storage
+  const loadInquiries = async () => {
+    try {
+      const jsonValue = await AsyncStorage.getItem(INQUIRIES_STORAGE_KEY);
+      if (jsonValue !== null) {
+        setMessages(JSON.parse(jsonValue));
+      } else {
+        // No mock data, just save an empty list
+        await AsyncStorage.setItem(INQUIRIES_STORAGE_KEY, JSON.stringify([]));
+        setMessages([]);
+      }
+    } catch (e) {
+      console.error("Failed to load inquiries", e);
+      setMessages([]);
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
+
+  // ADDED: Refresh when tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      setIsLoading(true);
+      loadInquiries();
+    }, [])
+  );
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -108,14 +81,36 @@ export default function InquiriesScreen() {
 
   const handleMessagePress = (message) => {
     console.log('Opening chat with:', message.tenant.name);
-   
+    // In a real app, this would navigate to a chat screen
+    // and also update the message to 'read'
   };
 
-  const markAllAsRead = () => {
-    setMessages(prev => prev.map(msg => ({ ...msg, unread: false })));
+  // MODIFIED: This function now saves to storage
+  const markAllAsRead = async () => {
+    const readMessages = messages.map(msg => ({ ...msg, unread: false }));
+    try {
+      await AsyncStorage.setItem(INQUIRIES_STORAGE_KEY, JSON.stringify(readMessages));
+      setMessages(readMessages);
+    } catch (e) {
+      console.error("Failed to mark all as read", e);
+    }
   };
 
   const unreadCount = messages.filter(msg => msg.unread).length;
+
+  // ADDED: Loading state
+  if (isLoading) {
+     return (
+       <View style={[styles.container, {justifyContent: 'center', alignItems: 'center'}]}>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>Property Inquiries</Text>
+            </View>
+          </View>
+          <ActivityIndicator size="large" color="#667eea" />
+       </View>
+    );
+  }
 
   return (
     <>
@@ -123,11 +118,6 @@ export default function InquiriesScreen() {
         options={{
           title: 'Messages',
           headerShown: false,
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.push('/landlord/menu')} style={{ paddingLeft: 16 }}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-          ),
         }}
       />
       
@@ -143,60 +133,68 @@ export default function InquiriesScreen() {
             <Text style={styles.markAllText}>Mark all read</Text>
           </TouchableOpacity>
         </View>
-
-        <ScrollView style={styles.messagesList} showsVerticalScrollIndicator={false}>
-          {messages.map((message) => {
-            const statusColor = getStatusColor(message.status);
-            
-            return (
-              <TouchableOpacity
-                key={message.id}
-                style={[
-                  styles.messageCard,
-                  message.unread && styles.unreadMessage
-                ]}
-                onPress={() => handleMessagePress(message)}
-              >
-                <View style={styles.messageHeader}>
-                  <Image source={{ uri: message.tenant.image }} style={styles.tenantImage} />
-                  <View style={styles.messageContent}>
-                    <View style={styles.messageTopRow}>
-                      <Text style={styles.tenantName} numberOfLines={1}>
-                        {message.tenant.name}
-                      </Text>
-                      <Text style={styles.messageTime}>
-                        {message.time}
-                      </Text>
-                    </View>
-                    <View style={styles.messageMiddleRow}>
-                      <Text style={styles.propertyName} numberOfLines={1}>
-                        {message.property}
-                      </Text>
-                      <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
-                        <Text style={[styles.statusText, { color: statusColor }]}>
-                          {getStatusText(message.status)}
+        
+        {/* ADDED: Empty state */}
+        {messages.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="chatbubbles-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyText}>No inquiries yet</Text>
+            <Text style={styles.emptySubtext}>New inquiries from tenants will appear here.</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.messagesList} showsVerticalScrollIndicator={false}>
+            {messages.map((message) => {
+              const statusColor = getStatusColor(message.status);
+              
+              return (
+                <TouchableOpacity
+                  key={message.id}
+                  style={[
+                    styles.messageCard,
+                    message.unread && styles.unreadMessage
+                  ]}
+                  onPress={() => handleMessagePress(message)}
+                >
+                  <View style={styles.messageHeader}>
+                    <Image source={{ uri: message.tenant.image }} style={styles.tenantImage} />
+                    <View style={styles.messageContent}>
+                      <View style={styles.messageTopRow}>
+                        <Text style={styles.tenantName} numberOfLines={1}>
+                          {message.tenant.name}
+                        </Text>
+                        <Text style={styles.messageTime}>
+                          {message.time}
                         </Text>
                       </View>
+                      <View style={styles.messageMiddleRow}>
+                        <Text style={styles.propertyName} numberOfLines={1}>
+                          {message.property}
+                        </Text>
+                        <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
+                          <Text style={[styles.statusText, { color: statusColor }]}>
+                            {getStatusText(message.status)}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.lastMessage} numberOfLines={2}>
+                        {message.lastMessage}
+                      </Text>
                     </View>
-                    <Text style={styles.lastMessage} numberOfLines={2}>
-                      {message.lastMessage}
-                    </Text>
                   </View>
-                </View>
-                {message.unread && (
-                  <View style={styles.unreadIndicator} />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-          
-          
-          <View style={styles.endOfList}>
-            <Ionicons name="chatbubble-ellipses" size={32} color="#ccc" />
-            <Text style={styles.endOfListText}>No more messages</Text>
-            <Text style={styles.endOfListSubtext}>You're all caught up!</Text>
-          </View>
-        </ScrollView>
+                  {message.unread && (
+                    <View style={styles.unreadIndicator} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+            
+            
+            <View style={styles.endOfList}>
+              <Ionicons name="chatbubble-ellipses" size={32} color="#ccc" />
+              <Text style={styles.endOfListText}>No more messages</Text>
+            </View>
+          </ScrollView>
+        )}
       </View>
     </>
   );
@@ -337,6 +335,25 @@ const styles = StyleSheet.create({
   endOfListSubtext: {
     fontSize: 14,
     color: '#ccc',
+    textAlign: 'center',
+  },
+  // ADDED: Empty state styles
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#999',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#aaa',
+    marginTop: 8,
     textAlign: 'center',
   },
 });

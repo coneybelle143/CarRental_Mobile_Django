@@ -98,13 +98,13 @@ export default function BoardingHouseDetails() {
     Linking.openURL(`tel:${house.landlord.phone}`);
   };
 
-  const handleMessageLandlord = () => {
+const handleMessageLandlord = () => {
     router.push({
       pathname: '/(tenant)/chat',
       params: { 
-        landlordId: house.landlord.id,
-        landlordName: house.landlord.name,
-        landlordImage: house.landlord.image,
+        landlordId: house.landlord.id,       // <-- This now sends the correct ID
+        landlordName: house.landlord.name,     // <-- This now sends the correct Name
+        landlordImage: house.landlord.image,   // <-- This now sends the correct Image
         houseName: house.name
       }
     });
