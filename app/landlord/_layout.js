@@ -27,15 +27,15 @@ export default function LandlordLayout() {
       try {
         const jsonValue = await AsyncStorage.getItem(LISTINGS_STORAGE_KEY);
         if (jsonValue !== null) {
-          // We found saved data
+          // We found saved data, load it
           setListingsData(JSON.parse(jsonValue));
         } else {
-          // No saved data, so use the mock data for the first time
-          setListingsData(boardingHouses);
+          // No saved data, so set an empty list
+          setListingsData([]); // <--- THIS IS THE FIX
         }
       } catch (e) {
         console.error("Failed to load listings", e);
-        setListingsData(boardingHouses); // Use mock data as a fallback
+        setListingsData([]); // <--- THIS IS THE FIX (FALLBACK)
       } finally {
         setIsLoading(false);
       }
