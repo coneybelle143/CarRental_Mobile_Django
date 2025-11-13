@@ -97,6 +97,12 @@ export default function TenantLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
     
   );

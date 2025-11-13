@@ -47,12 +47,13 @@ export default function BoardingHouseDetails() {
   };
 
   const handleMessageLandlord = () => {
+    // Navigate to the chat screen with landlord and house details
     router.push({
-      pathname: '/(tenant)/messages',
+      pathname: '/(tenant)/chat',
       params: { 
-        landlordName: house.landlord.name,
         landlordId: house.landlord.id,
-        houseId: house.id,
+        landlordName: house.landlord.name,
+        landlordImage: house.landlord.image,
         houseName: house.name
       }
     });
@@ -333,12 +334,20 @@ export default function BoardingHouseDetails() {
                 </View>
               </View>
             </View>
-            <TouchableOpacity 
-              style={styles.viewProfileButton}
-              onPress={handleViewLandlordProfile}
-            >
-              <Text style={styles.viewProfileText}>View Profile</Text>
-            </TouchableOpacity>
+            <View style={styles.landlordActions}>
+              <TouchableOpacity 
+                style={styles.messageLandlordButton}
+                onPress={handleMessageLandlord}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={16} color="#667eea" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.viewProfileButton}
+                onPress={handleViewLandlordProfile}
+              >
+                <Text style={styles.viewProfileText}>View Profile</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -746,8 +755,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  landlordActions: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
+  messageLandlordButton: {
+    padding: 10,
+    backgroundColor: '#e0e7ff',
+    borderRadius: 20,
+  },
   viewProfileButton: {
-    alignSelf: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 8,
     backgroundColor: '#667eea',

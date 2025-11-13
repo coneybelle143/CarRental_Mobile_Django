@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { messages } from '../../data/mockData';
+import { router } from 'expo-router';
 import SearchBar from '../../components/SearchBar';
 
 export default function Messages() {
@@ -20,8 +21,20 @@ export default function Messages() {
     message.landlord.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handlePressMessage = (item) => {
+    router.push({
+      pathname: '/(tenant)/chat',
+      params: {
+        landlordId: item.landlord.id,
+        landlordName: item.landlord.name,
+        landlordImage: item.landlord.image,
+        houseName: item.houseName,
+      },
+    });
+  };
+
   const renderMessageItem = ({ item }) => (
-    <TouchableOpacity style={styles.messageItem}>
+    <TouchableOpacity style={styles.messageItem} onPress={() => handlePressMessage(item)}>
       <Image source={{ uri: item.landlord.image }} style={styles.avatar} />
       <View style={styles.messageContent}>
         <View style={styles.messageHeader}>
