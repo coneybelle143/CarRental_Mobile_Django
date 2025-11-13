@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // <-- ADDED useEffect
 import {
   View,
   Text,
@@ -8,12 +8,30 @@ import {
   ScrollView,
   TextInput,
   Switch,
+  Alert, // <-- ADDED Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const FilterModal = ({ visible, onClose, onApplyFilters, currentFilters }) => {
+// NEW: Helper function to safely parse number and apply default for empty/invalid
+const parsePrice = (priceString, defaultVal) => {
+  // Removes all non-numeric characters and then converts to integer
+  const num = parseInt(priceString?.replace(/[^0-9]/g, '') || '', 10);
+  return isNaN(num) ? defaultVal : num;
+};
+
+// RENAMED PROPS: using 'onApply' and 'currentFilters' to match home.js
+const FilterModal = ({ visible, onClose, onApply, currentFilters }) => { 
+  
+  // NEW STATE: Separate string states for text inputs
+  const currentMin = currentFilters?.priceRange ? currentFilters.priceRange[0].toString() : '';
+  const currentMax = currentFilters?.priceRange ? currentFilters.priceRange[1].toString() : '';
+  
+  const [minPrice, setMinPrice] = useState(currentMin);
+  const [maxPrice, setMaxPrice] = useState(currentMax);
+
+  // Existing state structure for other filters, currentized from currentFilters
   const [filters, setFilters] = useState(currentFilters || {
-    priceRange: [1000, 5000],
+    // priceRange will be managed by minPrice/maxPrice state and overwritten in handleApply
     roomType: '',
     amenities: [],
     location: '',
@@ -25,6 +43,27 @@ const FilterModal = ({ visible, onClose, onApplyFilters, currentFilters }) => {
   const amenitiesList = ['WiFi', 'Aircon', 'Kitchen', 'Laundry', 'Parking', 'CR', '24/7 Security', 'Study Area'];
   const locations = ['Divisoria', 'Nazareth', 'Carmen', 'Lapasan', 'Corrales Ext', 'Kauswagan', 'Gusa'];
 
+  // NEW: useEffect to correctly sync local state when the modal opens or current filters change
+  useEffect(() => {
+    if (visible) {
+      const currentMin = currentFilters?.priceRange ? currentFilters.priceRange[0].toString() : '';
+      const currentMax = currentFilters?.priceRange ? currentFilters.priceRange[1].toString() : '';
+      
+      setMinPrice(currentMin);
+      setMaxPrice(currentMax);
+      
+      // Sync the rest of the filters
+      setFilters(currentFilters || {
+        roomType: '',
+        amenities: [],
+        location: '',
+        withPhotos: false,
+        verifiedOnly: false,
+      });
+    }
+  }, [visible, currentFilters]);
+
+  // Existing logic for other filters...
   const toggleAmenity = (amenity) => {
     setFilters(prev => ({
       ...prev,
@@ -40,181 +79,203 @@ const FilterModal = ({ visible, onClose, onApplyFilters, currentFilters }) => {
       roomType: prev.roomType === type ? '' : type
     }));
   };
-
-  const handleApply = () => {
-    onApplyFilters(filters);
-    onClose();
+  
+  const toggleLocation = (loc) => {
+    setFilters(prev => ({
+      ...prev,
+      location: prev.location === loc ? '' : loc
+    }));
   };
 
-  const handleReset = () => {
+
+  const handleApply = () => {
+    // Use 0 as default for empty min (no minimum price)
+    const minNum = parsePrice(minPrice, 0); 
+    // Use a large number (e.g., 999999) as default for empty max price (no maximum price limit)
+    const maxNum = parsePrice(maxPrice, 999999); 
+    
+    const filtersToApply = {
+        ...filters,
+        // Override the priceRange with the new, parsed, and customizable values
+        priceRange: [minNum, maxNum],
+    };
+    
+    // Pass the new filters to home.js, which performs the MIN < MAX validation
+    onApply(filtersToApply);
+    onClose(); // Close the modal after applying
+  };
+  
+  const handleClear = () => {
+    setMinPrice('');
+    setMaxPrice('');
     setFilters({
-      priceRange: [1000, 5000],
+      priceRange: [0, 999999], 
       roomType: '',
       amenities: [],
       location: '',
       withPhotos: false,
       verifiedOnly: false,
     });
+    // Don't close, allow user to apply or adjust
   };
 
   return (
     <Modal
-      visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      transparent={true}
+      visible={visible} // Renamed from isVisible in my previous example, using your prop name
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Filters</Text>
-          <TouchableOpacity onPress={handleReset} style={styles.resetButton}>
-            <Text style={styles.resetText}>Reset</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Price Range</Text>
-            <View style={styles.priceRangeContainer}>
-              <View style={styles.priceInputContainer}>
-                <Text style={styles.priceLabel}>Min</Text>
-                <View style={styles.priceInput}>
+      <View style={styles.centeredView}>
+        <View style={styles.modalView}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close-circle-outline" size={30} color="#667eea" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Filter Listings</Text>
+            <TouchableOpacity onPress={handleClear} style={styles.clearButton}>
+              <Text style={styles.clearButtonText}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.scrollView}>
+            
+            {/* Price Range Filter (UPDATED JSX) */}
+            <View style={styles.filterSection}>
+              <Text style={styles.sectionTitle}>Price Range (per month)</Text>
+              <View style={styles.priceInputsContainer}>
+                
+                {/* Minimum Price Input */}
+                <View style={styles.priceInputWrapper}>
                   <Text style={styles.currency}>₱</Text>
                   <TextInput
-                    style={styles.priceTextInput}
-                    value={filters.priceRange[0].toString()}
-                    onChangeText={(text) => {
-                      const min = parseInt(text) || 0;
-                      setFilters(prev => ({
-                        ...prev,
-                        priceRange: [min, prev.priceRange[1]]
-                      }));
-                    }}
+                    style={styles.textInput}
+                    placeholder="Min (e.g., 1000)"
                     keyboardType="numeric"
+                    value={minPrice}
+                    onChangeText={setMinPrice}
                   />
                 </View>
-              </View>
-              <View style={styles.priceSeparator} />
-              <View style={styles.priceInputContainer}>
-                <Text style={styles.priceLabel}>Max</Text>
-                <View style={styles.priceInput}>
+
+                <Text style={styles.separator}>to</Text>
+                
+                {/* Maximum Price Input (FIXED: Customizable max and placeholder) */}
+                <View style={styles.priceInputWrapper}>
                   <Text style={styles.currency}>₱</Text>
                   <TextInput
-                    style={styles.priceTextInput}
-                    value={filters.priceRange[1].toString()}
-                    onChangeText={(text) => {
-                      const max = parseInt(text) || 5000;
-                      setFilters(prev => ({
-                        ...prev,
-                        priceRange: [prev.priceRange[0], max]
-                      }));
-                    }}
+                    style={styles.textInput}
+                    // Custom placeholder and linked to the new string state
+                    placeholder="Max (e.g., 5000)" 
                     keyboardType="numeric"
+                    value={maxPrice}
+                    onChangeText={setMaxPrice}
                   />
                 </View>
               </View>
             </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Room Type</Text>
-            <View style={styles.roomTypeContainer}>
-              {roomTypes.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.roomTypeButton,
-                    filters.roomType === type && styles.roomTypeButtonActive
-                  ]}
-                  onPress={() => toggleRoomType(type)}
-                >
-                  <Text style={[
-                    styles.roomTypeText,
-                    filters.roomType === type && styles.roomTypeTextActive
-                  ]}>
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            
+            {/* Room Type Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.sectionTitle}>Room Type</Text>
+              <View style={styles.roomTypeContainer}>
+                {roomTypes.map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.roomTypeButton,
+                      filters.roomType === type && styles.roomTypeButtonActive,
+                    ]}
+                    onPress={() => toggleRoomType(type)}
+                  >
+                    <Text
+                      style={[
+                        styles.roomTypeText,
+                        filters.roomType === type && styles.roomTypeTextActive,
+                      ]}
+                    >
+                      {type}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Location</Text>
-            <View style={styles.locationContainer}>
-              {locations.map((location) => (
-                <TouchableOpacity
-                  key={location}
-                  style={[
-                    styles.locationButton,
-                    filters.location === location && styles.locationButtonActive
-                  ]}
-                  onPress={() => setFilters(prev => ({
-                    ...prev,
-                    location: prev.location === location ? '' : location
-                  }))}
-                >
-                  <Text style={[
-                    styles.locationText,
-                    filters.location === location && styles.locationTextActive
-                  ]}>
-                    {location}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            {/* Amenities Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.sectionTitle}>Amenities</Text>
+              <View style={styles.amenitiesContainer}>
+                {amenitiesList.map((amenity) => (
+                  <TouchableOpacity
+                    key={amenity}
+                    style={[
+                      styles.amenityButton,
+                      filters.amenities.includes(amenity) && styles.amenityButtonActive,
+                    ]}
+                    onPress={() => toggleAmenity(amenity)}
+                  >
+                    <Text
+                      style={[
+                        styles.amenityText,
+                        filters.amenities.includes(amenity) && styles.amenityTextActive,
+                      ]}
+                    >
+                      {amenity}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
+            
+            {/* Location Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.sectionTitle}>Location</Text>
+              <View style={styles.optionsContainer}>
+                {locations.map((loc) => (
+                  <TouchableOpacity
+                    key={loc}
+                    style={[
+                      styles.locationButton,
+                      filters.location === loc && styles.locationButtonActive,
+                    ]}
+                    onPress={() => toggleLocation(loc)}
+                  >
+                    <Text
+                      style={[
+                        styles.locationText,
+                        filters.location === loc && styles.locationTextActive,
+                      ]}
+                    >
+                      {loc}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Amenities</Text>
-            <View style={styles.amenitiesContainer}>
-              {amenitiesList.map((amenity) => (
-                <TouchableOpacity
-                  key={amenity}
-                  style={[
-                    styles.amenityButton,
-                    filters.amenities.includes(amenity) && styles.amenityButtonActive
-                  ]}
-                  onPress={() => toggleAmenity(amenity)}
-                >
-                  <Text style={[
-                    styles.amenityText,
-                    filters.amenities.includes(amenity) && styles.amenityTextActive
-                  ]}>
-                    {amenity}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            {/* Other Toggles */}
+            <View style={styles.filterSection}>
+              <View style={styles.switchContainer}>
+                <Text style={styles.switchText}>Show only listings with photos</Text>
+                <Switch
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, withPhotos: value }))}
+                  value={filters.withPhotos}
+                  trackColor={{ false: '#e9ecef', true: '#667eea' }}
+                  thumbColor={'#fff'}
+                />
+              </View>
+              <View style={styles.switchContainer}>
+                <Text style={styles.switchText}>Show only verified listings</Text>
+                <Switch
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, verifiedOnly: value }))}
+                  value={filters.verifiedOnly}
+                  trackColor={{ false: '#e9ecef', true: '#667eea' }}
+                  thumbColor={'#fff'}
+                />
+              </View>
             </View>
-          </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Additional Filters</Text>
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchLabel}>With Photos Only</Text>
-              <Switch
-                value={filters.withPhotos}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, withPhotos: value }))}
-                trackColor={{ false: '#f0f0f0', true: '#667eea' }}
-                thumbColor={filters.withPhotos ? '#fff' : '#f4f3f4'}
-              />
-            </View>
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchLabel}>Verified Landlords Only</Text>
-              <Switch
-                value={filters.verifiedOnly}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, verifiedOnly: value }))}
-                trackColor={{ false: '#f0f0f0', true: '#667eea' }}
-                thumbColor={filters.verifiedOnly ? '#fff' : '#f4f3f4'}
-              />
-            </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
 
-        <View style={styles.footer}>
           <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
             <Text style={styles.applyButtonText}>Apply Filters</Text>
           </TouchableOpacity>
@@ -224,96 +285,98 @@ const FilterModal = ({ visible, onClose, onApplyFilters, currentFilters }) => {
   );
 };
 
+// ... Styles (using existing user styles but adding necessary new ones) ...
 const styles = StyleSheet.create({
-  container: {
+  centeredView: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalView: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    height: '80%', 
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
+    marginBottom: 20,
   },
   closeButton: {
-    padding: 4,
+    padding: 5,
   },
-  title: {
-    fontSize: 18,
+  headerTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
   },
-  resetButton: {
-    padding: 4,
+  clearButton: {
+    padding: 5,
   },
-  resetText: {
-    color: '#667eea',
+  clearButtonText: {
+    color: '#ff3b30',
+    fontSize: 16,
     fontWeight: '600',
   },
-  content: {
+  scrollView: {
     flex: 1,
-    padding: 20,
   },
-  section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+  filterSection: {
+    marginBottom: 25,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  priceRangeContainer: {
+  // NEW PRICE INPUT STYLES
+  priceInputsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    gap: 10,
   },
-  priceInputContainer: {
-    flex: 1,
-  },
-  priceLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  priceInput: {
+  priceInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f8f9fa',
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e9ecef',
-    borderRadius: 8,
     paddingHorizontal: 12,
-    height: 44,
+    flex: 1,
+    height: 50,
   },
   currency: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
-    marginRight: 4,
+    marginRight: 5,
+    fontWeight: '600',
   },
-  priceTextInput: {
+  textInput: {
     flex: 1,
     fontSize: 16,
     color: '#333',
+    // Remove vertical padding that might push the container height
+    paddingVertical: 0, 
   },
-  priceSeparator: {
-    width: 12,
-    height: 1,
-    backgroundColor: '#ccc',
-    marginTop: 20,
+  separator: {
+    fontSize: 16,
+    color: '#666',
+    marginHorizontal: 10,
   },
+  // END NEW PRICE INPUT STYLES
+
+  // Existing styles adjusted for clarity
   roomTypeContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -339,7 +402,7 @@ const styles = StyleSheet.create({
   roomTypeTextActive: {
     color: 'white',
   },
-  locationContainer: {
+  optionsContainer: { // Used for Location
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
@@ -395,27 +458,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#f5f5f5',
   },
-  switchLabel: {
+  switchText: {
     fontSize: 16,
     color: '#333',
   },
-  footer: {
-    padding: 20,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e5e5',
-  },
   applyButton: {
     backgroundColor: '#667eea',
+    padding: 15,
     borderRadius: 12,
-    paddingVertical: 16,
     alignItems: 'center',
+    marginTop: 20,
   },
   applyButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
   },
 });
