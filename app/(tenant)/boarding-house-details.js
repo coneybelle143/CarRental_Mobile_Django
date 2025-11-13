@@ -535,7 +535,7 @@ export default function BoardingHouseDetails() {
           <Ionicons name="heart-outline" size={20} color="white" />
           <Text style={styles.interestButtonText}>Interested</Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity 
           style={styles.bookButton}
           onPress={handleReadyToBook}
@@ -945,12 +945,19 @@ const styles = StyleSheet.create({
   },
   
   bottomActionBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     flexDirection: 'row',
     backgroundColor: 'white',
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
     borderTopWidth: 1,
     borderTopColor: '#e5e5e5',
-    gap: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   callButton: {
     flex: 1,
@@ -961,8 +968,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#667eea',
     borderRadius: 12,
-    paddingVertical: 16,
-    gap: 8,
+    paddingVertical: 14,
+    marginRight: 8,
   },
   callButtonText: {
     color: '#667eea',
@@ -976,8 +983,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#f59e0b',
     borderRadius: 12,
-    paddingVertical: 16,
-    gap: 8,
+    paddingVertical: 14,
+    marginHorizontal: 8,
   },
   interestButtonText: {
     color: 'white',
@@ -991,8 +998,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#10b981',
     borderRadius: 12,
-    paddingVertical: 16,
-    gap: 8,
+    paddingVertical: 14,
+    marginLeft: 8,
   },
   bookButtonText: {
     color: 'white',
