@@ -1,7 +1,4 @@
-
-
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // ADD: useEffect
 import {
   View,
   Text,
@@ -9,25 +6,62 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator, // ADD: ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import FilterModal from '../../components/FilterModal';
 import { router } from 'expo-router'; 
 import BoardingHouseCard from '../../components/BoardingHouseCard';
 import SearchBar from '../../components/SearchBar';
-import { useListings } from '../../hooks/useListings';
+// REMOVE: import { useListings } from '../../hooks/useListings';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // ADD
+import { boardingHouses as mockData } from '../../data/mockData'; // ADD (make sure this path is correct)
+
+// ADD: The same key the landlord app uses to save
+const LISTINGS_STORAGE_KEY = '@landlord_listings';
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
-  const [activeFilters, setActiveFilters] = useState(null); // This will hold the filter state object
-  const boardingHouses = useListings();
+  const [activeFilters, setActiveFilters] = useState(null);
+  
+  // --- START OF NEW DATA LOADING LOGIC ---
+  const [boardingHouses, setBoardingHouses] = useState([]); // This will hold our listings
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Load listings from the phone's storage
+    const loadListingsFromStorage = async () => {
+      try {
+        const jsonValue = await AsyncStorage.getItem(LISTINGS_STORAGE_KEY);
+        if (jsonValue !== null) {
+          // We found saved data, use it
+          setBoardingHouses(JSON.parse(jsonValue));
+        } else {
+          // No saved data, use the default mock data
+          setBoardingHouses(mockData);
+        }
+      } catch (e) {
+        console.error("Failed to load listings", e);
+        setBoardingHouses(mockData); // Use mock data as a fallback
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadListingsFromStorage();
+  }, []); // The empty [] means this only runs once on startup
+  // --- END OF NEW DATA LOADING LOGIC ---
+
 
   const handleApplyFilters = (filters) => {
+    // ... (this function is unchanged)
     setActiveFilters(filters);
   };
 
   const filteredHouses = boardingHouses.filter(house => {
+    // ... (this filter logic is unchanged)
+    
     // Search filter
     const matchesSearch = house.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          house.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -52,23 +86,25 @@ export default function Home() {
                               house.amenities.includes(amenity));
     
     // Verified landlord filter
-    const matchesVerified = !activeFilters.verifiedOnly || house.landlord.verified;
+    // ADD: Check if landlord object exists before accessing 'verified'
+    const matchesVerified = !activeFilters.verifiedOnly || (house.landlord && house.landlord.verified);
 
     return matchesSearch && matchesPrice && matchesType && matchesLocation && 
            matchesAmenities && matchesVerified;
   });
 
   const clearFilters = () => {
-    // Also clear withPhotos filter if it was added
+    // ... (this function is unchanged)
     setActiveFilters(null);
   };
 
   const handleHousePress = (house) => {
-  router.push({
-    pathname: '/(tenant)/boarding-house-details',
-    params: { id: house.id }
-  });
-};
+    // ... (this function is unchanged)
+    router.push({
+      pathname: '/(tenant)/boarding-house-details',
+      params: { id: house.id }
+    });
+  };
 
   const renderBoardingHouse = ({ item }) => (
     <BoardingHouseCard 
@@ -77,9 +113,19 @@ export default function Home() {
     />
   );
 
+  // ADD: Show a loading screen while data is loaded
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#667eea" />
+        <Text style={{ marginTop: 10, color: '#666' }}>Loading boarding houses...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* ... (rest of your JSX header is unchanged) ... */}
       <View style={styles.header}> 
         <View style={styles.headerContent}>
           <Text style={styles.greeting}>Hello, Tenant!</Text>
@@ -91,8 +137,8 @@ export default function Home() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Search Bar and Filter */}
-        <View style={styles.searchContainer}>
+        {/* ... (rest of your JSX is unchanged) ... */}
+         <View style={styles.searchContainer}>
           <SearchBar
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -221,6 +267,7 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
+  // ... (all your existing styles are unchanged)
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',

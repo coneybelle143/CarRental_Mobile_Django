@@ -1,5 +1,6 @@
+// PASTE THIS INTO app/(tenant)/boarding-house-details.js
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,12 +14,15 @@ import {
   Alert,
   Modal,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { boardingHouses } from '../../data/mockData';
+import { boardingHouses as mockData } from '../../data/mockData'; 
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
 
 const { width: screenWidth } = Dimensions.get('window');
+const LISTINGS_STORAGE_KEY = '@landlord_listings'; 
 
 export default function BoardingHouseDetails() {
   const { id } = useLocalSearchParams();
@@ -31,23 +35,70 @@ export default function BoardingHouseDetails() {
   const [bookingGuests, setBookingGuests] = useState('1');
   const scrollViewRef = useRef(null);
     
-  
-  const house = boardingHouses.find(h => h.id === id);
+  const [house, setHouse] = useState(null); 
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadHouseFromStorage = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        const jsonValue = await AsyncStorage.getItem(LISTINGS_STORAGE_KEY);
+        const allListings = jsonValue != null ? JSON.parse(jsonValue) : mockData;
+        
+        const foundHouse = allListings.find(h => String(h.id) === String(id)); 
+        
+        setHouse(foundHouse); 
+      } catch (e) {
+        console.error("Failed to load house details", e);
+        setHouse(mockData.find(h => String(h.id) === String(id)));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadHouseFromStorage();
+  }, [id]); 
+
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#667eea" />
+      </View>
+    );
+  }
 
   if (!house) {
     return (
       <View style={styles.container}>
-        <Text>House not found</Text>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          <Text style={{fontSize: 18, color: '#666'}}>House not found</Text>
+          <Text style={{fontSize: 14, color: '#999', marginTop: 8}}>The listing may have been removed.</Text>
+        </View>
       </View>
     );
   }
+
+  // ... (All other functions from your original file go here)
+  // handleCallLandlord, handleMessageLandlord, handleImageScroll, etc.
 
   const handleCallLandlord = () => {
     Linking.openURL(`tel:${house.landlord.phone}`);
   };
 
   const handleMessageLandlord = () => {
-    // Navigate to the chat screen with landlord and house details
     router.push({
       pathname: '/(tenant)/chat',
       params: { 
@@ -88,7 +139,6 @@ export default function BoardingHouseDetails() {
   };
 
   const submitInquiry = () => {
-   
     const inquiryData = {
       houseId: house.id,
       houseName: house.name,
@@ -191,6 +241,7 @@ export default function BoardingHouseDetails() {
     </View>
   );
 
+
   return (
     <View style={styles.container}>
       
@@ -207,6 +258,7 @@ export default function BoardingHouseDetails() {
         </TouchableOpacity>
       </View>
 
+      
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         
         <View style={styles.imageSection}>
@@ -557,6 +609,7 @@ export default function BoardingHouseDetails() {
   );
 }
 
+// ... (all the styles are exactly the same)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
