@@ -19,6 +19,7 @@ const SearchBar = ({ value, onChangeText, placeholder = "Search..." }) => {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1, // <--- ADD THIS LINE
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
