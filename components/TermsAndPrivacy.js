@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-// --- TERMS AND PRIVACY CONTENT ---
 const TERMS_OF_SERVICE = `
 1. Acceptance of Terms
 By accessing or using the Boarding House Finder app, you agree to be bound by these Terms of Service (ToS). We reserve the right to modify these terms at any time.
@@ -41,7 +40,6 @@ We employ industry-standard security measures to protect your information from u
 
 THANKS FOR READING OUR TERMS OF SERVICE AND PRIVACY POLICY. GIVE US A CALL IF YOU HAVE ANY QUESTIONS!
 `;
-// --- END NEW CONTENT ---
 
 
 export default function TermsAndPrivacyScreen({ onBack }) {
@@ -96,7 +94,7 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 20,
     backgroundColor: 'white',
-    // Added border to match menu header style when not shadowed
+
     borderBottomWidth: 1, 
     borderBottomColor: '#f5f5f5', 
   },
@@ -122,7 +120,7 @@ const styles = StyleSheet.create({
   backToMenuPlaceholder: {
     width: 40, 
   },
-  // Policy Content Styles
+
   policySection: {
     marginHorizontal: 20,
     marginTop: 10,
@@ -151,11 +149,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingHorizontal: 5,
   },
-  // Action Bar Styles (Consistent with other bottom actions)
+  
   bottomActionBar: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 24, // Matches standard bottom padding
+    paddingBottom: 24,
     backgroundColor: 'white',
     borderTopWidth: 1,
     borderTopColor: '#e5e5e5',

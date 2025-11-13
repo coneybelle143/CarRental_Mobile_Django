@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; // <-- ADDED useState
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import TermsAndPrivacyScreen from '../../components/TermsAndPrivacy'; // <-- IMPORT NEW SCREEN
+import TermsAndPrivacyScreen from '../../components/TermsAndPrivacy';
 
 export default function Menu() {
-  const [showTerms, setShowTerms] = useState(false); // <-- NEW STATE
+  const [showTerms, setShowTerms] = useState(false);
 
   const menuItems = [
     {
@@ -51,7 +51,7 @@ export default function Menu() {
       icon: 'document-text',
       title: 'Terms & Privacy',
       description: 'Legal information and policies',
-      action: 'showTerms', // <-- NEW ACTION
+      action: 'showTerms',
     },
   ];
 
@@ -78,20 +78,18 @@ export default function Menu() {
 
   const handleMenuPress = (item) => {
     if (item.action === 'showTerms') {
-        setShowTerms(true); // <-- Show the new screen
+        setShowTerms(true);
     } else if (item.screen === 'profile') {
       router.push('/profile');
     }
-    // Add other screen navigations here as needed
+
   };
   
-  // CONDITIONAL RENDERING: Display the TermsAndPrivacyScreen if showTerms is true
+
   if (showTerms) {
-    // Pass a function to hide the screen when the back button is pressed
     return <TermsAndPrivacyScreen onBack={() => setShowTerms(false)} />;
   }
 
-  // MAIN MENU RENDERING (Original Logic)
   return (
     <View style={styles.container}>
       <View style={styles.header}>
