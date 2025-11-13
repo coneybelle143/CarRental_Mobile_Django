@@ -1,23 +1,55 @@
- 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Image,
   FlatList,
+  ActivityIndicator, 
+  Alert, // 1. MODIFIED: Import Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { messages } from '../../data/mockData';
-import { router } from 'expo-router';
+import { messages as mockMessages } from '../../data/mockData'; 
+import { router, useFocusEffect } from 'expo-router'; 
 import SearchBar from '../../components/SearchBar';
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
+
+const MESSAGES_STORAGE_KEY = '@tenant_messages'; 
 
 export default function Messages() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [allMessages, setAllMessages] = useState([]); 
+  const [isLoading, setIsLoading] = useState(true); 
 
-  const filteredMessages = messages.filter(message =>
+  
+  const loadMessages = async () => {
+    try {
+      const jsonValue = await AsyncStorage.getItem(MESSAGES_STORAGE_KEY);
+      if (jsonValue !== null) {
+        setAllMessages(JSON.parse(jsonValue));
+      } else {
+        await AsyncStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify([]));
+        setAllMessages([]);
+      }
+    } catch (e) {
+      console.error("Failed to load messages", e);
+      setAllMessages([]); 
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  
+  useFocusEffect(
+    useCallback(() => {
+      setIsLoading(true);
+      loadMessages();
+    }, [])
+  );
+
+  
+  const filteredMessages = allMessages.filter(message =>
     message.landlord.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -33,8 +65,51 @@ export default function Messages() {
     });
   };
 
+  // 2. ADDED: Function to handle deleting a conversation
+  const handleDeleteMessage = (itemToDelete) => {
+    Alert.alert(
+      "Delete Conversation",
+      `Are you sure you want to delete your conversation with ${itemToDelete.landlord.name}? This cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Filter out the deleted message
+              const newMessagesList = allMessages.filter(
+                (item) => item.id !== itemToDelete.id
+              );
+              
+              // Update the UI
+              setAllMessages(newMessagesList);
+              
+              // Save the new list to storage
+              await AsyncStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(newMessagesList));
+            } catch (e) {
+              console.error("Failed to delete message", e);
+              Alert.alert("Error", "Could not delete conversation.");
+              // Optional: reload messages to revert UI
+              loadMessages();
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderMessageItem = ({ item }) => (
-    <TouchableOpacity style={styles.messageItem} onPress={() => handlePressMessage(item)}>
+    <TouchableOpacity 
+      style={styles.messageItem} 
+      onPress={() => handlePressMessage(item)}
+      // 3. MODIFIED: Add the onLongPress handler
+      onLongPress={() => handleDeleteMessage(item)}
+      delayLongPress={500} // Time in ms to trigger long press
+    >
       <Image source={{ uri: item.landlord.image }} style={styles.avatar} />
       <View style={styles.messageContent}>
         <View style={styles.messageHeader}>
@@ -58,6 +133,17 @@ export default function Messages() {
       )}
     </TouchableOpacity>
   );
+  
+  if (isLoading) {
+    return (
+       <View style={[styles.container, {justifyContent: 'center', alignItems: 'center'}]}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Messages</Text>
+          </View>
+          <ActivityIndicator size="large" color="#667eea" />
+       </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -68,7 +154,6 @@ export default function Messages() {
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <SearchBar
           value={searchQuery}
@@ -76,16 +161,23 @@ export default function Messages() {
           placeholder="Search messages..."
         />
       </View>
+      
+      {filteredMessages.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="chatbubbles-outline" size={64} color="#ccc" />
+          <Text style={styles.emptyText}>No messages yet</Text>
+          <Text style={styles.emptySubtext}>Start a conversation with a landlord.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredMessages} 
+          renderItem={renderMessageItem}
+          keyExtractor={item => item.id}
+          style={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
-      <FlatList
-        data={filteredMessages}
-        renderItem={renderMessageItem}
-        keyExtractor={item => item.id}
-        style={styles.messagesList}
-        showsVerticalScrollIndicator={false}
-      />
-
-      {/* Start New Message FAB */}
       <TouchableOpacity style={styles.fab}>
         <Ionicons name="create" size={24} color="white" />
       </TouchableOpacity>
@@ -93,6 +185,7 @@ export default function Messages() {
   );
 }
 
+// ... (Styles are unchanged)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -197,5 +290,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#999',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#aaa',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

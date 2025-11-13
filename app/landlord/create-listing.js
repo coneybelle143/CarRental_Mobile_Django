@@ -14,8 +14,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router'; 
 import { Colors } from '../../constants/Colors';
 import PropertyImageGrid from '../../components/PropertyImageGrid';
-import { boardingHouses } from '../../data/mockData'; 
-import { GlobalListingContext } from './_layout'; 
+import { boardingHouses } from '../../data/mockData';
+import { GlobalListingContext } from './_layout';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './AuthContext'; // 1. MODIFIED: Import useAuth
 
@@ -24,7 +24,7 @@ export default function CreateListing() {
   const params = useLocalSearchParams(); 
   const navigation = useNavigation();
   const { listings, updateListing } = useContext(GlobalListingContext); 
-  const { user } = useAuth(); // <--- 1. ADDED THIS LINE
+  const { user } = useAuth(); 
 
   const [isEditing, setIsEditing] = useState(false);
   // ... (all other useState hooks are unchanged) ...
@@ -259,15 +259,16 @@ export default function CreateListing() {
       rating: isEditing ? undefined : 4.5, 
       reviews: isEditing ? undefined : 0, 
 
-      // <--- 2. MODIFIED THIS OBJECT
+      // <--- THIS IS THE FIX ---
       landlord: {
-        id: user?.id, // <-- This MUST be here
+        id: user?.email, // Use the user's EMAIL as the unique ID
         name: user?.name || 'Landlord',
         phone: user?.phone || 'Not Provided',
         verified: user?.verified || true, 
         email: user?.email || 'Not Provided',
-        image: user?.photoURL // <-- This MUST be here
+        image: user?.photoURL 
       }
+      // --- END OF FIX ---
     };
     
     // ... (rest of submit logic is unchanged) ...
