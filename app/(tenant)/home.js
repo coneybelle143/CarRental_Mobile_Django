@@ -6,7 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator, // ADD: ActivityIndicator
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import FilterModal from '../../components/FilterModal';
@@ -15,7 +16,7 @@ import BoardingHouseCard from '../../components/BoardingHouseCard';
 import SearchBar from '../../components/SearchBar';
 // REMOVE: import { useListings } from '../../hooks/useListings';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // ADD
-import { boardingHouses as mockData } from '../../data/mockData'; // ADD (make sure this path is correct)
+import { boardingHouses as mockData } from '../../data/mockData'; // ADD (make sure this path is correct)r
 
 // ADD: The same key the landlord app uses to save
 const LISTINGS_STORAGE_KEY = '@landlord_listings';
@@ -54,9 +55,23 @@ export default function Home() {
   // --- END OF NEW DATA LOADING LOGIC ---
 
 
-  const handleApplyFilters = (filters) => {
-    // ... (this function is unchanged)
+  const applyFilters = (filters) => {
+    // *** NEW: Price range validation ***
+    if (filters.priceRange) {
+      const [min, max] = filters.priceRange;
+      if (max < min) {
+        Alert.alert(
+          "Filter Error",
+          "The maximum price cannot be lower than the minimum price."
+        );
+        // Do not apply the filters, so the modal stays open for correction
+        return; 
+      }
+    }
+
+    // Apply filters and close modal
     setActiveFilters(filters);
+    setFilterModalVisible(false);
   };
 
   const filteredHouses = boardingHouses.filter(house => {
@@ -259,7 +274,7 @@ export default function Home() {
       <FilterModal
         visible={isFilterModalVisible}
         onClose={() => setFilterModalVisible(false)}
-        onApplyFilters={handleApplyFilters}
+        onApply={applyFilters}
         currentFilters={activeFilters}
       />
     </View>
