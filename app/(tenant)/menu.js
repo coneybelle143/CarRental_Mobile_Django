@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react'; // <-- ADDED useState
 import {
   View,
   Text,
@@ -10,8 +10,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import TermsAndPrivacyScreen from '../../components/TermsAndPrivacy'; // <-- IMPORT NEW SCREEN
 
 export default function Menu() {
+  const [showTerms, setShowTerms] = useState(false); // <-- NEW STATE
+
   const menuItems = [
     {
       icon: 'person',
@@ -48,6 +51,7 @@ export default function Menu() {
       icon: 'document-text',
       title: 'Terms & Privacy',
       description: 'Legal information and policies',
+      action: 'showTerms', // <-- NEW ACTION
     },
   ];
 
@@ -64,19 +68,7 @@ export default function Menu() {
           text: "Log Out",
           style: "destructive",
           onPress: () => {
-            // Here you would typically:
-            // 1. Clear user data from storage
-            // 2. Clear authentication tokens
-            // 3. Reset any global state
-            // 4. Navigate to login screen
-            
             console.log('User logged out');
-            
-            // Clear any stored data (example)
-            // await SecureStore.deleteItemAsync('userToken');
-            // await AsyncStorage.clear();
-            
-            // Navigate back to login screen
             router.replace('/');
           }
         }
@@ -85,15 +77,21 @@ export default function Menu() {
   };
 
   const handleMenuPress = (item) => {
-    if (item.screen === 'profile') {
+    if (item.action === 'showTerms') {
+        setShowTerms(true); // <-- Show the new screen
+    } else if (item.screen === 'profile') {
       router.push('/profile');
     }
     // Add other screen navigations here as needed
-    // else if (item.screen === 'favorites') {
-    //   router.push('/favorites');
-    // }
   };
+  
+  // CONDITIONAL RENDERING: Display the TermsAndPrivacyScreen if showTerms is true
+  if (showTerms) {
+    // Pass a function to hide the screen when the back button is pressed
+    return <TermsAndPrivacyScreen onBack={() => setShowTerms(false)} />;
+  }
 
+  // MAIN MENU RENDERING (Original Logic)
   return (
     <View style={styles.container}>
       <View style={styles.header}>
