@@ -1,6 +1,4 @@
-// app/(tenant)/menu.js
-
-import React, { useState } from 'react'; 
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,11 +10,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-// ⬅️ CRITICAL LINE: Ensure the path is correct based on your file structure
-import TermsAndPrivacyScreen from '../../components/TermsAndPrivacy'; 
+import { Colors } from '../../constants/Colors';
+import { useAuth } from './AuthContext';
+import ShareProfileModal from '../../components/ShareProfileModal';
 
-export default function Menu() {
-  const [showTerms, setShowTerms] = useState(false); 
+export default function LandlordMenuScreen() {
+  const { user, logout } = useAuth();
+  const [isShareModalVisible, setShareModalVisible] = useState(false);
 
   const menuItems = [
     {
@@ -26,35 +26,28 @@ export default function Menu() {
       screen: 'profile',
     },
     {
-      icon: 'heart',
-      title: 'Favorites',
-      description: 'View your saved boarding houses',
+      icon: 'chatbubbles',
+      title: 'Tenant Inquiries',
+      description: 'View messages and inquiries',
+      screen: 'inquiries',
     },
     {
-      icon: 'calendar',
-      title: 'Bookings',
-      description: 'Check your current and past bookings',
-    },
-    {
-      icon: 'card',
-      title: 'Payments',
-      description: 'View payment history and methods',
+      icon: 'wallet',
+      title: 'Financials & Payments',
+      description: 'View rent collections and statements',
+      screen: 'financials',
     },
     {
       icon: 'settings',
-      title: 'Settings',
-      description: 'App preferences and notifications',
+      title: 'App Settings',
+      description: 'Preferences and notification options',
+      screen: 'settings',
     },
     {
       icon: 'help-circle',
       title: 'Help & Support',
       description: 'Get help and contact support',
-    },
-    {
-      icon: 'document-text',
-      title: 'Terms & Privacy',
-      description: 'Legal information and policies',
-      action: 'showTerms', // <-- This triggers the state change
+      screen: 'support',
     },
   ];
 
@@ -71,7 +64,7 @@ export default function Menu() {
           text: "Log Out",
           style: "destructive",
           onPress: () => {
-            console.log('User logged out');
+            logout();
             router.replace('/');
           }
         }
@@ -80,86 +73,93 @@ export default function Menu() {
   };
 
   const handleMenuPress = (item) => {
-    if (item.action === 'showTerms') {
-        setShowTerms(true); 
-    } else if (item.screen === 'profile') {
-      router.push('/profile');
+    if (item.screen === 'profile') {
+      router.push('/landlord/edit-profile');
+    } else if (item.screen === 'inquiries') {
+      router.push('/landlord/inquiries');
+    } else if (item.screen === 'financials') {
+      router.push('/landlord/financials');
+    } else if (item.screen === 'settings') {
+      router.push('/landlord/settings');
+    } else if (item.screen === 'support') {
+      router.push('/landlord/support');
     }
-    // Add other screen navigations here as needed
   };
-  
-  // CONDITIONAL RENDERING: This is what switches the view
-  if (showTerms) {
-    return <TermsAndPrivacyScreen onBack={() => setShowTerms(false)} />;
-  }
 
-  // --- Main Menu Rendering (Rest of your existing code) ---
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Menu</Text>
-      </View>
-
-      <ScrollView style={styles.content}>
-        {/* User Profile Section */}
-        <View style={styles.profileSection}>
-          <Image
-            source={{ uri: 'https://i.insider.com/5d9f454ee94e865e924818da?width=700' }}
-            style={styles.profileImage}
-          />
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>Jesse Pinkman</Text>
-            <Text style={styles.profileEmail}>jessepinkmanyo@gmail.com</Text>
-            <Text style={styles.profileType}>Tenant</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.editProfileButton}
-            onPress={() => router.push('/profile')}
-          >
-            <Ionicons name="create" size={20} color="#667eea" />
-          </TouchableOpacity>
+    <>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Account Menu</Text>
         </View>
 
-        {/* Menu Items */}
-        <View style={styles.menuSection}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.menuItem}
-              onPress={() => handleMenuPress(item)}
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          
+          <View style={styles.profileSection}>
+            <Image
+              source={{ 
+                uri: user?.photoURL || 'https://via.placeholder.com/150/667eea/FFFFFF?text=User' 
+              }}
+              style={styles.profileImage}
+            />
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>{user?.name || 'Landlord'}</Text>
+              <Text style={styles.profileEmail}>{user?.email || 'No email'}</Text>
+              <Text style={styles.profileType}>Landlord</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.shareProfileButton}
+              onPress={() => setShareModalVisible(true)}
             >
-              <View style={styles.menuItemLeft}>
-                <View style={styles.menuIconContainer}>
-                  <Ionicons name={item.icon} size={20} color="#667eea" />
-                </View>
-                <View style={styles.menuTextContainer}>
-                  <Text style={styles.menuItemTitle}>{item.title}</Text>
-                  <Text style={styles.menuItemDescription}>{item.description}</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#ccc" />
+              <Ionicons name="qr-code" size={24} color={Colors.primary || '#667eea'} />
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out" size={20} color="#dc2626" />
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+          
+          <View style={styles.menuSection}>
+            {menuItems.map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.menuItem,
+                  index === menuItems.length - 1 && { borderBottomWidth: 0 }
+                ]}
+                onPress={() => handleMenuPress(item)}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={styles.menuIconContainer}>
+                    <Ionicons name={item.icon} size={20} color={Colors.primary || '#667eea'} />
+                  </View>
+                  <View style={styles.menuTextContainer}>
+                    <Text style={styles.menuItemTitle}>{item.title}</Text>
+                    <Text style={styles.menuItemDescription}>{item.description}</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Ionicons name="log-out" size={20} color="#dc2626" />
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+      <ShareProfileModal
+        visible={isShareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        user={user}
+      />
+    </>
   );
 }
-
-// ... your existing styles for Menu ...
-// (Omitting the styles block here for brevity, as you only need the functional updates.)
-// Ensure your styles block from the previous step is still present below the function.
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f6f7fb',
   },
   header: {
     paddingHorizontal: 20,
@@ -211,16 +211,18 @@ const styles = StyleSheet.create({
   },
   profileType: {
     fontSize: 12,
-    color: '#667eea',
+    color: Colors.primary || '#667eea',
     fontWeight: '500',
     backgroundColor: '#f0f4ff',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
     alignSelf: 'flex-start',
-  },
-  editProfileButton: {
+  },  
+  shareProfileButton: {
     padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f4ff',
   },
   menuSection: {
     backgroundColor: 'white',
