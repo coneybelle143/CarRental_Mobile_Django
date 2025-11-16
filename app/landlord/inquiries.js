@@ -6,26 +6,24 @@ import {
   TouchableOpacity, 
   ScrollView, 
   Image, 
-  ActivityIndicator // ADDED
+  ActivityIndicator 
 } from 'react-native';
-import { Stack, router, useFocusEffect } from 'expo-router'; // ADDED useFocusEffect
+import { Stack, router, useFocusEffect } from 'expo-router'; 
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // ADDED
-
-const INQUIRIES_STORAGE_KEY = '@landlord_inquiries'; // ADDED
-
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
+const INQUIRIES_STORAGE_KEY = '@landlord_inquiries'; 
 export default function InquiriesScreen() {
-  const [messages, setMessages] = useState([]); // MODIFIED: Start empty
-  const [isLoading, setIsLoading] = useState(true); // ADDED
+  const [messages, setMessages] = useState([]); 
+  const [isLoading, setIsLoading] = useState(true); 
 
-  // ADDED: Load inquiries from storage
+  
   const loadInquiries = async () => {
     try {
       const jsonValue = await AsyncStorage.getItem(INQUIRIES_STORAGE_KEY);
       if (jsonValue !== null) {
         setMessages(JSON.parse(jsonValue));
       } else {
-        // No mock data, just save an empty list
+        
         await AsyncStorage.setItem(INQUIRIES_STORAGE_KEY, JSON.stringify([]));
         setMessages([]);
       }
@@ -37,7 +35,7 @@ export default function InquiriesScreen() {
     }
   };
 
-  // ADDED: Refresh when tab is focused
+  
   useFocusEffect(
     useCallback(() => {
       setIsLoading(true);
@@ -80,12 +78,28 @@ export default function InquiriesScreen() {
   };
 
   const handleMessagePress = (message) => {
-    console.log('Opening chat with:', message.tenant.name);
-    // In a real app, this would navigate to a chat screen
-    // and also update the message to 'read'
+    
+    (async () => {
+      try {
+        const updated = messages.map(m => m.id === message.id ? { ...m, unread: false } : m);
+        await AsyncStorage.setItem(INQUIRIES_STORAGE_KEY, JSON.stringify(updated));
+        setMessages(updated);
+      } catch (e) {
+        console.error('Failed to mark read', e);
+      }
+      router.push({
+        pathname: '/landlord/chat',
+        params: {
+          tenantId: message.tenant.id,
+          tenantName: message.tenant.name,
+          tenantImage: message.tenant.image,
+          property: message.property,
+        }
+      });
+    })();
   };
 
-  // MODIFIED: This function now saves to storage
+  
   const markAllAsRead = async () => {
     const readMessages = messages.map(msg => ({ ...msg, unread: false }));
     try {
@@ -98,7 +112,7 @@ export default function InquiriesScreen() {
 
   const unreadCount = messages.filter(msg => msg.unread).length;
 
-  // ADDED: Loading state
+  
   if (isLoading) {
      return (
        <View style={[styles.container, {justifyContent: 'center', alignItems: 'center'}]}>
@@ -134,7 +148,7 @@ export default function InquiriesScreen() {
           </TouchableOpacity>
         </View>
         
-        {/* ADDED: Empty state */}
+        
         {messages.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="chatbubbles-outline" size={64} color="#ccc" />
@@ -210,7 +224,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 60,
     paddingBottom: 20,
     backgroundColor: 'white',
   },
