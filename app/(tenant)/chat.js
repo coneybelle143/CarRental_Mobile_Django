@@ -10,43 +10,73 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import { Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { messages as mockConversations } from '../../data/mockData';
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
 
 const TENANT_MESSAGES_KEY = '@tenant_messages'; 
-// 1. ADDED: Define the key for the landlord's inbox
+
 const LANDLORD_INQUIRIES_KEY = '@landlord_inquiries';
 
 export default function ChatScreen() {
   const { landlordId, landlordName, houseName, landlordImage } = useLocalSearchParams();
+  const contactKey = (c) => (c?.id || c?.email || c?.phone || c?.name || '').toString();
+  const landlordKey = landlordId ? landlordId.toString() : null;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [conversationStatus, setConversationStatus] = useState(null);
 
-  // 2. MODIFIED: We need a full tenant object to send to the landlord
-  // This is mocked from your app/(tenant)/profile.js file
+ 
   const currentUser = {
-      id: 'tenant_jesse_pinkman_01', // A unique ID for the tenant
+      id: 'tenant_jesse_pinkman_01',
       name: 'Jesse Pinkman',
       image: 'https://i.insider.com/5d9f454ee94e865e924818da?width=700',
       phone: '+1 234 567 8900'
   };
-  const currentUserId = currentUser.id; // Use the new ID
+  const currentUserId = currentUser.id; 
 
-  // This useEffect (loading the chat) is unchanged
+ 
   useEffect(() => {
     const loadConversation = async () => {
       try {
         const jsonValue = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
         const allConversations = jsonValue != null ? JSON.parse(jsonValue) : [];
         
-        const conversation = allConversations.find(
-          (conv) => conv.landlord.id === landlordId
+        const map = {};
+        allConversations.forEach(conv => {
+          const key = contactKey(conv.landlord);
+          if (!map[key]) {
+            map[key] = { ...conv };
+            
+            map[key].history = map[key].history || [];
+          } else {
+           
+            const existingIds = new Set(map[key].history.map(m => m.id));
+            const merged = [...map[key].history];
+            (conv.history || []).forEach(m => { if (!existingIds.has(m.id)) merged.push(m); });
+            map[key].history = merged;
+           
+            map[key].lastMessage = map[key].lastMessage || conv.lastMessage;
+            map[key].time = map[key].time || conv.time;
+            map[key].unread = map[key].unread || conv.unread;
+          }
+        });
+
+        const deduped = Object.values(map);
+       
+        if (deduped.length !== allConversations.length) {
+          await AsyncStorage.setItem(TENANT_MESSAGES_KEY, JSON.stringify(deduped));
+        }
+
+        const conversation = deduped.find(
+          (conv) => contactKey(conv.landlord) === landlordKey
         );
         
         const initialMessages = conversation?.history || [];
         setMessages(initialMessages);
+        setConversationStatus(conversation?.status || null);
       } catch (e) {
         console.error("Failed to load conversation", e);
         setMessages([]);
@@ -56,8 +86,30 @@ export default function ChatScreen() {
     loadConversation();
   }, [landlordId]);
 
+  const handleDeleteConversation = () => {
+    Alert.alert(
+      'Delete Conversation',
+      'Are you sure you want to delete this conversation? This will remove it only from your messages.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            const jsonValue = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
+            let allConversations = jsonValue != null ? JSON.parse(jsonValue) : [];
+            allConversations = allConversations.filter(c => contactKey(c.landlord) !== landlordKey);
+            await AsyncStorage.setItem(TENANT_MESSAGES_KEY, JSON.stringify(allConversations));
+            setMessages([]);
+            router.back();
+          } catch (e) {
+            console.error('Failed to delete conversation', e);
+          }
+        }}
+      ]
+    );
+  };
+
   
-  // 3. MODIFIED: This function now saves to two different places
+  
   const handleSendMessage = useCallback(async () => {
     if (newMessage.trim()) {
       const messageText = newMessage.trim();
@@ -68,7 +120,7 @@ export default function ChatScreen() {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
-      // --- PART 1: UPDATE TENANT'S OWN INBOX (Unchanged) ---
+     
       setMessages((prevMessages) => [messageData, ...prevMessages]);
       setNewMessage('');
 
@@ -76,7 +128,7 @@ export default function ChatScreen() {
         const tenantJson = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
         let tenantConversations = tenantJson != null ? JSON.parse(tenantJson) : []; 
 
-        const tenantConvoIndex = tenantConversations.findIndex(c => c.landlord.id === landlordId);
+      const tenantConvoIndex = tenantConversations.findIndex(c => contactKey(c.landlord) === landlordKey);
 
         if (tenantConvoIndex > -1) {
           if (!tenantConversations[tenantConvoIndex].history) {
@@ -106,40 +158,41 @@ export default function ChatScreen() {
         console.error("Failed to save tenant message", e); 
       }
       
-      // --- PART 2: UPDATE LANDLORD'S INBOX (New Logic) ---
+     
       try {
         const landlordJson = await AsyncStorage.getItem(LANDLORD_INQUIRIES_KEY);
         let landlordInquiries = landlordJson != null ? JSON.parse(landlordJson) : [];
         
-        // Find the conversation *from this tenant's ID*
+    
         const landlordConvoIndex = landlordInquiries.findIndex(c => c.tenant.id === currentUser.id);
+        
 
         if (landlordConvoIndex > -1) {
-          // Landlord already has a thread with this tenant, update it
+          
           if (!landlordInquiries[landlordConvoIndex].history) {
             landlordInquiries[landlordConvoIndex].history = [];
           }
           landlordInquiries[landlordConvoIndex].history.unshift(messageData);
           landlordInquiries[landlordConvoIndex].lastMessage = messageText;
           landlordInquiries[landlordConvoIndex].time = 'Just now';
-          landlordInquiries[landlordConvoIndex].unread = true; // <-- True, because it's new for the landlord
+          landlordInquiries[landlordConvoIndex].unread = true; 
           landlordInquiries[landlordConvoIndex].property = houseName || landlordInquiries[landlordConvoIndex].property;
           landlordInquiries[landlordConvoIndex].status = 'new';
         } else {
-          // New inquiry from this tenant
+          
           landlordInquiries.unshift({
             id: `inq_${Date.now()}`,
-            tenant: currentUser, // Send the full tenant object
+            tenant: currentUser, 
             property: houseName || 'General Inquiry',
             lastMessage: messageText,
             time: 'Just now',
-            unread: true, // <-- True, new for landlord
+            unread: true,
             status: 'new',
             history: [messageData],
           });
         }
         
-        // Save the updated list to the landlord's storage
+        
         await AsyncStorage.setItem(LANDLORD_INQUIRIES_KEY, JSON.stringify(landlordInquiries));
 
       } catch (e) {
@@ -148,7 +201,7 @@ export default function ChatScreen() {
     }
   }, [newMessage, currentUserId, landlordId, landlordName, landlordImage, houseName]);
 
-  // ... (rest of the file is unchanged) ...
+  
   const renderMessage = ({ item }) => (
     <View
       style={[
@@ -185,7 +238,17 @@ export default function ChatScreen() {
         <View style={styles.headerInfo}>
           <Text style={styles.headerTitle}>{landlordName}</Text>
           {houseName && <Text style={styles.headerSubtitle}>Regarding: {houseName}</Text>}
+          {conversationStatus ? (
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusText}>
+                {conversationStatus === 'ready_to_book' ? 'Booking Request' : (conversationStatus === 'interested' ? 'Interested' : conversationStatus)}
+              </Text>
+            </View>
+          ) : null}
         </View>
+        <TouchableOpacity style={{ padding: 8 }} onPress={handleDeleteConversation}>
+          <Ionicons name="trash" size={22} color="#ef4444" />
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -212,7 +275,7 @@ export default function ChatScreen() {
   );
 }
 
-// ... (styles are unchanged)
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -280,6 +343,19 @@ const styles = StyleSheet.create({
     color: 'rgba(0,0,0,0.5)',
     alignSelf: 'flex-end',
     marginTop: 5,
+  },
+  statusBadge: {
+    marginTop: 6,
+    backgroundColor: '#f0f4ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#667eea',
+    fontWeight: '600',
   },
   inputContainer: {
     flexDirection: 'row',
