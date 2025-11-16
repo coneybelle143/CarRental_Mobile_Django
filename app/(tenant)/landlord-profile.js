@@ -1,5 +1,3 @@
-// app/(tenant)/landlord-profile.js
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,18 +7,39 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { boardingHouses as mockData } from '../../data/mockData'; 
+import BoardingHouseCard from '../../components/BoardingHouseCard';
 
 const LISTINGS_STORAGE_KEY = '@landlord_listings';
 
 export default function LandlordProfile() {
-  const { landlordId } = useLocalSearchParams(); // This 'landlordId' now contains the email
+  const { landlordId } = useLocalSearchParams();
   const [landlord, setLandlord] = useState(null);
+  const [otherListings, setOtherListings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+ 
+  const handleCall = () => {
+    if (landlord?.phone) {
+      Linking.openURL(`tel:${landlord.phone}`);
+    }
+  };
+
+  const handleMessage = () => {
+    router.push({
+      pathname: '/(tenant)/chat',
+      params: {
+        landlordId: landlord?.id || landlord?.email,
+        landlordName: landlord?.name,
+        landlordImage: landlord?.photoURL || landlord?.image,
+      },
+    });
+  };
 
   useEffect(() => {
     const fetchLandlordData = async () => {
@@ -32,15 +51,17 @@ export default function LandlordProfile() {
       try {
         const jsonValue = await AsyncStorage.getItem(LISTINGS_STORAGE_KEY);
         const allListings = jsonValue != null ? JSON.parse(jsonValue) : mockData;
+
         
-        // --- THIS IS THE FIX ---
-        // Find the landlord by their email, not their ID
         const listing = allListings.find(h => h.landlord?.email === landlordId);
-        // --- END OF FIX ---
-        
+
         if (listing && listing.landlord) {
           setLandlord(listing.landlord);
         }
+
+       
+        const landlordListings = allListings.filter(h => h.landlord?.email === landlordId);
+        setOtherListings(landlordListings);
       } catch (e) {
         console.error("Failed to load landlord data", e);
       } finally {
@@ -51,7 +72,7 @@ export default function LandlordProfile() {
     fetchLandlordData();
   }, [landlordId]);
 
-  // ... (rest of the file is unchanged) ...
+  
   if (isLoading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -76,7 +97,7 @@ export default function LandlordProfile() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+     
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
@@ -89,31 +110,78 @@ export default function LandlordProfile() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Profile Header Section */}
+        
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: landlord.image || 'https://via.placeholder.com/150' }}
+              source={{ uri: landlord.photoURL || landlord.image || 'https://via.placeholder.com/150' }}
               style={styles.avatar}
             />
           </View>
           <Text style={styles.userName}>{landlord.name}</Text>
+
+          
+          {landlord.company ? (
+            <Text style={styles.companyText}>{landlord.company}</Text>
+          ) : null}
+
           <View style={styles.userTypeContainer}>
-             <Ionicons 
-                name={landlord.verified ? "shield-checkmark" : "shield-outline"} 
-                size={16} 
-                color={landlord.verified ? "#10b981" : "#666"} 
-              />
-            <Text style={[styles.userType, {color: landlord.verified ? "#10b981" : "#666"}]}>
+            <Ionicons 
+              name={landlord.verified ? "shield-checkmark" : "shield-outline"} 
+              size={16} 
+              color={landlord.verified ? "#10b981" : "#666"} 
+            />
+            <Text style={[styles.userType, {color: landlord.verified ? "#10b981" : "#666"}]}> 
               {landlord.verified ? 'Verified Landlord' : 'Not Verified'}
             </Text>
+
+            {landlord.yearsExperience ? (
+              <Text style={styles.experienceSmall}>{landlord.yearsExperience} yrs</Text>
+            ) : null}
           </View>
         </View>
 
-        {/* Contact Information */}
+        
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleCall}>
+            <Ionicons name="call" size={18} color="#fff" />
+            <Text style={styles.actionText}>Call</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.actionButton, styles.messageButton]} onPress={handleMessage}>
+            <Ionicons name="chatbubble" size={18} color="#fff" />
+            <Text style={styles.actionText}>Message</Text>
+          </TouchableOpacity>
+        </View>
+
+        
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{landlord.totalProperties ?? otherListings.length}</Text>
+            <Text style={styles.statLabel}>Properties</Text>
+          </View>
+
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{landlord.responseRate || '—'}</Text>
+            <Text style={styles.statLabel}>Response Rate</Text>
+          </View>
+
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{landlord.responseTime || '—'}</Text>
+            <Text style={styles.statLabel}>Response Time</Text>
+          </View>
+        </View>
+
+        {landlord.joinDate ? (
+          <View style={styles.joinDateRow}>
+            <Text style={styles.joinDateText}>Member since {landlord.joinDate}</Text>
+          </View>
+        ) : null}
+
+       
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Contact Information</Text>
-          
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Full Name</Text>
             <Text style={styles.infoText}>{landlord.name}</Text>
@@ -121,19 +189,51 @@ export default function LandlordProfile() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email Address</Text>
-            <Text style={styles.infoText}>{landlord.email}</Text>
+            <Text style={styles.infoText}>{landlord.email || landlord.contactEmail || 'Not available'}</Text>
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Phone Number</Text>
-            <Text style={styles.infoText}>{landlord.phone}</Text>
+            <Text style={styles.infoText}>{landlord.phone || landlord.contactPhone || 'Not available'}</Text>
           </View>
+
+          {landlord.bio ? (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>About</Text>
+              <Text style={styles.infoText}>{landlord.bio}</Text>
+            </View>
+          ) : null}
+
+          {landlord.company ? (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Company</Text>
+              <Text style={styles.infoText}>{landlord.company}</Text>
+            </View>
+          ) : null}
+
+          {landlord.yearsExperience ? (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Experience</Text>
+              <Text style={styles.infoText}>{landlord.yearsExperience} years</Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* Other Listings (Placeholder) */}
+       
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Other Listings from {landlord.name}</Text>
-          <Text style={styles.infoText}>This feature is coming soon.</Text>
+
+          {otherListings.length === 0 ? (
+            <Text style={styles.infoText}>No listings found for this landlord.</Text>
+          ) : (
+            otherListings.map(h => (
+              <BoardingHouseCard
+                key={h.id}
+                house={h}
+                onPress={() => router.push({ pathname: '/(tenant)/boarding-house-details', params: { id: h.id } })}
+              />
+            ))
+          )}
         </View>
 
       </ScrollView>
@@ -141,7 +241,7 @@ export default function LandlordProfile() {
   );
 }
 
-// ... (styles are unchanged) ...
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -231,5 +331,68 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     paddingVertical: 8,
+  },
+  companyText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  experienceSmall: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+    marginTop: 2,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginHorizontal: 20,
+    marginBottom: 16,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#667eea',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 8,
+  },
+  messageButton: {
+    backgroundColor: '#10b981',
+  },
+  actionText: {
+    color: 'white',
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+  },
+  joinDateRow: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
+  joinDateText: {
+    fontSize: 12,
+    color: '#666',
   },
 });
