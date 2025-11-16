@@ -17,7 +17,7 @@ import PropertyImageGrid from '../../components/PropertyImageGrid';
 import { boardingHouses } from '../../data/mockData';
 import { GlobalListingContext } from './_layout';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from './AuthContext'; // 1. MODIFIED: Import useAuth
+import { useAuth } from './AuthContext'; 
 
 
 export default function CreateListing() {
@@ -27,7 +27,7 @@ export default function CreateListing() {
   const { user } = useAuth(); 
 
   const [isEditing, setIsEditing] = useState(false);
-  // ... (all other useState hooks are unchanged) ...
+  
   const [heading, setHeading] = useState('Create Property Listing');
   const [submitText, setSubmitText] = useState('Create Listing');
   const [title, setTitle] = useState('');
@@ -67,7 +67,7 @@ export default function CreateListing() {
     'Boarding House'
   ];
 
-  // ... (resetForm function is unchanged) ...
+  
   const resetForm = () => {
     console.log('Resetting form...');
     setTitle('');
@@ -102,7 +102,7 @@ export default function CreateListing() {
     router.setParams({});
   };
   
-  // ... (useEffect for editing is unchanged) ...
+  
   useEffect(() => {
     console.log('Params changed:', params.id);
     
@@ -159,7 +159,7 @@ export default function CreateListing() {
     }
   }, [params.id, listings]);
  
-  // ... (useEffect for reset is unchanged) ...
+  
   useEffect(() => {
     
     if (!params.id) {
@@ -167,7 +167,7 @@ export default function CreateListing() {
     }
   }, []);
 
-  // ... (pickImage function is unchanged) ...
+  
   const pickImage = async (setter, multiple = false) => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -184,7 +184,7 @@ export default function CreateListing() {
     }
   };
 
-  // ... (all other helper functions are unchanged) ...
+  
   const removeAt = (arrSetter) => (index) => {
     arrSetter((prev) => prev.filter((_, i) => i !== index));
   };
@@ -233,7 +233,7 @@ export default function CreateListing() {
   };
 
   const validateAndSubmit = () => {
-    // ... (validation is unchanged) ...
+    
     if (!title.trim()) return Alert.alert('Validation', 'Title is required');
     if (!address.trim()) return Alert.alert('Validation', 'Address is required');
     if (!rent.trim() || isNaN(Number(rent))) return Alert.alert('Validation', 'Rent must be a number');
@@ -242,7 +242,7 @@ export default function CreateListing() {
     const amenitiesArray = getAmenitiesArray();
 
     const payload = {
-      // ... (other listing data is unchanged) ...
+      
       images: photos.length > 0 ? photos : ['https://via.placeholder.com/150/0000FF/808080?text=New+Listing'],
       description: description,
       location: address,
@@ -259,19 +259,19 @@ export default function CreateListing() {
       rating: isEditing ? undefined : 4.5, 
       reviews: isEditing ? undefined : 0, 
 
-      // <--- THIS IS THE FIX ---
+      
       landlord: {
-        id: user?.email, // Use the user's EMAIL as the unique ID
+        id: user?.email, 
         name: user?.name || 'Landlord',
         phone: user?.phone || 'Not Provided',
         verified: user?.verified || true, 
         email: user?.email || 'Not Provided',
         image: user?.photoURL 
       }
-      // --- END OF FIX ---
+     
     };
     
-    // ... (rest of submit logic is unchanged) ...
+
     if (isEditing && params.id) {
       updateListing(params.id, payload);
       console.log(`Updating listing ${params.id}`);
@@ -306,7 +306,7 @@ export default function CreateListing() {
     router.back();
   };
 
-  // ... (RETURN JSX AND STYLES ARE UNCHANGED) ...
+  
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.container}>
       <View style={styles.card}>
@@ -527,14 +527,15 @@ export default function CreateListing() {
   );
 }
 
-// ... (Styles are all unchanged) ...
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#f6f7fb',
   },
+  
   container: {
-    padding: 16,
+    padding: 16
   },
+  
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -545,11 +546,14 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
   },
+  
   heading: {
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 12,
+    paddingTop : 20,
     color: Colors.primary,
+
   },
   editIndicator: {
     backgroundColor: '#fef3c7',
