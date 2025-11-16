@@ -7,7 +7,7 @@ import {
   Image,
   FlatList,
   ActivityIndicator, 
-  Alert, // 1. MODIFIED: Import Alert
+  Alert, 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { messages as mockMessages } from '../../data/mockData'; 
@@ -54,10 +54,11 @@ export default function Messages() {
   );
 
   const handlePressMessage = (item) => {
+    const contactKey = (c) => (c?.id || c?.email || c?.phone || c?.name || '').toString();
     router.push({
       pathname: '/(tenant)/chat',
       params: {
-        landlordId: item.landlord.id,
+        landlordId: contactKey(item.landlord),
         landlordName: item.landlord.name,
         landlordImage: item.landlord.image,
         houseName: item.houseName,
@@ -65,7 +66,7 @@ export default function Messages() {
     });
   };
 
-  // 2. ADDED: Function to handle deleting a conversation
+  
   const handleDeleteMessage = (itemToDelete) => {
     Alert.alert(
       "Delete Conversation",
@@ -80,20 +81,20 @@ export default function Messages() {
           style: "destructive",
           onPress: async () => {
             try {
-              // Filter out the deleted message
+             
               const newMessagesList = allMessages.filter(
                 (item) => item.id !== itemToDelete.id
               );
               
-              // Update the UI
+              
               setAllMessages(newMessagesList);
               
-              // Save the new list to storage
+              
               await AsyncStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(newMessagesList));
             } catch (e) {
               console.error("Failed to delete message", e);
               Alert.alert("Error", "Could not delete conversation.");
-              // Optional: reload messages to revert UI
+              
               loadMessages();
             }
           }
@@ -106,9 +107,9 @@ export default function Messages() {
     <TouchableOpacity 
       style={styles.messageItem} 
       onPress={() => handlePressMessage(item)}
-      // 3. MODIFIED: Add the onLongPress handler
+     
       onLongPress={() => handleDeleteMessage(item)}
-      delayLongPress={500} // Time in ms to trigger long press
+      delayLongPress={500} 
     >
       <Image source={{ uri: item.landlord.image }} style={styles.avatar} />
       <View style={styles.messageContent}>
@@ -185,7 +186,7 @@ export default function Messages() {
   );
 }
 
-// ... (Styles are unchanged)
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
