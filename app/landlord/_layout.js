@@ -1,12 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react'; // ADDED: useEffect
+import React, { useState, useCallback, useEffect } from 'react'; 
 import { Tabs, router } from 'expo-router';
-import { TouchableOpacity, Alert, ActivityIndicator } from 'react-native'; // ADDED: ActivityIndicator
+import { TouchableOpacity, Alert, ActivityIndicator } from 'react-native'; 
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { boardingHouses } from '../../data/mockData'; 
-import AsyncStorage from '@react-native-async-storage/async-storage'; // ADDED
+import AsyncStorage from '@react-native-async-storage/async-storage'; 
 
-// ADDED: A unique key to save your data
+
 const LISTINGS_STORAGE_KEY = '@landlord_listings';
 
 export const GlobalListingContext = React.createContext({
@@ -18,35 +18,35 @@ export const GlobalListingContext = React.createContext({
 export default function LandlordLayout() {
   const primaryColor = Colors.primary || '#667eea'; 
  
-  const [listingsData, setListingsData] = useState([]); // CHANGED: Start with empty
-  const [isLoading, setIsLoading] = useState(true); // ADDED: Loading state
+  const [listingsData, setListingsData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true); 
 
-  // ADDED: 1. Load data from storage when the app starts
+
   useEffect(() => {
     const loadListingsFromStorage = async () => {
       try {
         const jsonValue = await AsyncStorage.getItem(LISTINGS_STORAGE_KEY);
         if (jsonValue !== null) {
-          // We found saved data, load it
+          
           setListingsData(JSON.parse(jsonValue));
         } else {
-          // No saved data, so set an empty list
-          setListingsData([]); // <--- THIS IS THE FIX
+          
+          setListingsData([]); 
         }
       } catch (e) {
         console.error("Failed to load listings", e);
-        setListingsData([]); // <--- THIS IS THE FIX (FALLBACK)
+        setListingsData([]); 
       } finally {
         setIsLoading(false);
       }
     };
 
     loadListingsFromStorage();
-  }, []); // The empty [] means this only runs once on startup
+  }, []); 
 
-  // ADDED: 2. Save data to storage every time it changes
+ 
   useEffect(() => {
-    // We don't want to save while it's still loading
+    
     if (!isLoading) {
       const saveListingsToStorage = async () => {
         try {
@@ -58,10 +58,10 @@ export default function LandlordLayout() {
       };
       saveListingsToStorage();
     }
-  }, [listingsData, isLoading]); // This runs every time listingsData changes
+  }, [listingsData, isLoading]); 
 
 
-  // This function doesn't change. When it runs, the `useEffect` above will save the new data.
+ 
   const updateListing = useCallback((id, updatedPayload) => {
     setListingsData(prevListings => {
       const index = prevListings.findIndex(l => String(l.id) === String(id));
@@ -75,7 +75,7 @@ export default function LandlordLayout() {
     });
   }, []);
 
-  // This function also doesn't change.
+ 
   const deleteListing = useCallback((id) => {
     setListingsData(prevListings => prevListings.filter(l => String(l.id) !== String(id)));
   }, []);
@@ -87,7 +87,7 @@ export default function LandlordLayout() {
     deleteListing: deleteListing,
   };
 
-  // ADDED: Show a loading indicator while data is being loaded
+ 
   if (isLoading) {
     return (
       <ActivityIndicator size="large" color={primaryColor} style={{ flex: 1 }} />
@@ -98,6 +98,7 @@ export default function LandlordLayout() {
     <GlobalListingContext.Provider value={contextValue}>
       <Tabs
         screenOptions={{
+          
           tabBarStyle: {
             backgroundColor: 'white',
             borderTopColor: '#e5e5e5',
@@ -176,6 +177,8 @@ export default function LandlordLayout() {
         <Tabs.Screen name="settings" options={{ href: null }} />
         <Tabs.Screen name="support" options={{ href: null }} />
         <Tabs.Screen name="financials" options={{ href: null }} />
+        <Tabs.Screen name="listing-details" options={{ href: null }} />
+        <Tabs.Screen name="chat" options={{ href: null, headerShown: false }} />
       </Tabs>
     </GlobalListingContext.Provider>
   );
