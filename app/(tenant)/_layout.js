@@ -100,18 +100,19 @@ export default function TenantLayout() {
       <Tabs.Screen
         name="chat"
         options={{
+          headerShown: false,
           href: null,
         }}
       />
       
-      {/* --- ADDED THIS SECTION --- */}
+      
       <Tabs.Screen
         name="landlord-profile"
         options={{
           href: null,
         }}
       />
-      {/* --- END OF ADDED SECTION --- */}
+      
 
     </Tabs>
     
