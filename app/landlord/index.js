@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'; // ADDED: useContext
+import React, { useContext } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,9 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors } from '../../constants/Colors';
-// NOTE: We no longer import mockData, we use the context instead
-// import { boardingHouses } from '../../data/mockData'; 
-import { GlobalListingContext } from './_layout'; // ADDED: Import context
+import { GlobalListingContext } from './_layout';
 
 export default function LandlordPortal() {
-  // CRITICAL FIX: Read data and functions from the global context
   const { listings, deleteListing } = useContext(GlobalListingContext);
 
   const handleDeleteListing = (id) => {
@@ -29,7 +26,6 @@ export default function LandlordPortal() {
           style: "cancel"
         },
         { 
-          // CRITICAL FIX: Use the deleteListing function from context
           text: "Delete", 
           onPress: () => deleteListing(id),
           style: "destructive" 
@@ -42,6 +38,17 @@ export default function LandlordPortal() {
     router.push(`/landlord/create-listing?id=${id}`);
   };
 
+  const handleViewAllListings = () => {
+    router.push('/landlord/all-listings');
+  };
+
+  const handleViewListingDetails = (id) => {
+    router.push(`/landlord/listing-details?id=${id}`);
+  };
+
+  
+  const previewListings = listings.slice(0, 3);
+
   return (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -50,60 +57,93 @@ export default function LandlordPortal() {
           <Text style={styles.subtitle}>Manage your properties and inquiries</Text>
         </View>
 
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Feather name="list" size={22} color={Colors.primary} />
-          {/* Use listings.length from context */}
-          <Text style={styles.statValue}>{listings.length}</Text> 
-          <Text style={styles.statLabel}>Listings</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Feather name="list" size={22} color={Colors.primary} />
+            <Text style={styles.statValue}>{listings.length}</Text> 
+            <Text style={styles.statLabel}>Listings</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Feather name="message-square" size={22} color={Colors.primary} />
+            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statLabel}>Inquiries</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Feather name="home" size={22} color={Colors.primary} />
+            <Text style={styles.statValue}>89%</Text>
+            <Text style={styles.statLabel}>Occupancy</Text>
+          </View>
         </View>
-        <View style={styles.statCard}>
-          <Feather name="message-square" size={22} color={Colors.primary} />
-          <Text style={styles.statValue}>12</Text>
-          <Text style={styles.statLabel}>Inquiries</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Feather name="home" size={22} color={Colors.primary} />
-          <Text style={styles.statValue}>89%</Text>
-          <Text style={styles.statLabel}>Occupancy</Text>
-        </View>
-      </View>
 
-      <Text style={styles.sectionTitle}>Your Listings</Text>
-      <View style={styles.listingsRow}>
-        {listings.map((listing) => (
-          <View key={listing.id} style={styles.card}>
-            <View style={styles.cardClickable}>
-              <Image source={{ uri: listing.images[0] }} style={styles.cardImage} />
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle} numberOfLines={1}>{listing.name}</Text>
-                <Text style={styles.cardSub} numberOfLines={1}>{listing.location}</Text>
-                <Text style={styles.cardPrice}>₱{listing.price.toLocaleString()}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Your Listings</Text>
+          {listings.length > 3 && (
+            <TouchableOpacity onPress={handleViewAllListings}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.listingsRow}>
+          {previewListings.map((listing) => (
+            <View key={listing.id} style={styles.card}>
+              <TouchableOpacity 
+                style={styles.cardClickable}
+                onPress={() => handleViewListingDetails(listing.id)}
+              >
+                <Image source={{ uri: listing.images[0] }} style={styles.cardImage} />
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>{listing.name}</Text>
+                  <Text style={styles.cardSub} numberOfLines={1}>{listing.location}</Text>
+                  <Text style={styles.cardPrice}>₱{listing.price.toLocaleString()}/month</Text>
+                  <View style={styles.ratingContainer}>
+                    <Feather name="star" size={14} color="#FFD700" />
+                    <Text style={styles.ratingText}>{listing.rating || 'New'}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+              <View style={styles.cardActions}>
+                <TouchableOpacity style={styles.editButton} onPress={() => handleEditListing(listing.id)}>
+                  <Feather name="edit" size={20} color={Colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteListing(listing.id)}>
+                  <Feather name="trash-2" size={20} color="#ef4444" />
+                </TouchableOpacity>
               </View>
             </View>
-            <View style={styles.cardActions}>
-              <TouchableOpacity style={styles.editButton} onPress={() => handleEditListing(listing.id)}>
-                <Feather name="edit" size={20} color={Colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteListing(listing.id)}>
-                <Feather name="trash-2" size={20} color="#ef4444" />
-              </TouchableOpacity>
+          ))}
+          
+          {listings.length === 0 && (
+            <View style={styles.emptyState}>
+              <Feather name="home" size={48} color="#ccc" />
+              <Text style={styles.emptyStateTitle}>No Listings Yet</Text>
+              <Text style={styles.emptyStateText}>
+                Start by creating your first property listing to attract tenants.
+              </Text>
             </View>
-          </View>
-        ))}
-      </View>
+          )}
+        </View>
 
-      <View style={{ height: 40 }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
+
+      
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={() => router.push('/landlord/create-listing')}
+      >
+        <Feather name="plus" size={24} color="white" />
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#f6f7fb' },
-  container: { padding: 12 },
+  container: { padding: 16 },
   header: { 
-    marginBottom: 24 
+    marginBottom: 24, 
+    paddingTop: 30
   },
   title: { 
     fontSize: 26, 
@@ -111,16 +151,6 @@ const styles = StyleSheet.create({
     color: '#1a202c' 
   },
   subtitle: { color: '#666', marginTop: 4, fontSize: 16 },
-  primaryBtn: { 
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.primary, 
-    paddingVertical: 10, 
-    paddingHorizontal: 16, 
-    borderRadius: 12 
-  },
-  primaryBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
   statsRow: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
@@ -141,7 +171,18 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 20, fontWeight: 'bold', color: Colors.primary },
   statLabel: { color: '#666', fontSize: 12, fontWeight: '500' },
-  sectionTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: '#1a202c' },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#1a202c' },
+  seeAllText: { 
+    color: Colors.primary, 
+    fontWeight: '600',
+    fontSize: 14,
+  },
   listingsRow: { },
   card: { 
     backgroundColor: '#fff', 
@@ -161,11 +202,22 @@ const styles = StyleSheet.create({
   cardImage: { width: 100, height: 100 },
   cardBody: { flex: 1, padding: 12, justifyContent: 'center' },
   cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#1a202c' },
-  cardSub: { color: '#777', marginTop: 4 },
-  cardPrice: { marginTop: 8, color: Colors.primary, fontWeight: 'bold', fontSize: 16 },
+  cardSub: { color: '#777', marginTop: 4, fontSize: 12 },
+  cardPrice: { marginTop: 4, color: Colors.primary, fontWeight: 'bold', fontSize: 16 },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  ratingText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
   cardActions: {
     justifyContent: 'space-around', 
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderLeftWidth: 1, 
     borderColor: '#f0f0f0',
   },
@@ -179,6 +231,30 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
     backgroundColor: '#fee2e2',
+  },
+  emptyState: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   fab: {
     position: 'absolute',
