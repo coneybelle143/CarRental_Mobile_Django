@@ -37,7 +37,7 @@ export default function Login() {
           const landlordData = {
             name: 'Walter White',
             email: email,
-            photoURL: 'https://i.insider.com/5d9f454ee94e865e924818da?width=700'
+            photoURL: 'https://lucien0maverick.wordpress.com/wp-content/uploads/2014/07/walter-white.jpg'
           };
           login(landlordData);
           router.replace('/landlord');
