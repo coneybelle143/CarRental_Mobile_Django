@@ -1,4 +1,4 @@
-// PASTE THIS INTO app/(tenant)/boarding-house-details.js
+
 
 import React, { useState, useRef, useEffect } from 'react';
 import {
@@ -23,6 +23,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width: screenWidth } = Dimensions.get('window');
 const LISTINGS_STORAGE_KEY = '@landlord_listings'; 
+const TENANT_MESSAGES_KEY = '@tenant_messages';
+const LANDLORD_INQUIRIES_KEY = '@landlord_inquiries';
 
 export default function BoardingHouseDetails() {
   const { id } = useLocalSearchParams();
@@ -37,6 +39,14 @@ export default function BoardingHouseDetails() {
     
   const [house, setHouse] = useState(null); 
   const [isLoading, setIsLoading] = useState(true);
+
+  
+  const currentUser = {
+    id: 'tenant_jesse_pinkman_01',
+    name: 'Jesse Pinkman',
+    image: 'https://i.insider.com/5d9f454ee94e865e924818da?width=700',
+    phone: '+1 234 567 8900',
+  };
 
   useEffect(() => {
     const loadHouseFromStorage = async () => {
@@ -91,21 +101,20 @@ export default function BoardingHouseDetails() {
     );
   }
 
-  // ... (All other functions from your original file go here)
-  // handleCallLandlord, handleMessageLandlord, handleImageScroll, etc.
-
+ 
   const handleCallLandlord = () => {
     Linking.openURL(`tel:${house.landlord.phone}`);
   };
 
 const handleMessageLandlord = () => {
+    const contactKey = (c) => (c?.id || c?.email || c?.phone || c?.name || '').toString();
     router.push({
       pathname: '/(tenant)/chat',
       params: { 
-        landlordId: house.landlord.id,       // <-- This now sends the correct ID
-        landlordName: house.landlord.name,     // <-- This now sends the correct Name
-        landlordImage: house.landlord.image,   // <-- This now sends the correct Image
-        houseName: house.name
+        landlordId: contactKey(house.landlord),
+        landlordName: house.landlord.name,
+        landlordImage: house.landlord.image,
+        houseName: house.name,
       }
     });
   };
@@ -139,64 +148,209 @@ const handleMessageLandlord = () => {
   };
 
   const submitInquiry = () => {
-    const inquiryData = {
-      houseId: house.id,
-      houseName: house.name,
-      landlordId: house.landlord.id,
-      message: inquiryMessage || `I'm interested in ${house.name}. Can you provide more details?`,
-      timestamp: new Date().toISOString(),
-      type: 'inquiry'
+    const messageText = inquiryMessage || `I'm interested in ${house.name}. Can you provide more details?`;
+
+    const messageData = {
+      id: `msg_${Date.now()}`,
+      sender: currentUser.id,
+      text: messageText,
+      type: 'inquiry',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
-    
-    console.log('Inquiry submitted:', inquiryData);
-    Alert.alert(
-      'Inquiry Sent!',
-      `Your interest in ${house.name} has been sent to ${house.landlord.name}. They will contact you soon.`
-    );
-    setShowInquiryModal(false);
-    setInquiryMessage('');
-    
-    
-    router.push({
-      pathname: '/(tenant)/inquiries',
-      params: { inquirySubmitted: true }
-    });
+
+    (async () => {
+      try {
+       
+        const tenantJson = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
+        let tenantConversations = tenantJson != null ? JSON.parse(tenantJson) : [];
+
+        const contactKey = (c) => (c?.id || c?.email || c?.phone || c?.name || '').toString();
+        const landlordKey = contactKey(house.landlord);
+        const tenantConvoIndex = tenantConversations.findIndex(c => contactKey(c.landlord) === landlordKey);
+
+        if (tenantConvoIndex > -1) {
+          if (!tenantConversations[tenantConvoIndex].history) tenantConversations[tenantConvoIndex].history = [];
+          tenantConversations[tenantConvoIndex].history.unshift(messageData);
+          tenantConversations[tenantConvoIndex].lastMessage = messageText;
+          tenantConversations[tenantConvoIndex].time = 'Just now';
+          tenantConversations[tenantConvoIndex].unread = false;
+          tenantConversations[tenantConvoIndex].status = tenantConversations[tenantConvoIndex].status || 'interested';
+        } else {
+          tenantConversations.unshift({
+            id: `convo_${Date.now()}`,
+            landlord: {
+              id: house.landlord.id,
+              name: house.landlord.name,
+              image: house.landlord.image,
+              email: house.landlord.email,
+              phone: house.landlord.phone,
+            },
+            houseName: house.name,
+            lastMessage: messageText,
+            time: 'Just now',
+            unread: false,
+            status: 'interested',
+            history: [messageData],
+          });
+        }
+
+        await AsyncStorage.setItem(TENANT_MESSAGES_KEY, JSON.stringify(tenantConversations));
+
+       
+        const landlordJson = await AsyncStorage.getItem(LANDLORD_INQUIRIES_KEY);
+        let landlordInquiries = landlordJson != null ? JSON.parse(landlordJson) : [];
+
+        const landlordConvoIndex = landlordInquiries.findIndex(c => c.tenant.id === currentUser.id);
+
+        if (landlordConvoIndex > -1) {
+          if (!landlordInquiries[landlordConvoIndex].history) landlordInquiries[landlordConvoIndex].history = [];
+          landlordInquiries[landlordConvoIndex].history.unshift(messageData);
+          landlordInquiries[landlordConvoIndex].lastMessage = messageText;
+          landlordInquiries[landlordConvoIndex].time = 'Just now';
+          landlordInquiries[landlordConvoIndex].unread = true;
+          landlordInquiries[landlordConvoIndex].property = house.name || landlordInquiries[landlordConvoIndex].property;
+          landlordInquiries[landlordConvoIndex].status = landlordInquiries[landlordConvoIndex].status || 'interested';
+        } else {
+          landlordInquiries.unshift({
+            id: `inq_${Date.now()}`,
+            tenant: currentUser,
+            property: house.name || 'General Inquiry',
+            lastMessage: messageText,
+            time: 'Just now',
+            unread: true,
+            status: 'interested',
+            history: [messageData],
+          });
+        }
+
+        await AsyncStorage.setItem(LANDLORD_INQUIRIES_KEY, JSON.stringify(landlordInquiries));
+
+       
+        Alert.alert('Inquiry Sent!', `Your interest in ${house.name} has been sent to ${house.landlord.name}.`);
+        setShowInquiryModal(false);
+        setInquiryMessage('');
+
+        router.push({
+          pathname: '/(tenant)/chat',
+          params: {
+            landlordId: landlordKey,
+            landlordName: house.landlord.name,
+            landlordImage: house.landlord.image,
+            houseName: house.name,
+          }
+        });
+      } catch (e) {
+        console.error('Failed to send inquiry', e);
+        Alert.alert('Error', 'Failed to send inquiry. Please try again.');
+      }
+    })();
   };
 
   const submitBooking = () => {
-    
-    const bookingData = {
-      houseId: house.id,
-      houseName: house.name,
-      landlordId: house.landlord.id,
-      checkInDate: bookingDate,
-      numberOfGuests: parseInt(bookingGuests),
-      timestamp: new Date().toISOString(),
-      status: 'pending'
+    const messageText = `I'd like to book ${house.name} on ${bookingDate || 'N/A'} for ${bookingGuests} guest(s). Please confirm availability.`;
+
+    const messageData = {
+      id: `msg_${Date.now()}`,
+      sender: currentUser.id,
+      text: messageText,
+      type: 'booking',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
-    
-    console.log('Booking submitted:', bookingData);
-    Alert.alert(
-      'Booking Request Sent!',
-      `Your booking request for ${house.name} has been sent to ${house.landlord.name}. They will confirm shortly.`
-    );
-    setShowBookingModal(false);
-    setBookingDate('');
-    setBookingGuests('1');
-    
-    
-    router.push({
-      pathname: '/(tenant)/bookings',
-      params: { bookingSubmitted: true }
-    });
+
+    (async () => {
+      try {
+        // Update tenant's conversations
+        const tenantJson = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
+        let tenantConversations = tenantJson != null ? JSON.parse(tenantJson) : [];
+
+        const contactKey = (c) => (c?.id || c?.email || c?.phone || c?.name || '').toString();
+        const landlordKey = contactKey(house.landlord);
+        const tenantConvoIndex = tenantConversations.findIndex(c => contactKey(c.landlord) === landlordKey);
+
+        if (tenantConvoIndex > -1) {
+          if (!tenantConversations[tenantConvoIndex].history) tenantConversations[tenantConvoIndex].history = [];
+          tenantConversations[tenantConvoIndex].history.unshift(messageData);
+          tenantConversations[tenantConvoIndex].lastMessage = messageText;
+          tenantConversations[tenantConvoIndex].time = 'Just now';
+          tenantConversations[tenantConvoIndex].unread = false;
+          tenantConversations[tenantConvoIndex].status = tenantConversations[tenantConvoIndex].status || 'ready_to_book';
+        } else {
+          tenantConversations.unshift({
+            id: `convo_${Date.now()}`,
+            landlord: {
+              id: house.landlord.id,
+              name: house.landlord.name,
+              image: house.landlord.image,
+              email: house.landlord.email,
+              phone: house.landlord.phone,
+            },
+            houseName: house.name,
+            lastMessage: messageText,
+            time: 'Just now',
+            unread: false,
+            status: 'ready_to_book',
+            history: [messageData],
+          });
+        }
+
+        await AsyncStorage.setItem(TENANT_MESSAGES_KEY, JSON.stringify(tenantConversations));
+
+        // Update landlord's inquiries/inbox
+        const landlordJson = await AsyncStorage.getItem(LANDLORD_INQUIRIES_KEY);
+        let landlordInquiries = landlordJson != null ? JSON.parse(landlordJson) : [];
+
+        const landlordConvoIndex = landlordInquiries.findIndex(c => c.tenant.id === currentUser.id);
+
+        if (landlordConvoIndex > -1) {
+          if (!landlordInquiries[landlordConvoIndex].history) landlordInquiries[landlordConvoIndex].history = [];
+          landlordInquiries[landlordConvoIndex].history.unshift(messageData);
+          landlordInquiries[landlordConvoIndex].lastMessage = messageText;
+          landlordInquiries[landlordConvoIndex].time = 'Just now';
+          landlordInquiries[landlordConvoIndex].unread = true;
+          landlordInquiries[landlordConvoIndex].property = house.name || landlordInquiries[landlordConvoIndex].property;
+          landlordInquiries[landlordConvoIndex].status = landlordInquiries[landlordConvoIndex].status || 'ready_to_book';
+        } else {
+          landlordInquiries.unshift({
+            id: `inq_${Date.now()}`,
+            tenant: currentUser,
+            property: house.name || 'Booking Request',
+            lastMessage: messageText,
+            time: 'Just now',
+            unread: true,
+            status: 'ready_to_book',
+            history: [messageData],
+          });
+        }
+
+        await AsyncStorage.setItem(LANDLORD_INQUIRIES_KEY, JSON.stringify(landlordInquiries));
+
+        // Feedback and navigate to chat
+        Alert.alert('Booking Request Sent!', `Your booking request for ${house.name} has been sent to ${house.landlord.name}.`);
+        setShowBookingModal(false);
+        setBookingDate('');
+        setBookingGuests('1');
+
+        router.push({
+          pathname: '/(tenant)/chat',
+          params: {
+            landlordId: landlordKey,
+            landlordName: house.landlord.name,
+            landlordImage: house.landlord.image,
+            houseName: house.name,
+          }
+        });
+      } catch (e) {
+        console.error('Failed to send booking request', e);
+        Alert.alert('Error', 'Failed to send booking request. Please try again.');
+      }
+    })();
   };
 
   const handleViewLandlordProfile = () => {
+    const contactKey = (c) => (c?.id || c?.email || c?.phone || c?.name || '').toString();
     router.push({
       pathname: '/(tenant)/landlord-profile',
-      // --- THIS IS THE FIX ---
-      // We pass the email as the ID, because we know it's saved.
-      params: { landlordId: house.landlord.email }
+      params: { landlordId: contactKey(house.landlord) }
     });
   };
 
