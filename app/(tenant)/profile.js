@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function Profile() {
   const [userData, setUserData] = React.useState({
@@ -19,7 +20,8 @@ export default function Profile() {
     email: 'jessepinkmanyo@gmail.com',
     phone: '+1 234 567 8900',
     bio: 'Looking for a cozy boarding house near Xavier University. Prefer quiet neighborhoods with good internet connection.',
-    type: 'Tenant'
+    type: 'Tenant',
+    photoURL: 'https://i.insider.com/5d9f454ee94e865e924818da?width=700'
   });
 
   const [isEditing, setIsEditing] = React.useState(false);
@@ -29,14 +31,94 @@ export default function Profile() {
     Alert.alert('Success', 'Profile updated successfully!');
   };
 
-  const handleEditToggle = () => {
-    setIsEditing(!isEditing);
-  };
-
   const handleCancelEdit = () => {
     setIsEditing(false);
     // Reset any changes here if needed
   };
+
+  const pickImage = async () => {
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Sorry, we need camera roll permissions to change your profile photo.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setUserData({...userData, photoURL: result.assets[0].uri});
+      }
+    } catch (err) {
+      console.warn('Image pick error', err);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      // Request camera permissions
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Sorry, we need camera permissions to take a photo.');
+        return;
+      }
+
+      // Launch camera
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setUserData({...userData, photoURL: result.assets[0].uri});
+      }
+    } catch (err) {
+      console.warn('Camera error', err);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+    }
+  };
+
+  const showImagePickerOptions = () => {
+    Alert.alert(
+      'Change Profile Photo',
+      'Choose an option',
+      [
+        {
+          text: 'Take Photo',
+          onPress: takePhoto,
+        },
+        {
+          text: 'Choose from Gallery',
+          onPress: pickImage,
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const stats = [
+    { label: 'Saved', value: '12', icon: 'heart' },
+    { label: 'Viewed', value: '24', icon: 'eye' },
+    { label: 'Applied', value: '5', icon: 'document-text' },
+  ];
+
+  const contactInfo = [
+    { label: 'Email', value: userData.email, icon: 'mail' },
+    { label: 'Phone', value: userData.phone, icon: 'call' },
+    { label: 'Status', value: 'Active', icon: 'checkmark-circle' },
+  ];
 
   return (
     <View style={styles.container}>
@@ -44,154 +126,156 @@ export default function Profile() {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.push('/(tenant)/menu')}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>My Profile</Text>
         <TouchableOpacity 
           style={styles.editButton}
-          onPress={isEditing ? handleCancelEdit : handleEditToggle}
+          onPress={isEditing ? handleCancelEdit : () => setIsEditing(true)}
         >
-          <Text style={styles.editButtonText}>
-            {isEditing ? 'Cancel' : 'Edit'}
-          </Text>
+          <Ionicons 
+            name={isEditing ? "close" : "create-outline"} 
+            size={24} 
+            color="#fff" 
+          />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Profile Header Section */}
+      <ScrollView style={styles.page} contentContainerStyle={styles.scrollContent}>
+        {/* Profile Header */}
         <View style={styles.profileHeader}>
-          <View style={styles.avatarContainer}>
+          <TouchableOpacity 
+            style={styles.photoContainer}
+            onPress={isEditing ? showImagePickerOptions : null}
+            disabled={!isEditing}
+          >
             <Image
-              source={{ uri: 'https://i.insider.com/5d9f454ee94e865e924818da?width=700' }}
-              style={styles.avatar}
+              source={{ uri: userData.photoURL }}
+              style={styles.profileImage}
             />
             {isEditing && (
-              <TouchableOpacity style={styles.cameraButton}>
-                <Ionicons name="camera" size={20} color="white" />
-              </TouchableOpacity>
+              <View style={styles.editPhotoOverlay}>
+                <Ionicons name="camera" size={24} color="white" />
+              </View>
             )}
-          </View>
-          <Text style={styles.userName}>{userData.name}</Text>
-          <Text style={styles.userType}>{userData.type}</Text>
-        </View>
-
-        {/* Personal Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          </TouchableOpacity>
           
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
-            {isEditing ? (
+          {isEditing ? (
+            <>
               <TextInput
-                style={styles.textInput}
+                style={styles.editNameInput}
                 value={userData.name}
                 onChangeText={(text) => setUserData({...userData, name: text})}
-                placeholder="Enter your full name"
+                placeholder="Your name"
               />
-            ) : (
-              <Text style={styles.infoText}>{userData.name}</Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
-            {isEditing ? (
-              <TextInput
-                style={styles.textInput}
-                value={userData.email}
-                onChangeText={(text) => setUserData({...userData, email: text})}
-                placeholder="Enter your email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            ) : (
-              <Text style={styles.infoText}>{userData.email}</Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
-            {isEditing ? (
-              <TextInput
-                style={styles.textInput}
-                value={userData.phone}
-                onChangeText={(text) => setUserData({...userData, phone: text})}
-                placeholder="Enter your phone number"
-                keyboardType="phone-pad"
-              />
-            ) : (
-              <Text style={styles.infoText}>{userData.phone}</Text>
-            )}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Bio</Text>
-            {isEditing ? (
-              <TextInput
-                style={[styles.textInput, styles.bioInput]}
-                value={userData.bio}
-                onChangeText={(text) => setUserData({...userData, bio: text})}
-                placeholder="Tell us about yourself..."
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-            ) : (
-              <Text style={styles.infoText}>{userData.bio}</Text>
-            )}
-          </View>
-        </View>
-
-        {/* Account Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account Settings</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.name}>{userData.name}</Text>
+              <Text style={styles.userType}>{userData.type}</Text>
+            </>
+          )}
           
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconContainer, {backgroundColor: '#fff0f0'}]}>
-                <Ionicons name="lock-closed" size={20} color="#dc2626" />
-              </View>
-              <View style={styles.menuTextContainer}>
-                <Text style={styles.menuItemTitle}>Change Password</Text>
-                <Text style={styles.menuItemDescription}>Update your account password</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconContainer, {backgroundColor: '#f0f9ff'}]}>
-                <Ionicons name="notifications" size={20} color="#0369a1" />
-              </View>
-              <View style={styles.menuTextContainer}>
-                <Text style={styles.menuItemTitle}>Notification Settings</Text>
-                <Text style={styles.menuItemDescription}>Manage your notification preferences</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconContainer, {backgroundColor: '#f0fdf4'}]}>
-                <Ionicons name="shield-checkmark" size={20} color="#16a34a" />
-              </View>
-              <View style={styles.menuTextContainer}>
-                <Text style={styles.menuItemTitle}>Privacy & Security</Text>
-                <Text style={styles.menuItemDescription}>Control your privacy settings</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
+          <View style={styles.verificationSection}>
+            <Text style={styles.joinDate}>Member since 2023</Text>
+          </View>
         </View>
 
-        {/* Save Button when editing */}
-        {isEditing && (
-          <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
-            <Text style={styles.saveButtonText}>Save Changes</Text>
+        {/* Stats Section */}
+        <View style={styles.statsSection}>
+          {stats.map((stat, index) => (
+            <View key={index} style={styles.statItem}>
+              <View style={styles.statIcon}>
+                <Ionicons name={stat.icon} size={20} color="#667eea" />
+              </View>
+              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* About Me Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About Me</Text>
+          {isEditing ? (
+            <TextInput
+              style={styles.editBioInput}
+              value={userData.bio}
+              onChangeText={(text) => setUserData({...userData, bio: text})}
+              placeholder="Tell us about yourself and what you're looking for..."
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          ) : (
+            <Text style={styles.bioText}>{userData.bio}</Text>
+          )}
+        </View>
+
+        {/* Contact Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Contact Information</Text>
+          <View style={styles.contactList}>
+            {contactInfo.map((contact, index) => (
+              <View key={index} style={styles.contactItem}>
+                <View style={styles.contactIcon}>
+                  <Ionicons name={contact.icon} size={18} color="#667eea" />
+                </View>
+                <View style={styles.contactDetails}>
+                  <Text style={styles.contactLabel}>{contact.label}</Text>
+                  {isEditing && contact.label === 'Email' ? (
+                    <TextInput
+                      style={styles.editContactInput}
+                      value={userData.email}
+                      onChangeText={(text) => setUserData({...userData, email: text})}
+                      placeholder="Email address"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  ) : isEditing && contact.label === 'Phone' ? (
+                    <TextInput
+                      style={styles.editContactInput}
+                      value={userData.phone}
+                      onChangeText={(text) => setUserData({...userData, phone: text})}
+                      placeholder="Phone number"
+                      keyboardType="phone-pad"
+                    />
+                  ) : (
+                    <Text style={styles.contactValue}>{contact.value}</Text>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        {isEditing ? (
+          <View style={styles.editActions}>
+            <TouchableOpacity 
+              style={styles.saveButton}
+              onPress={handleSaveProfile}
+            >
+              <Ionicons name="checkmark" size={20} color="white" />
+              <Text style={styles.saveButtonText}>Save Changes</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={handleCancelEdit}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity 
+            style={styles.editButtonBottom}
+            onPress={() => setIsEditing(true)}
+          >
+            <Ionicons name="create" size={20} color="#667eea" />
+            <Text style={styles.editButtonText}>Edit Profile</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -202,18 +286,16 @@ export default function Profile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f6f7fb',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingTop: 60,
     paddingBottom: 20,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
+    backgroundColor: '#667eea',
   },
   backButton: {
     padding: 8,
@@ -221,159 +303,244 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
   },
   editButton: {
     padding: 8,
   },
-  editButtonText: {
-    color: '#667eea',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  content: {
+  page: {
+    backgroundColor: '#f6f7fb',
     flex: 1,
   },
-  profileHeader: {
-    alignItems: 'center',
-    backgroundColor: 'white',
-    paddingVertical: 30,
-    marginBottom: 20,
+  scrollContent: {
+    padding: 16,
   },
-  avatarContainer: {
+  profileHeader: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 3,
+    marginBottom: 16,
+  },
+  photoContainer: {
     position: 'relative',
     marginBottom: 16,
   },
-  avatar: {
+  profileImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
     borderWidth: 3,
     borderColor: '#667eea',
   },
-  cameraButton: {
+  editPhotoOverlay: {
     position: 'absolute',
-    bottom: 0,
+    top: 0,
+    left: 0,
     right: 0,
-    backgroundColor: '#667eea',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'white',
   },
-  userName: {
+  name: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 4,
+    textAlign: 'center',
+  },
+  editNameInput: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+    textAlign: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#667eea',
+    width: '100%',
+    padding: 4,
   },
   userType: {
     fontSize: 16,
     color: '#667eea',
-    backgroundColor: '#f0f4ff',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    fontWeight: '500',
-  },
-  section: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
     fontWeight: '600',
-    color: '#666',
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: 'center',
   },
-  textInput: {
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#333',
-  },
-  bioInput: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  infoText: {
-    fontSize: 16,
-    color: '#333',
-    paddingVertical: 8,
-  },
-  menuItem: {
-    flexDirection: 'row',
+  verificationSection: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
   },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  menuIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  menuTextContainer: {
-    flex: 1,
-  },
-  menuItemTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
-  },
-  menuItemDescription: {
+  joinDate: {
     fontSize: 12,
     color: '#666',
   },
-  saveButton: {
-    backgroundColor: '#667eea',
-    marginHorizontal: 20,
-    marginBottom: 40,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+  statsSection: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 3,
+    marginBottom: 16,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f4ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+  },
+  section: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 3,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  bioText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  editBioInput: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  contactList: {
+    gap: 16,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  contactIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f0f4ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contactDetails: {
+    flex: 1,
+  },
+  contactLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  contactValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  editContactInput: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+    borderBottomWidth: 1,
+    borderBottomColor: '#667eea',
+    padding: 4,
+  },
+  editActions: {
+    gap: 12,
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#667eea',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     elevation: 5,
   },
   saveButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  cancelButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#dc2626',
+    backgroundColor: 'white',
+  },
+  cancelButtonText: {
+    color: '#dc2626',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  editButtonBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#667eea',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 3,
+    marginBottom: 40,
+  },
+  editButtonText: {
+    color: '#667eea',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
