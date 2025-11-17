@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -17,14 +15,16 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { boardingHouses as mockData } from '../../data/mockData'; 
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import MapView, { Marker } from 'react-native-maps'; // ADDED: MapView
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const LISTINGS_STORAGE_KEY = '@landlord_listings'; 
 const TENANT_MESSAGES_KEY = '@tenant_messages';
 const LANDLORD_INQUIRIES_KEY = '@landlord_inquiries';
+const FAVORITES_STORAGE_KEY = '@tenant_favorites';
 
 export default function BoardingHouseDetails() {
   const { id } = useLocalSearchParams();
@@ -32,10 +32,13 @@ export default function BoardingHouseDetails() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false); // ADDED: Map modal state
   const [inquiryMessage, setInquiryMessage] = useState('');
   const [bookingDate, setBookingDate] = useState('');
   const [bookingGuests, setBookingGuests] = useState('1');
   const scrollViewRef = useRef(null);
+  const imageScrollViewRef = useRef(null);
     
   const [house, setHouse] = useState(null); 
   const [isLoading, setIsLoading] = useState(true);
@@ -73,6 +76,114 @@ export default function BoardingHouseDetails() {
     loadHouseFromStorage();
   }, [id]); 
 
+  // Check if house is in favorites when house loads
+  useEffect(() => {
+    if (house) {
+      checkIfFavorite();
+    }
+  }, [house]);
+
+  // Recheck favorites when page comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (house) {
+        checkIfFavorite();
+      }
+    }, [house])
+  );
+
+  // Function to check favorite status
+  const checkIfFavorite = async () => {
+    try {
+      const favoritesJson = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
+      const favorites = favoritesJson ? JSON.parse(favoritesJson) : [];
+      setIsFavorite(favorites.includes(house.id));
+    } catch (error) {
+      console.error('Failed to check favorite status', error);
+    }
+  };
+
+  // Toggle favorite function
+  const toggleFavorite = async () => {
+    try {
+      const favoritesJson = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
+      const favorites = favoritesJson ? JSON.parse(favoritesJson) : [];
+      
+      let updatedFavorites;
+      if (isFavorite) {
+        updatedFavorites = favorites.filter(favId => favId !== house.id);
+        Alert.alert('Removed from Favorites', `${house.name} has been removed from your favorites.`);
+      } else {
+        updatedFavorites = [...favorites, house.id];
+        Alert.alert('Added to Favorites', `${house.name} has been added to your favorites!`);
+      }
+      
+      await AsyncStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(updatedFavorites));
+      setIsFavorite(!isFavorite);
+    } catch (error) {
+      console.error('Failed to toggle favorite', error);
+      Alert.alert('Error', 'Failed to update favorites. Please try again.');
+    }
+  };
+
+  // Function to open image modal
+  const openImageModal = (index = 0) => {
+    setActiveImageIndex(index);
+    setShowImageModal(true);
+  };
+
+  // Function to handle image scroll in modal
+  const handleModalImageScroll = (event) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(contentOffsetX / screenWidth);
+    setActiveImageIndex(index);
+  };
+
+  // Function to navigate to specific image in modal
+  const navigateToImage = (index) => {
+    setActiveImageIndex(index);
+    if (imageScrollViewRef.current) {
+      imageScrollViewRef.current.scrollTo({ x: index * screenWidth, animated: true });
+    }
+  };
+
+  // ADDED: Function to open map modal
+  const openMapModal = () => {
+    setShowMapModal(true);
+  };
+
+  // ADDED: Function to open in Google Maps
+  const openInGoogleMaps = () => {
+    if (house.locationData) {
+      const { latitude, longitude } = house.locationData;
+      const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+      Linking.openURL(url).catch(err => 
+        Alert.alert('Error', 'Could not open Google Maps')
+      );
+    } else {
+      // Fallback: Use the address for Google Maps search
+      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(house.location)}`;
+      Linking.openURL(url).catch(err => 
+        Alert.alert('Error', 'Could not open Google Maps')
+      );
+    }
+  };
+
+  // ADDED: Function to get directions
+  const getDirections = () => {
+    if (house.locationData) {
+      const { latitude, longitude } = house.locationData;
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+      Linking.openURL(url).catch(err => 
+        Alert.alert('Error', 'Could not open Google Maps for directions')
+      );
+    } else {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(house.location)}`;
+      Linking.openURL(url).catch(err => 
+        Alert.alert('Error', 'Could not open Google Maps for directions')
+      );
+    }
+  };
 
   if (isLoading) {
     return (
@@ -106,7 +217,7 @@ export default function BoardingHouseDetails() {
     Linking.openURL(`tel:${house.landlord.phone}`);
   };
 
-const handleMessageLandlord = () => {
+  const handleMessageLandlord = () => {
     const contactKey = (c) => (c?.id || c?.email || c?.phone || c?.name || '').toString();
     router.push({
       pathname: '/(tenant)/chat',
@@ -123,11 +234,6 @@ const handleMessageLandlord = () => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(contentOffsetX / screenWidth);
     setActiveImageIndex(index);
-  };
-
-  const toggleFavorite = () => {
-    setIsFavorite(!isFavorite);
-    
   };
 
   const handleShare = async () => {
@@ -233,7 +339,9 @@ const handleMessageLandlord = () => {
         router.push({
           pathname: '/(tenant)/chat',
           params: {
-            landlordId: landlordKey,
+            landlordId: house.landlord.id,
+            landlordEmail: house.landlord.email,
+            landlordPhone: house.landlord.phone,
             landlordName: house.landlord.name,
             landlordImage: house.landlord.image,
             houseName: house.name,
@@ -333,7 +441,9 @@ const handleMessageLandlord = () => {
         router.push({
           pathname: '/(tenant)/chat',
           params: {
-            landlordId: landlordKey,
+            landlordId: house.landlord.id,
+            landlordEmail: house.landlord.email,
+            landlordPhone: house.landlord.phone,
             landlordName: house.landlord.name,
             landlordImage: house.landlord.image,
             houseName: house.name,
@@ -352,6 +462,11 @@ const handleMessageLandlord = () => {
       pathname: '/(tenant)/landlord-profile',
       params: { landlordId: contactKey(house.landlord) }
     });
+  };
+
+  // Navigate to favorites page
+  const handleViewFavorites = () => {
+    router.push('/(tenant)/favorites');
   };
 
   
@@ -409,9 +524,17 @@ const handleMessageLandlord = () => {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Details</Text>
-        <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-          <Ionicons name="share-outline" size={24} color="#333" />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.favoritesHeaderButton}
+            onPress={handleViewFavorites}
+          >
+            <Ionicons name="heart" size={24} color="#ef4444" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+            <Ionicons name="share-outline" size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       
@@ -427,11 +550,16 @@ const handleMessageLandlord = () => {
             scrollEventThrottle={16}
           >
             {house.images.map((image, index) => (
-              <Image
+              <TouchableOpacity 
                 key={index}
-                source={{ uri: image }}
-                style={styles.houseImage}
-              />
+                activeOpacity={0.9}
+                onPress={() => openImageModal(index)}
+              >
+                <Image
+                  source={{ uri: image }}
+                  style={styles.houseImage}
+                />
+              </TouchableOpacity>
             ))}
           </ScrollView>
           
@@ -452,7 +580,10 @@ const handleMessageLandlord = () => {
 
           
           <TouchableOpacity 
-            style={styles.favoriteButton}
+            style={[
+              styles.favoriteButton,
+              isFavorite && styles.favoriteButtonActive
+            ]}
             onPress={toggleFavorite}
           >
             <Ionicons 
@@ -511,6 +642,72 @@ const handleMessageLandlord = () => {
             <Ionicons name="business-outline" size={20} color="#667eea" />
             <Text style={styles.quickActionText}>Landlord</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* ADDED: Location Section with Map */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Location</Text>
+          <View style={styles.locationCard}>
+            <View style={styles.locationInfo}>
+              <Ionicons name="location" size={20} color="#667eea" />
+              <View style={styles.locationDetails}>
+                <Text style={styles.locationAddress}>{house.location}</Text>
+                {house.locationData && (
+                  <Text style={styles.locationCoordinates}>
+                    {house.locationData.latitude.toFixed(6)}, {house.locationData.longitude.toFixed(6)}
+                  </Text>
+                )}
+              </View>
+            </View>
+            
+            {/* Mini Map Preview */}
+            {house.locationData && (
+              <TouchableOpacity style={styles.mapPreview} onPress={openMapModal}>
+                <MapView
+                  style={styles.miniMap}
+                  region={{
+                    latitude: house.locationData.latitude,
+                    longitude: house.locationData.longitude,
+                    latitudeDelta: 0.005,
+                    longitudeDelta: 0.005,
+                  }}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  pitchEnabled={false}
+                  rotateEnabled={false}
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: house.locationData.latitude,
+                      longitude: house.locationData.longitude,
+                    }}
+                    title={house.name}
+                    pinColor="#667eea"
+                  />
+                </MapView>
+                <View style={styles.mapOverlay}>
+                  <Text style={styles.mapPreviewText}>Tap to view full map</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            
+            <View style={styles.locationActions}>
+              <TouchableOpacity style={styles.locationActionButton} onPress={openMapModal}>
+                <Ionicons name="map" size={16} color="#667eea" />
+                <Text style={styles.locationActionText}>View Map</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.locationActionButton} onPress={getDirections}>
+                <Ionicons name="navigate" size={16} color="#10b981" />
+                <Text style={styles.locationActionText}>Directions</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.locationActionButton} onPress={openInGoogleMaps}>
+                <Ionicons name="open" size={16} color="#f59e0b" />
+                <Text style={styles.locationActionText}>Open in Maps</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         
@@ -641,6 +838,131 @@ const handleMessageLandlord = () => {
         </View>
       </ScrollView>
 
+      {/* Full Screen Image Modal */}
+      <Modal
+        visible={showImageModal}
+        animationType="fade"
+        transparent={true}
+        statusBarTranslucent={true}
+      >
+        <View style={styles.imageModalOverlay}>
+          <TouchableOpacity 
+            style={styles.imageModalCloseButton}
+            onPress={() => setShowImageModal(false)}
+          >
+            <Ionicons name="close" size={28} color="white" />
+          </TouchableOpacity>
+          
+          <ScrollView
+            ref={imageScrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleModalImageScroll}
+            scrollEventThrottle={16}
+            style={styles.imageModalScrollView}
+          >
+            {house.images.map((image, index) => (
+              <View key={index} style={styles.fullScreenImageContainer}>
+                <Image
+                  source={{ uri: image }}
+                  style={styles.fullScreenImage}
+                  resizeMode="contain"
+                />
+              </View>
+            ))}
+          </ScrollView>
+          
+          {/* Image counter */}
+          <View style={styles.imageCounter}>
+            <Text style={styles.imageCounterText}>
+              {activeImageIndex + 1} / {house.images.length}
+            </Text>
+          </View>
+
+          {/* Thumbnail preview */}
+          {house.images.length > 1 && (
+            <View style={styles.thumbnailContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailScrollView}>
+                {house.images.map((image, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.thumbnail,
+                      index === activeImageIndex && styles.thumbnailActive
+                    ]}
+                    onPress={() => navigateToImage(index)}
+                  >
+                    <Image
+                      source={{ uri: image }}
+                      style={styles.thumbnailImage}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* ADDED: Full Screen Map Modal */}
+      <Modal
+        visible={showMapModal}
+        animationType="slide"
+        transparent={true}
+        statusBarTranslucent={true}
+      >
+        <View style={styles.mapModalOverlay}>
+          <View style={styles.mapModalContent}>
+            <View style={styles.mapModalHeader}>
+              <Text style={styles.mapModalTitle}>Property Location</Text>
+              <TouchableOpacity 
+                style={styles.mapModalCloseButton}
+                onPress={() => setShowMapModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            {house.locationData && (
+              <MapView
+                style={styles.fullMap}
+                region={{
+                  latitude: house.locationData.latitude,
+                  longitude: house.locationData.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                showsUserLocation={true}
+                showsMyLocationButton={true}
+              >
+                <Marker
+                  coordinate={{
+                    latitude: house.locationData.latitude,
+                    longitude: house.locationData.longitude,
+                  }}
+                  title={house.name}
+                  description={house.location}
+                  pinColor="#667eea"
+                />
+              </MapView>
+            )}
+            
+            <View style={styles.mapModalActions}>
+              <TouchableOpacity style={styles.mapActionButton} onPress={getDirections}>
+                <Ionicons name="navigate" size={20} color="white" />
+                <Text style={styles.mapActionText}>Get Directions</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.mapActionButton} onPress={openInGoogleMaps}>
+                <Ionicons name="open" size={20} color="white" />
+                <Text style={styles.mapActionText}>Open in Google Maps</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       
       <Modal
         visible={showInquiryModal}
@@ -765,7 +1087,6 @@ const handleMessageLandlord = () => {
   );
 }
 
-// ... (all the styles are exactly the same)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -776,7 +1097,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 60,
     paddingBottom: 20,
     backgroundColor: 'white',
     borderBottomWidth: 1,
@@ -789,6 +1110,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  favoritesHeaderButton: {
+    padding: 8,
+    marginRight: 8,
   },
   shareButton: {
     padding: 8,
@@ -830,6 +1159,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  favoriteButtonActive: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   section: {
     padding: 20,
@@ -924,6 +1256,79 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 16,
+  },
+  // ADDED: Location Card Styles
+  locationCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 16,
+  },
+  locationDetails: {
+    flex: 1,
+  },
+  locationAddress: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  locationCoordinates: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'monospace',
+  },
+  mapPreview: {
+    height: 120,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 16,
+    position: 'relative',
+  },
+  miniMap: {
+    width: '100%',
+    height: '100%',
+  },
+  mapOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapPreviewText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  locationActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    gap: 8,
+  },
+  locationActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 10,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  locationActionText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   landlordCard: {
     backgroundColor: '#f8f9fa',
@@ -1085,6 +1490,133 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
+  },
+  // Image Modal Styles
+  imageModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageModalCloseButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 1000,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageModalScrollView: {
+    flex: 1,
+    width: screenWidth,
+  },
+  fullScreenImageContainer: {
+    width: screenWidth,
+    height: screenHeight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: screenWidth,
+    height: screenHeight * 0.8,
+  },
+  imageCounter: {
+    position: 'absolute',
+    top: 60,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  imageCounterText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  thumbnailContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  thumbnailScrollView: {
+    maxWidth: screenWidth - 40,
+  },
+  thumbnail: {
+    width: 60,
+    height: 60,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  thumbnailActive: {
+    borderColor: '#667eea',
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 6,
+  },
+  // ADDED: Map Modal Styles
+  mapModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+  },
+  mapModalContent: {
+    flex: 1,
+    backgroundColor: 'white',
+    marginTop: 60,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+  },
+  mapModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5e5',
+  },
+  mapModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  mapModalCloseButton: {
+    padding: 4,
+  },
+  fullMap: {
+    flex: 1,
+    width: '100%',
+  },
+  mapModalActions: {
+    flexDirection: 'row',
+    padding: 20,
+    gap: 12,
+  },
+  mapActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 14,
+    backgroundColor: '#667eea',
+    borderRadius: 10,
+  },
+  mapActionText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
   },
   // Modals
   modalOverlay: {
