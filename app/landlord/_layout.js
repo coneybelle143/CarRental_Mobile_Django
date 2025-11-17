@@ -145,7 +145,7 @@ export default function LandlordLayout() {
           name="create-listing" 
           options={{
             title: 'Add Listing',
-            headerShown: false, 
+            headerShown: true, 
             tabBarIcon: ({ color, size }) => (
               <Feather name="plus-square" size={size} color={color} />
             ),
