@@ -88,12 +88,14 @@ export default function TenantLayout() {
       <Tabs.Screen
         name="profile"
         options={{
+          headerShown: false,
           href: null,
         }}
       />
       <Tabs.Screen
         name="boarding-house-details"
         options={{
+          headerShown: false,
           href: null,
         }}
       />
@@ -104,17 +106,50 @@ export default function TenantLayout() {
           href: null,
         }}
       />
-      
-      
       <Tabs.Screen
         name="landlord-profile"
         options={{
+          headerShown: false,
           href: null,
         }}
       />
       
-
+      {/* New screens added with headerShown: false */}
+      <Tabs.Screen
+        name="favorites"
+        options={{
+          headerShown: true,
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="bookings"
+        options={{
+          headerShown: false,
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="payments"
+        options={{
+          headerShown: false,
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          headerShown: false,
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="help-support"
+        options={{
+          headerShown: false,
+          href: null,
+        }}
+      />
     </Tabs>
-    
   );
 }
