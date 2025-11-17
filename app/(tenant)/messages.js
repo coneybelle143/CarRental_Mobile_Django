@@ -47,7 +47,6 @@ export default function Messages() {
       loadMessages();
     }, [])
   );
-
   
   const filteredMessages = allMessages.filter(message =>
     message.landlord.name.toLowerCase().includes(searchQuery.toLowerCase())
