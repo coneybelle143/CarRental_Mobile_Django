@@ -26,26 +26,31 @@ export default function Menu() {
       icon: 'heart',
       title: 'Favorites',
       description: 'View your saved boarding houses',
+      screen: 'favorites',
     },
     {
       icon: 'calendar',
       title: 'Bookings',
       description: 'Check your current and past bookings',
+      screen: 'bookings',
     },
     {
       icon: 'card',
       title: 'Payments',
       description: 'View payment history and methods',
+      screen: 'payments',
     },
     {
       icon: 'settings',
       title: 'Settings',
       description: 'App preferences and notifications',
+      screen: 'settings',
     },
     {
       icon: 'help-circle',
       title: 'Help & Support',
       description: 'Get help and contact support',
+      screen: 'help-support',
     },
     {
       icon: 'document-text',
@@ -78,13 +83,11 @@ export default function Menu() {
 
   const handleMenuPress = (item) => {
     if (item.action === 'showTerms') {
-        setShowTerms(true);
-    } else if (item.screen === 'profile') {
-      router.push('/profile');
+      setShowTerms(true);
+    } else if (item.screen) {
+      router.push(`/(tenant)/${item.screen}`);
     }
-
   };
-  
 
   if (showTerms) {
     return <TermsAndPrivacyScreen onBack={() => setShowTerms(false)} />;
@@ -110,7 +113,7 @@ export default function Menu() {
           </View>
           <TouchableOpacity 
             style={styles.editProfileButton}
-            onPress={() => router.push('/profile')}
+            onPress={() => router.push('/(tenant)/profile')}
           >
             <Ionicons name="create" size={20} color="#667eea" />
           </TouchableOpacity>
