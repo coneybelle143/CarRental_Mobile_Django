@@ -9,8 +9,13 @@ import {
   Alert,
   Switch,
   Modal,
+  Dimensions,
+  ActivityIndicator,
+  Linking, // ADD THIS IMPORT
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import MapView, { Marker } from 'react-native-maps';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router'; 
 import { Colors } from '../../constants/Colors';
 import PropertyImageGrid from '../../components/PropertyImageGrid';
@@ -19,6 +24,7 @@ import { GlobalListingContext } from './_layout';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from './AuthContext'; 
 
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function CreateListing() {
   const params = useLocalSearchParams(); 
@@ -56,6 +62,19 @@ export default function CreateListing() {
   });
   const [photos, setPhotos] = useState([]);
   const [floorPlans, setFloorPlans] = useState([]);
+  
+  // Real Google Maps Location State
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [mapAddress, setMapAddress] = useState('');
+  const [currentRegion, setCurrentRegion] = useState({
+    latitude: 8.4833, // Default to Cagayan de Oro coordinates
+    longitude: 124.6500,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [mapType, setMapType] = useState('standard');
 
   
   const houseTypes = [
@@ -97,6 +116,9 @@ export default function CreateListing() {
     setIsEditing(false);
     setHeading('Create Property Listing');
     setSubmitText('Create Listing');
+    // Reset location
+    setSelectedLocation(null);
+    setMapAddress('');
     
     
     router.setParams({});
@@ -121,6 +143,18 @@ export default function CreateListing() {
         setRules(existingListing.rules || []);
         setAvailable(existingListing.available !== false);
         setAvailableFrom(existingListing.availableFrom || '');
+        
+        // Load location data if exists
+        if (existingListing.locationData) {
+          setSelectedLocation(existingListing.locationData);
+          setMapAddress(existingListing.locationData.address || existingListing.location);
+          setCurrentRegion({
+            latitude: existingListing.locationData.latitude,
+            longitude: existingListing.locationData.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          });
+        }
         
         
         const amenitiesObj = {
@@ -167,6 +201,88 @@ export default function CreateListing() {
     }
   }, []);
 
+  // Request location permission and get current location
+  const getCurrentLocation = async () => {
+    try {
+      setIsLoadingLocation(true);
+      
+      // Request location permission
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required to use this feature.');
+        setIsLoadingLocation(false);
+        return;
+      }
+
+      // Get current location
+      let location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      const { latitude, longitude } = location.coords;
+      
+      // Update map region to current location
+      setCurrentRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+
+      // Reverse geocode to get address
+      const [addressResult] = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      });
+
+      const formattedAddress = [
+        addressResult.name,
+        addressResult.street,
+        addressResult.city,
+        addressResult.region,
+        addressResult.country,
+      ]
+        .filter(Boolean)
+        .join(', ');
+
+      setMapAddress(formattedAddress);
+      
+    } catch (error) {
+      console.error('Error getting location:', error);
+      Alert.alert('Error', 'Could not get current location. Please try again.');
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
+
+  // Geocode address to coordinates
+  const geocodeAddress = async (address) => {
+    try {
+      setIsLoadingLocation(true);
+      const results = await Location.geocodeAsync(address);
+      
+      if (results.length > 0) {
+        const { latitude, longitude } = results[0];
+        setCurrentRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+        return { latitude, longitude };
+      } else {
+        Alert.alert('Error', 'Could not find this address. Please try a different address.');
+        return null;
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      Alert.alert('Error', 'Could not geocode address. Please try again.');
+      return null;
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
+
   
   const pickImage = async (setter, multiple = false) => {
     try {
@@ -212,7 +328,104 @@ export default function CreateListing() {
     setShowRulesModal(false);
     setNewRule('');
   };
-  
+
+  // Real Google Maps Location Functions
+  const openMapModal = async () => {
+    setShowMapModal(true);
+    
+    // If we have existing location data, center map on it
+    if (selectedLocation) {
+      setCurrentRegion({
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+      setMapAddress(selectedLocation.address);
+    } else if (address) {
+      // Try to geocode the existing address
+      setMapAddress(address);
+      await geocodeAddress(address);
+    } else {
+      // Get current location if no existing data
+      await getCurrentLocation();
+    }
+  };
+
+  const closeMapModal = () => {
+    setShowMapModal(false);
+  };
+
+  // Handle map region change
+  const handleRegionChange = (region) => {
+    setCurrentRegion(region);
+  };
+
+  // Handle map press to set marker
+  const handleMapPress = (event) => {
+    const { coordinate } = event.nativeEvent;
+    setSelectedLocation({
+      ...coordinate,
+      address: mapAddress || 'Selected Location',
+    });
+  };
+
+  // Handle address search
+  const handleAddressSearch = async () => {
+    if (mapAddress.trim()) {
+      const coordinates = await geocodeAddress(mapAddress.trim());
+      if (coordinates) {
+        setSelectedLocation({
+          ...coordinates,
+          address: mapAddress.trim(),
+        });
+      }
+    }
+  };
+
+  // Use current location
+  const handleUseCurrentLocation = async () => {
+    await getCurrentLocation();
+    // Set marker at current location
+    setSelectedLocation({
+      latitude: currentRegion.latitude,
+      longitude: currentRegion.longitude,
+      address: mapAddress,
+    });
+  };
+
+  const handleMapLocationSelect = () => {
+    if (selectedLocation) {
+      setAddress(selectedLocation.address); // Also update the main address field
+      Alert.alert('Location Saved', 'Property location has been set successfully!');
+      closeMapModal();
+    } else {
+      Alert.alert('Error', 'Please select a location on the map first');
+    }
+  };
+
+  const clearLocation = () => {
+    setSelectedLocation(null);
+    setMapAddress('');
+    Alert.alert('Location Cleared', 'Property location has been removed.');
+  };
+
+  // Function to open Google Maps with the selected location
+  const openInGoogleMaps = () => {
+    if (selectedLocation) {
+      const { latitude, longitude } = selectedLocation;
+      const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+      Linking.openURL(url).catch(err => 
+        Alert.alert('Error', 'Could not open Google Maps')
+      );
+    }
+  };
+
+  // Toggle map type
+  const toggleMapType = () => {
+    setMapType(mapType === 'standard' ? 'satellite' : 'standard');
+  };
+
   const getAmenitiesArray = () => {
     const amenitiesMap = {
       wifi: 'WiFi',
@@ -258,6 +471,8 @@ export default function CreateListing() {
       floorPlans,
       rating: isEditing ? undefined : 4.5, 
       reviews: isEditing ? undefined : 0, 
+      // Include location data
+      locationData: selectedLocation,
 
       
       landlord: {
@@ -321,8 +536,55 @@ export default function CreateListing() {
         <Text style={styles.label}>Title</Text>
         <TextInput style={styles.input} placeholder="e.g., Cozy 2BR near downtown" value={title} onChangeText={setTitle} />
 
-        <Text style={styles.label}>Address</Text>
-        <TextInput style={styles.input} placeholder="Full address" value={address} onChangeText={setAddress} />
+        {/* Location Section with Real Map Integration */}
+        <View style={styles.locationSection}>
+          <View style={styles.locationHeader}>
+            <Text style={styles.label}>Property Location</Text>
+            <TouchableOpacity style={styles.mapButton} onPress={openMapModal}>
+              <Ionicons name="map" size={20} color="#667eea" />
+              <Text style={styles.mapButtonText}>Set on Map</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <TextInput 
+            style={styles.input} 
+            placeholder="Full address" 
+            value={address} 
+            onChangeText={setAddress} 
+          />
+
+          {selectedLocation && (
+            <View style={styles.locationPreview}>
+              <View style={styles.locationInfo}>
+                <Ionicons name="location" size={16} color="#10b981" />
+                <View style={styles.locationDetails}>
+                  <Text style={styles.locationText} numberOfLines={2}>
+                    {selectedLocation.address}
+                  </Text>
+                  <Text style={styles.coordinatesText}>
+                    {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.locationActions}>
+                <TouchableOpacity 
+                  style={styles.locationActionButton}
+                  onPress={openInGoogleMaps}
+                >
+                  <Ionicons name="navigate" size={16} color="#667eea" />
+                  <Text style={styles.locationActionText}>View</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.locationActionButton}
+                  onPress={clearLocation}
+                >
+                  <Ionicons name="trash" size={16} color="#ef4444" />
+                  <Text style={styles.locationActionText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
 
         <View style={styles.rowInputs}>
           <View style={{ flex: 1, marginRight: 12 }}>
@@ -523,6 +785,120 @@ export default function CreateListing() {
           </View>
         </View>
       </Modal>
+
+      {/* Real Interactive Google Maps Modal */}
+      <Modal
+        visible={showMapModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={closeMapModal}
+        statusBarTranslucent={true}
+      >
+        <View style={styles.mapModalOverlay}>
+          <View style={styles.mapModalContent}>
+            <View style={styles.mapModalHeader}>
+              <Text style={styles.mapModalTitle}>Set Property Location</Text>
+              <TouchableOpacity style={styles.mapCloseButton} onPress={closeMapModal}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.mapModalSubtitle}>
+              Tap on the map to set your property location or search for an address
+            </Text>
+
+            {/* Address Search Bar */}
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search address or place..."
+                value={mapAddress}
+                onChangeText={setMapAddress}
+                onSubmitEditing={handleAddressSearch}
+              />
+              <TouchableOpacity style={styles.searchButton} onPress={handleAddressSearch}>
+                <Ionicons name="search" size={20} color="white" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Real Interactive Map */}
+            <View style={styles.mapContainer}>
+              {isLoadingLocation ? (
+                <View style={styles.mapLoading}>
+                  <ActivityIndicator size="large" color="#667eea" />
+                  <Text style={styles.mapLoadingText}>Loading map...</Text>
+                </View>
+              ) : (
+                <MapView
+                  style={styles.map}
+                  region={currentRegion}
+                  onRegionChangeComplete={handleRegionChange}
+                  onPress={handleMapPress}
+                  mapType={mapType}
+                  showsUserLocation={true}
+                  showsMyLocationButton={false}
+                  showsCompass={true}
+                  showsScale={true}
+                >
+                  {selectedLocation && (
+                    <Marker
+                      coordinate={selectedLocation}
+                      title="Property Location"
+                      description={selectedLocation.address}
+                      pinColor="#667eea"
+                    />
+                  )}
+                </MapView>
+              )}
+            </View>
+
+            {/* Map Controls */}
+            <View style={styles.mapControls}>
+              <TouchableOpacity style={styles.mapControlButton} onPress={handleUseCurrentLocation}>
+                <Ionicons name="locate" size={20} color="#667eea" />
+                <Text style={styles.mapControlText}>Current Location</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.mapControlButton} onPress={toggleMapType}>
+                <Ionicons name={mapType === 'standard' ? 'map' : 'earth'} size={20} color="#667eea" />
+                <Text style={styles.mapControlText}>
+                  {mapType === 'standard' ? 'Satellite' : 'Map'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Selected Location Info */}
+            {selectedLocation && (
+              <View style={styles.selectedLocationInfo}>
+                <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+                <View style={styles.selectedLocationText}>
+                  <Text style={styles.selectedLocationTitle}>Location Selected</Text>
+                  <Text style={styles.selectedLocationAddress} numberOfLines={2}>
+                    {selectedLocation.address}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.mapModalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelModalButton]}
+                onPress={closeMapModal}
+              >
+                <Text style={styles.cancelModalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.addModalButton]}
+                onPress={handleMapLocationSelect}
+                disabled={!selectedLocation}
+              >
+                <Ionicons name="checkmark" size={20} color="white" />
+                <Text style={styles.addModalButtonText}>Save Location</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -580,6 +956,75 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     backgroundColor: '#fbfcfe',
+  },
+  // Location Section Styles
+  locationSection: {
+    marginBottom: 8,
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  mapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 8,
+    backgroundColor: '#f0f4ff',
+    borderRadius: 8,
+  },
+  mapButtonText: {
+    color: '#667eea',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  locationPreview: {
+    backgroundColor: '#f0fdf4',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10b981',
+  },
+  locationInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 8,
+  },
+  locationDetails: {
+    flex: 1,
+  },
+  locationText: {
+    color: '#065f46',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  coordinatesText: {
+    color: '#047857',
+    fontSize: 12,
+    fontFamily: 'monospace',
+  },
+  locationActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  locationActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 6,
+    backgroundColor: 'white',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+  },
+  locationActionText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   rowInputs: {
     flexDirection: 'row',
@@ -741,12 +1186,135 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
   },
-  modalTitle: {
+  // Real Map Modal Styles
+  mapModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+  },
+  mapModalContent: {
+    flex: 1,
+    backgroundColor: 'white',
+    marginTop: 60,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
+  },
+  mapModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5e5',
+  },
+  mapModalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
+  },
+  mapCloseButton: {
+    padding: 4,
+  },
+  mapModalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
     marginBottom: 16,
-    textAlign: 'center',
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: '#fbfcfe',
+  },
+  searchButton: {
+    backgroundColor: '#667eea',
+    padding: 12,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapContainer: {
+    height: 300,
+    marginHorizontal: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+  mapLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  mapLoadingText: {
+    marginTop: 8,
+    color: '#666',
+  },
+  mapControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  mapControlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+  },
+  mapControlText: {
+    color: '#667eea',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  selectedLocationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    padding: 16,
+    marginHorizontal: 20,
+    borderRadius: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10b981',
+    marginBottom: 16,
+  },
+  selectedLocationText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  selectedLocationTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#065f46',
+    marginBottom: 2,
+  },
+  selectedLocationAddress: {
+    fontSize: 12,
+    color: '#047857',
+  },
+  mapModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 20,
+    paddingTop: 0,
   },
   ruleInput: {
     borderWidth: 1,
@@ -761,12 +1329,16 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     gap: 12,
+    marginTop: 20,
   },
   modalButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   cancelModalButton: {
     backgroundColor: '#f8f9fa',
