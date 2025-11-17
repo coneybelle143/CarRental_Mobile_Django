@@ -9,199 +9,245 @@ import {
   KeyboardAvoidingView, 
   Platform,
   Image,
+  Alert,
 } from 'react-native';
-import { Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { messages as mockConversations } from '../../data/mockData';
 import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import * as ImagePicker from 'expo-image-picker';
 
 const TENANT_MESSAGES_KEY = '@tenant_messages'; 
-
 const LANDLORD_INQUIRIES_KEY = '@landlord_inquiries';
 
 export default function ChatScreen() {
-  const { landlordId, landlordName, houseName, landlordImage } = useLocalSearchParams();
-  const contactKey = (c) => (c?.id || c?.email || c?.phone || c?.name || '').toString();
-  const landlordKey = landlordId ? landlordId.toString() : null;
+  const { landlordId, landlordEmail, landlordPhone, landlordName, houseName, landlordImage } = useLocalSearchParams();
+  
+  // Create a flexible landlord key that tries to match by any available identifier
+  const createFlexibleKey = () => {
+    if (landlordId) return landlordId.toString();
+    if (landlordEmail) return landlordEmail.toString();
+    if (landlordPhone) return landlordPhone.toString();
+    if (landlordName) return landlordName.toString();
+    return '';
+  };
+  
+  const landlordKey = createFlexibleKey();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [conversationStatus, setConversationStatus] = useState(null);
+  const [conversationId, setConversationId] = useState(null);
 
- 
   const currentUser = {
-      id: 'tenant_jesse_pinkman_01',
-      name: 'Jesse Pinkman',
-      image: 'https://i.insider.com/5d9f454ee94e865e924818da?width=700',
-      phone: '+1 234 567 8900'
+    id: 'tenant_jesse_pinkman_01',
+    name: 'Jesse Pinkman',
+    image: 'https://i.insider.com/5d9f454ee94e865e924818da?width=700',
+    phone: '+1 234 567 8900'
   };
-  const currentUserId = currentUser.id; 
+  const currentUserId = currentUser.id;
 
- 
   useEffect(() => {
-    const loadConversation = async () => {
-      try {
-        const jsonValue = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
-        const allConversations = jsonValue != null ? JSON.parse(jsonValue) : [];
-        
-        const map = {};
-        allConversations.forEach(conv => {
-          const key = contactKey(conv.landlord);
-          if (!map[key]) {
-            map[key] = { ...conv };
-            
-            map[key].history = map[key].history || [];
-          } else {
-           
-            const existingIds = new Set(map[key].history.map(m => m.id));
-            const merged = [...map[key].history];
-            (conv.history || []).forEach(m => { if (!existingIds.has(m.id)) merged.push(m); });
-            map[key].history = merged;
-           
-            map[key].lastMessage = map[key].lastMessage || conv.lastMessage;
-            map[key].time = map[key].time || conv.time;
-            map[key].unread = map[key].unread || conv.unread;
-          }
-        });
-
-        const deduped = Object.values(map);
-       
-        if (deduped.length !== allConversations.length) {
-          await AsyncStorage.setItem(TENANT_MESSAGES_KEY, JSON.stringify(deduped));
-        }
-
-        const conversation = deduped.find(
-          (conv) => contactKey(conv.landlord) === landlordKey
-        );
-        
-        const initialMessages = conversation?.history || [];
-        setMessages(initialMessages);
-        setConversationStatus(conversation?.status || null);
-      } catch (e) {
-        console.error("Failed to load conversation", e);
-        setMessages([]);
-      }
-    };
-
     loadConversation();
   }, [landlordId]);
+
+  const loadConversation = async () => {
+    try {
+      const jsonValue = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
+      const allConversations = jsonValue != null ? JSON.parse(jsonValue) : [];
+      
+      // Find conversation using flexible matching
+      const conversation = allConversations.find(conv => {
+        const convLandlord = conv.landlord || {};
+        return (
+          (landlordId && convLandlord.id === landlordId) ||
+          (landlordEmail && convLandlord.email === landlordEmail) ||
+          (landlordPhone && convLandlord.phone === landlordPhone) ||
+          (landlordName && convLandlord.name === landlordName)
+        );
+      });
+      
+      if (conversation) {
+        const initialMessages = conversation.history || [];
+        setMessages(initialMessages);
+        setConversationStatus(conversation.status || null);
+        setConversationId(conversation.id);
+      } else {
+        setMessages([]);
+        setConversationStatus(null);
+        setConversationId(null);
+      }
+    } catch (e) {
+      console.error("Failed to load conversation", e);
+      setMessages([]);
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Sorry, we need camera roll permissions to upload images.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        await sendMessage('', result.assets[0].uri);
+      }
+    } catch (err) {
+      console.error('Image pick error', err);
+      Alert.alert('Error', 'Failed to pick image.');
+    }
+  };
+
+  const sendMessage = async (text = '', imageUri = '') => {
+    if (!text.trim() && !imageUri) return;
+
+    const messageData = {
+      id: `msg_${Date.now()}`,
+      sender: currentUserId,
+      text: text.trim(),
+      image: imageUri,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: imageUri ? 'image' : 'text',
+    };
+
+    // Update UI immediately
+    setMessages((prevMessages) => [messageData, ...prevMessages]);
+    if (text) setNewMessage('');
+
+    try {
+      // Update tenant messages
+      const tenantJson = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
+      let tenantConversations = tenantJson != null ? JSON.parse(tenantJson) : [];
+
+      const tenantConvoIndex = tenantConversations.findIndex(c => {
+        const convLandlord = c.landlord || {};
+        return (
+          (landlordId && convLandlord.id === landlordId) ||
+          (landlordEmail && convLandlord.email === landlordEmail) ||
+          (landlordPhone && convLandlord.phone === landlordPhone) ||
+          (landlordName && convLandlord.name === landlordName)
+        );
+      });
+
+      if (tenantConvoIndex > -1) {
+        if (!tenantConversations[tenantConvoIndex].history) {
+          tenantConversations[tenantConvoIndex].history = [];
+        }
+        tenantConversations[tenantConvoIndex].history.unshift(messageData);
+        tenantConversations[tenantConvoIndex].lastMessage = messageData.text || '📷 Image';
+        tenantConversations[tenantConvoIndex].time = 'Just now';
+        tenantConversations[tenantConvoIndex].unread = false;
+      } else {
+        const newConversation = {
+          id: `convo_${Date.now()}`,
+          landlord: {
+            id: landlordId,
+            email: landlordEmail,
+            phone: landlordPhone,
+            name: landlordName,
+            image: landlordImage,
+          },
+          houseName: houseName || 'General Inquiry',
+          lastMessage: messageData.text || '📷 Image',
+          time: 'Just now',
+          unread: false,
+          history: [messageData],
+        };
+        tenantConversations.unshift(newConversation);
+        setConversationId(newConversation.id);
+      }
+      await AsyncStorage.setItem(TENANT_MESSAGES_KEY, JSON.stringify(tenantConversations));
+    } catch (e) {
+      console.error("Failed to save tenant message", e);
+    }
+    
+    try {
+      // Update landlord inquiries
+      const landlordJson = await AsyncStorage.getItem(LANDLORD_INQUIRIES_KEY);
+      let landlordInquiries = landlordJson != null ? JSON.parse(landlordJson) : [];
+      
+      const landlordConvoIndex = landlordInquiries.findIndex(c => c.tenant.id === currentUser.id);
+
+      if (landlordConvoIndex > -1) {
+        if (!landlordInquiries[landlordConvoIndex].history) {
+          landlordInquiries[landlordConvoIndex].history = [];
+        }
+        landlordInquiries[landlordConvoIndex].history.unshift(messageData);
+        landlordInquiries[landlordConvoIndex].lastMessage = messageData.text || '📷 Image';
+        landlordInquiries[landlordConvoIndex].time = 'Just now';
+        landlordInquiries[landlordConvoIndex].unread = true;
+        landlordInquiries[landlordConvoIndex].property = houseName || landlordInquiries[landlordConvoIndex].property;
+        landlordInquiries[landlordConvoIndex].status = 'new';
+      } else {
+        landlordInquiries.unshift({
+          id: `inq_${Date.now()}`,
+          tenant: currentUser,
+          property: houseName || 'General Inquiry',
+          lastMessage: messageData.text || '📷 Image',
+          time: 'Just now',
+          unread: true,
+          status: 'new',
+          history: [messageData],
+        });
+      }
+      
+      await AsyncStorage.setItem(LANDLORD_INQUIRIES_KEY, JSON.stringify(landlordInquiries));
+    } catch (e) {
+      console.error("Failed to save landlord inquiry", e);
+    }
+  };
+
+  const handleSend = useCallback(() => {
+    sendMessage(newMessage);
+  }, [newMessage]);
 
   const handleDeleteConversation = () => {
     Alert.alert(
       'Delete Conversation',
-      'Are you sure you want to delete this conversation? This will remove it only from your messages.',
+      'Are you sure you want to delete this conversation? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            const jsonValue = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
-            let allConversations = jsonValue != null ? JSON.parse(jsonValue) : [];
-            allConversations = allConversations.filter(c => contactKey(c.landlord) !== landlordKey);
-            await AsyncStorage.setItem(TENANT_MESSAGES_KEY, JSON.stringify(allConversations));
-            setMessages([]);
-            router.back();
-          } catch (e) {
-            console.error('Failed to delete conversation', e);
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              // Remove conversation from tenant messages
+              const tenantJson = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
+              let tenantConversations = tenantJson != null ? JSON.parse(tenantJson) : [];
+              
+              const updatedConversations = tenantConversations.filter(conv => {
+                const convLandlord = conv.landlord || {};
+                return !(
+                  (landlordId && convLandlord.id === landlordId) ||
+                  (landlordEmail && convLandlord.email === landlordEmail) ||
+                  (landlordPhone && convLandlord.phone === landlordPhone) ||
+                  (landlordName && convLandlord.name === landlordName)
+                );
+              });
+              
+              await AsyncStorage.setItem(TENANT_MESSAGES_KEY, JSON.stringify(updatedConversations));
+              
+              // Clear local state and navigate back
+              setMessages([]);
+              router.back();
+            } catch (e) {
+              console.error('Failed to delete conversation', e);
+              Alert.alert('Error', 'Failed to delete conversation.');
+            }
           }
-        }}
+        }
       ]
     );
   };
 
-  
-  
-  const handleSendMessage = useCallback(async () => {
-    if (newMessage.trim()) {
-      const messageText = newMessage.trim();
-      const messageData = {
-        id: `msg_${Date.now()}`,
-        sender: currentUserId,
-        text: messageText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-
-     
-      setMessages((prevMessages) => [messageData, ...prevMessages]);
-      setNewMessage('');
-
-      try {
-        const tenantJson = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
-        let tenantConversations = tenantJson != null ? JSON.parse(tenantJson) : []; 
-
-      const tenantConvoIndex = tenantConversations.findIndex(c => contactKey(c.landlord) === landlordKey);
-
-        if (tenantConvoIndex > -1) {
-          if (!tenantConversations[tenantConvoIndex].history) {
-            tenantConversations[tenantConvoIndex].history = [];
-          }
-          tenantConversations[tenantConvoIndex].history.unshift(messageData); 
-          tenantConversations[tenantConvoIndex].lastMessage = messageText;
-          tenantConversations[tenantConvoIndex].time = 'Just now';
-          tenantConversations[tenantConvoIndex].unread = false; 
-        } else {
-          tenantConversations.unshift({
-            id: `convo_${Date.now()}`,
-            landlord: {
-              id: landlordId,
-              name: landlordName,
-              image: landlordImage,
-            },
-            houseName: houseName || 'General Inquiry',
-            lastMessage: messageText,
-            time: 'Just now',
-            unread: false,
-            history: [messageData],
-          });
-        }
-        await AsyncStorage.setItem(TENANT_MESSAGES_KEY, JSON.stringify(tenantConversations));
-      } catch (e) {
-        console.error("Failed to save tenant message", e); 
-      }
-      
-     
-      try {
-        const landlordJson = await AsyncStorage.getItem(LANDLORD_INQUIRIES_KEY);
-        let landlordInquiries = landlordJson != null ? JSON.parse(landlordJson) : [];
-        
-    
-        const landlordConvoIndex = landlordInquiries.findIndex(c => c.tenant.id === currentUser.id);
-        
-
-        if (landlordConvoIndex > -1) {
-          
-          if (!landlordInquiries[landlordConvoIndex].history) {
-            landlordInquiries[landlordConvoIndex].history = [];
-          }
-          landlordInquiries[landlordConvoIndex].history.unshift(messageData);
-          landlordInquiries[landlordConvoIndex].lastMessage = messageText;
-          landlordInquiries[landlordConvoIndex].time = 'Just now';
-          landlordInquiries[landlordConvoIndex].unread = true; 
-          landlordInquiries[landlordConvoIndex].property = houseName || landlordInquiries[landlordConvoIndex].property;
-          landlordInquiries[landlordConvoIndex].status = 'new';
-        } else {
-          
-          landlordInquiries.unshift({
-            id: `inq_${Date.now()}`,
-            tenant: currentUser, 
-            property: houseName || 'General Inquiry',
-            lastMessage: messageText,
-            time: 'Just now',
-            unread: true,
-            status: 'new',
-            history: [messageData],
-          });
-        }
-        
-        
-        await AsyncStorage.setItem(LANDLORD_INQUIRIES_KEY, JSON.stringify(landlordInquiries));
-
-      } catch (e) {
-        console.error("Failed to save landlord inquiry", e);
-      }
-    }
-  }, [newMessage, currentUserId, landlordId, landlordName, landlordImage, houseName]);
-
-  
   const renderMessage = ({ item }) => (
     <View
       style={[
@@ -211,15 +257,21 @@ export default function ChatScreen() {
           : styles.otherMessage,
       ]}
     >
-      <Text
-        style={
-          item.sender === currentUserId
-            ? styles.myMessageText
-            : styles.otherMessageText
-        }
-      >
-        {item.text}
-      </Text>
+      {item.image ? (
+        <TouchableOpacity onPress={() => Alert.alert('Image', 'View image full screen')}>
+          <Image source={{ uri: item.image }} style={styles.messageImage} />
+        </TouchableOpacity>
+      ) : (
+        <Text
+          style={
+            item.sender === currentUserId
+              ? styles.myMessageText
+              : styles.otherMessageText
+          }
+        >
+          {item.text}
+        </Text>
+      )}
       <Text style={styles.messageTime}>{item.timestamp}</Text>
     </View>
   );
@@ -260,6 +312,9 @@ export default function ChatScreen() {
       />
 
       <View style={styles.inputContainer}>
+        <TouchableOpacity style={styles.attachButton} onPress={pickImage}>
+          <Ionicons name="image" size={24} color="#667eea" />
+        </TouchableOpacity>
         <TextInput
           style={styles.textInput}
           value={newMessage}
@@ -267,14 +322,13 @@ export default function ChatScreen() {
           placeholder="Type your message..."
           multiline
         />
-        <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
+        <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
           <Ionicons name="send" size={24} color="white" />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -338,6 +392,12 @@ const styles = StyleSheet.create({
     color: '#333',
     fontSize: 16,
   },
+  messageImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
   messageTime: {
     fontSize: 10,
     color: 'rgba(0,0,0,0.5)',
@@ -364,6 +424,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e5e5e5',
     backgroundColor: 'white',
+  },
+  attachButton: {
+    padding: 8,
+    marginRight: 8,
   },
   textInput: {
     flex: 1,
