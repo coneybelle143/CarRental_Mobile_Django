@@ -1,12 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const FAVORITES_STORAGE_KEY = '@tenant_favorites';
 
 const BoardingHouseCard = ({ house, onPress }) => {
   const [imageError, setImageError] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
   
- 
   const imageUrl = house.images && house.images.length > 0 ? house.images[0] : house.image;
+
+  useEffect(() => {
+    checkIfFavorite();
+  }, [house.id]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      checkIfFavorite();
+    }, [house.id])
+  );
+
+  const checkIfFavorite = async () => {
+    try {
+      const favoritesJson = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
+      const favorites = favoritesJson ? JSON.parse(favoritesJson) : [];
+      setIsFavorite(favorites.includes(house.id));
+    } catch (error) {
+      console.error('Failed to check favorite status', error);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    try {
+      const favoritesJson = await AsyncStorage.getItem(FAVORITES_STORAGE_KEY);
+      const favorites = favoritesJson ? JSON.parse(favoritesJson) : [];
+      
+      let updatedFavorites;
+      if (isFavorite) {
+        updatedFavorites = favorites.filter(id => id !== house.id);
+      } else {
+        updatedFavorites = [...favorites, house.id];
+      }
+      
+      await AsyncStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(updatedFavorites));
+      setIsFavorite(!isFavorite);
+    } catch (error) {
+      console.error('Failed to toggle favorite', error);
+    }
+  };
 
   const handleImageError = () => {
     setImageError(true);
@@ -28,14 +71,29 @@ const BoardingHouseCard = ({ house, onPress }) => {
           </View>
         )}
         
-       
-        <TouchableOpacity style={styles.favoriteButton}>
-          <Ionicons name="heart-outline" size={20} color="white" />
+        {/* Favorite Button */}
+        <TouchableOpacity 
+          style={[
+            styles.favoriteButton,
+            isFavorite && styles.favoriteButtonActive
+          ]} 
+          onPress={(e) => {
+            e.stopPropagation(); // Prevent triggering the card press
+            toggleFavorite();
+          }}
+        >
+          <Ionicons 
+            name={isFavorite ? "heart" : "heart-outline"} 
+            size={20} 
+            color={isFavorite ? "#ef4444" : "white"} 
+          />
         </TouchableOpacity>
         
-       
+        {/* Availability Badge */}
         <View style={styles.availabilityBadge}>
-          <Text style={styles.availabilityText}>Available</Text>
+          <Text style={styles.availabilityText}>
+            {house.available ? 'Available' : 'Occupied'}
+          </Text>
         </View>
       </View>
       
@@ -78,12 +136,14 @@ const BoardingHouseCard = ({ house, onPress }) => {
         
         <View style={styles.landlordInfo}>
           <Ionicons 
-            name={house.landlord.verified ? "checkmark-circle" : "person-circle"} 
+            name={house.landlord?.verified ? "checkmark-circle" : "person-circle"} 
             size={16} 
-            color={house.landlord.verified ? "#10b981" : "#666"} 
+            color={house.landlord?.verified ? "#10b981" : "#666"} 
           />
-          <Text style={styles.landlordName} numberOfLines={1}>{house.landlord.name}</Text>
-          {house.landlord.verified && (
+          <Text style={styles.landlordName} numberOfLines={1}>
+            {house.landlord?.name || 'Unknown'}
+          </Text>
+          {house.landlord?.verified && (
             <View style={styles.verifiedBadge}>
               <Text style={styles.verifiedText}>Verified</Text>
             </View>
@@ -136,6 +196,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  favoriteButtonActive: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   availabilityBadge: {
     position: 'absolute',
