@@ -518,7 +518,13 @@ export default function CreateListing() {
 
   const handleCancel = () => {
     resetForm();
-    router.back();
+    // Check if we can go back in the navigation stack
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      // If not, replace the current screen with the landlord dashboard
+      router.replace('/landlord');
+    }
   };
 
   
