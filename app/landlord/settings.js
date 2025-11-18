@@ -78,32 +78,33 @@ export default function SettingsScreen() {
         },
       ]
     },
+    // In settings.js, update the Account section items:
+{
+  title: 'Account',
+  items: [
     {
-      title: 'Account',
-      items: [
-        {
-          icon: 'lock-closed',
-          title: 'Privacy & Security',
-          description: 'Manage your privacy settings',
-          type: 'navigation',
-          onPress: () => Alert.alert('Privacy', 'Privacy settings screen')
-        },
-        {
-          icon: 'card',
-          title: 'Payment Methods',
-          description: 'Manage your bank accounts and cards',
-          type: 'navigation',
-          onPress: () => Alert.alert('Payment Methods', 'Payment methods screen')
-        },
-        {
-          icon: 'document-text',
-          title: 'Terms of Service',
-          description: 'Read our terms and conditions',
-          type: 'navigation',
-          onPress: () => Alert.alert('Terms', 'Terms of service screen')
-        },
-      ]
-    }
+      icon: 'lock-closed',
+      title: 'Privacy & Security',
+      description: 'Manage your privacy settings',
+      type: 'navigation',
+      onPress: () => router.push('/landlord/privacy-security') // Update this line
+    },
+    {
+      icon: 'card',
+      title: 'Payment Methods',
+      description: 'Manage your bank accounts and cards',
+      type: 'navigation',
+      onPress: () => Alert.alert('Payment Methods', 'Payment methods screen')
+    },
+    {
+      icon: 'document-text',
+      title: 'Terms of Service',
+      description: 'Read our terms and conditions',
+      type: 'navigation',
+      onPress: () => Alert.alert('Terms', 'Terms of service screen')
+    },
+  ]
+}
   ];
 
   const handleResetSettings = () => {

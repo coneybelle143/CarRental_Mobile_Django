@@ -1,3 +1,4 @@
+// In menu.js, make sure you're using useAuth properly
 import React, { useState } from 'react';
 import {
   View,
@@ -11,12 +12,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors } from '../../constants/Colors';
-import { useAuth } from './AuthContext';
+import { useAuth } from './AuthContext'; // Make sure this import is correct
 import ShareProfileModal from '../../components/ShareProfileModal';
 
 export default function LandlordMenuScreen() {
   const { user, logout } = useAuth();
   const [isShareModalVisible, setShareModalVisible] = useState(false);
+
 
   const menuItems = [
     {
