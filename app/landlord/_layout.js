@@ -179,6 +179,8 @@ export default function LandlordLayout() {
         <Tabs.Screen name="privacy-security" options={{ href: null }} />
         <Tabs.Screen name="financials" options={{ href: null }} />
         <Tabs.Screen name="listing-details" options={{ href: null }} />
+        // In _layout.js, add payment-methods to hidden screens
+        <Tabs.Screen name="payment-method" options={{ href: null }} />
         <Tabs.Screen name="chat" options={{ href: null, headerShown: false }} />
       </Tabs>
     </GlobalListingContext.Provider>

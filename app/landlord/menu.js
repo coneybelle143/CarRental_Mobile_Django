@@ -1,4 +1,4 @@
-// In menu.js, make sure you're using useAuth properly
+// app/landlord/menu.js
 import React, { useState } from 'react';
 import {
   View,
@@ -19,40 +19,7 @@ export default function LandlordMenuScreen() {
   const { user, logout } = useAuth();
   const [isShareModalVisible, setShareModalVisible] = useState(false);
 
-
-  const menuItems = [
-    {
-      icon: 'person',
-      title: 'Profile',
-      description: 'Manage your account information',
-      screen: 'profile',
-    },
-    {
-      icon: 'chatbubbles',
-      title: 'Tenant Inquiries',
-      description: 'View messages and inquiries',
-      screen: 'inquiries',
-    },
-    {
-      icon: 'wallet',
-      title: 'Financials & Payments',
-      description: 'View rent collections and statements',
-      screen: 'financials',
-    },
-    {
-      icon: 'settings',
-      title: 'App Settings',
-      description: 'Preferences and notification options',
-      screen: 'settings',
-    },
-    {
-      icon: 'help-circle',
-      title: 'Help & Support',
-      description: 'Get help and contact support',
-      screen: 'support',
-    },
-  ];
-
+  // ADD THE MISSING handleLogout FUNCTION
   const handleLogout = () => {
     Alert.alert(
       "Log Out",
@@ -74,6 +41,45 @@ export default function LandlordMenuScreen() {
     );
   };
 
+  const menuItems = [
+    {
+      icon: 'person',
+      title: 'Profile',
+      description: 'Manage your account information',
+      screen: 'profile',
+    },
+    {
+      icon: 'chatbubbles',
+      title: 'Tenant Inquiries',
+      description: 'View messages and inquiries',
+      screen: 'inquiries',
+    },
+    {
+      icon: 'wallet',
+      title: 'Financials & Payments',
+      description: 'View rent collections and statements',
+      screen: 'financials',
+    },
+    {
+      icon: 'card',
+      title: 'Payment Methods',
+      description: 'Manage your bank accounts and cards',
+      screen: 'payment-methods',
+    },
+    {
+      icon: 'settings',
+      title: 'App Settings',
+      description: 'Preferences and notification options',
+      screen: 'settings',
+    },
+    {
+      icon: 'help-circle',
+      title: 'Help & Support',
+      description: 'Get help and contact support',
+      screen: 'support',
+    },
+  ];
+
   const handleMenuPress = (item) => {
     if (item.screen === 'profile') {
       router.push('/landlord/edit-profile');
@@ -83,6 +89,8 @@ export default function LandlordMenuScreen() {
       router.push('/landlord/financials');
     } else if (item.screen === 'settings') {
       router.push('/landlord/settings');
+    } else if (item.screen === 'payment-methods') {
+      router.push('/landlord/payment-method');
     } else if (item.screen === 'support') {
       router.push('/landlord/support');
     }

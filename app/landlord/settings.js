@@ -79,6 +79,7 @@ export default function SettingsScreen() {
       ]
     },
     // In settings.js, update the Account section items:
+// In settings.js, update the Account section items:
 {
   title: 'Account',
   items: [
@@ -87,21 +88,21 @@ export default function SettingsScreen() {
       title: 'Privacy & Security',
       description: 'Manage your privacy settings',
       type: 'navigation',
-      onPress: () => router.push('/landlord/privacy-security') // Update this line
+      onPress: () => router.push('/landlord/privacy-security')
     },
     {
       icon: 'card',
       title: 'Payment Methods',
       description: 'Manage your bank accounts and cards',
       type: 'navigation',
-      onPress: () => Alert.alert('Payment Methods', 'Payment methods screen')
+      onPress: () => router.push('/landlord/payment-method')
     },
     {
       icon: 'document-text',
       title: 'Terms of Service',
       description: 'Read our terms and conditions',
       type: 'navigation',
-      onPress: () => Alert.alert('Terms', 'Terms of service screen')
+      onPress: () => router.push('/landlord/terms')
     },
   ]
 }
