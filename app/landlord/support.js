@@ -131,23 +131,10 @@ export default function SupportScreen() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={{ paddingLeft: 16 }}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-          ),
         }}
       />
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-       
-        <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeTitle}>How can we help you?</Text>
-          <Text style={styles.welcomeDescription}>
-            Get assistance with your account, properties, or any questions you may have.
-          </Text>
-        </View>
-
        
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Get Support</Text>
@@ -258,27 +245,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f6f7fb',
     padding: 16,
-  },
-  welcomeSection: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-    marginBottom: 24,
-  },
-  welcomeTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  welcomeDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
   },
   section: {
     marginBottom: 24,

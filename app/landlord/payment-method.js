@@ -8,69 +8,85 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
+import { useCallback } from 'react';
+
+const PAYMENT_METHODS_STORAGE_KEY = '@landlord_payment_methods';
 
 export default function PaymentMethodsScreen() {
   const { user } = useAuth();
-  const [paymentMethods, setPaymentMethods] = useState([
-    {
-      id: '1',
-      type: 'credit_card',
-      last4: '4242',
-      brand: 'visa',
-      isDefault: true,
-      expiry: '12/25',
-      cardholder: user?.name || 'Walter White'
-    },
-    {
-      id: '2', 
-      type: 'bank_account',
-      last4: '7890',
-      bankName: 'Chase Bank',
-      isDefault: false,
-      accountType: 'Checking'
-    }
-  ]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
 
-  const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.push('/landlord/settings');
+  const loadPaymentMethods = async () => {
+    try {
+      const methodsJson = await AsyncStorage.getItem(PAYMENT_METHODS_STORAGE_KEY);
+      if (methodsJson) {
+        setPaymentMethods(JSON.parse(methodsJson));
+      } else {
+        setPaymentMethods([]);
+      }
+    } catch (error) {
+      console.error('Failed to load payment methods:', error);
+      Alert.alert('Error', 'Could not load payment methods.');
     }
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPaymentMethods();
+    }, [])
+  );
 
   const handleAddPaymentMethod = () => {
-    Alert.alert(
-      'Add Payment Method',
-      'Choose payment method type:',
-      [
-        {
-          text: 'Credit/Debit Card',
-          onPress: () => Alert.alert('Coming Soon', 'Card payment integration coming soon')
-        },
-        {
-          text: 'Bank Account',
-          onPress: () => Alert.alert('Coming Soon', 'Bank account integration coming soon')
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        }
-      ]
-    );
-  };
+  Alert.alert(
+    'Add Payment Method',
+    'Choose payment method type:',
+    [
+      {
+        text: 'Credit/Debit Card',
+        onPress: () => router.push({ pathname: '/landlord/add-payment-form', params: { type: 'credit_card' } })
+      },
+      {
+        text: 'Bank Account',
+        onPress: () => router.push({ pathname: '/landlord/add-payment-form', params: { type: 'bank_account' } })
+      },
+      {
+        text: 'GCash',
+        onPress: () => router.push({ pathname: '/landlord/add-payment-form', params: { type: 'gcash' } })
+      },
+      {
+        text: 'PayMaya',
+        onPress: () => router.push({ pathname: '/landlord/add-payment-form', params: { type: 'paymaya' } })
+      },
+      {
+        text: 'PayPal',
+        onPress: () => router.push({ pathname: '/landlord/add-payment-form', params: { type: 'paypal' } })
+      },
+      {
+        text: 'Cancel',
+        style: 'cancel'
+      }
+    ]
+  );
+};
 
-  const handleSetDefaultPayment = (paymentId) => {
+  const handleSetDefaultPayment = async (paymentId) => {
     const updatedMethods = paymentMethods.map(method => ({
       ...method,
       isDefault: method.id === paymentId
     }));
-    setPaymentMethods(updatedMethods);
-    Alert.alert('Success', 'Default payment method updated');
+    try {
+      await AsyncStorage.setItem(PAYMENT_METHODS_STORAGE_KEY, JSON.stringify(updatedMethods));
+      setPaymentMethods(updatedMethods);
+      Alert.alert('Success', 'Default payment method updated');
+    } catch (error) {
+      console.error('Failed to set default payment method:', error);
+      Alert.alert('Error', 'Could not update default payment method.');
+    }
   };
 
   const handleRemovePaymentMethod = (paymentId) => {
@@ -82,10 +98,16 @@ export default function PaymentMethodsScreen() {
         { 
           text: 'Remove', 
           style: 'destructive',
-          onPress: () => {
-            const updatedMethods = paymentMethods.filter(method => method.id !== paymentId);
-            setPaymentMethods(updatedMethods);
-            Alert.alert('Success', 'Payment method removed');
+          onPress: async () => {
+            try {
+              const updatedMethods = paymentMethods.filter(method => method.id !== paymentId);
+              await AsyncStorage.setItem(PAYMENT_METHODS_STORAGE_KEY, JSON.stringify(updatedMethods));
+              setPaymentMethods(updatedMethods);
+              Alert.alert('Success', 'Payment method removed');
+            } catch (error) {
+              console.error('Failed to remove payment method:', error);
+              Alert.alert('Error', 'Could not remove payment method.');
+            }
           }
         }
       ]
@@ -100,6 +122,10 @@ export default function PaymentMethodsScreen() {
         return 'business';
       case 'paypal':
         return 'logo-paypal';
+      case 'gcash':
+        return 'wallet'; // Using a generic wallet icon
+      case 'paymaya':
+        return 'card-outline'; // Using a generic card icon
       default:
         return 'card';
     }
@@ -110,6 +136,12 @@ export default function PaymentMethodsScreen() {
       return `${method.brand?.toUpperCase() || 'Card'} •••• ${method.last4}`;
     } else if (method.type === 'bank_account') {
       return `${method.bankName} •••• ${method.last4}`;
+    } else if (method.type === 'paypal') {
+      return 'PayPal';
+    } else if (method.type === 'gcash') {
+      return 'GCash';
+    } else if (method.type === 'paymaya') {
+      return 'PayMaya';
     }
     return 'Payment Method';
   };
@@ -119,6 +151,12 @@ export default function PaymentMethodsScreen() {
       return `Expires ${method.expiry} • ${method.cardholder}`;
     } else if (method.type === 'bank_account') {
       return `${method.accountType} Account`;
+    } else if (method.type === 'paypal') {
+      return method.email;
+    } else if (method.type === 'gcash' || method.type === 'paymaya') {
+      // Assuming phone number is stored for e-wallets
+      const phone = method.phone || 'Not linked';
+      return `Linked to ${phone}`;
     }
     return '';
   };
@@ -136,11 +174,6 @@ export default function PaymentMethodsScreen() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          headerLeft: () => (
-            <TouchableOpacity onPress={handleBack} style={{ paddingLeft: 16 }}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-          ),
         }}
       />
 

@@ -236,11 +236,6 @@ export default function FinancialsScreen() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={{ paddingLeft: 16 }}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-          ),
         }}
       />
 

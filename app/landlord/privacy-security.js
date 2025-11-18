@@ -16,14 +16,6 @@ import { useAuth } from './AuthContext';
 export default function PrivacySecurityScreen() {
   const { user } = useAuth();
 
-  const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.push('/landlord/menu');
-    }
-  };
-
   const handleViewPrivacyPolicy = () => {
     router.push('/landlord/privacy');
   };
@@ -45,11 +37,6 @@ export default function PrivacySecurityScreen() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          headerLeft: () => (
-            <TouchableOpacity onPress={handleBack} style={{ paddingLeft: 16 }}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-          ),
         }}
       />
 
