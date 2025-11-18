@@ -76,6 +76,16 @@ export default function AddPaymentFormScreen() {
       return;
     }
 
+    // Specific validation for phone number format
+    if ((type === 'gcash' || type === 'paymaya')) {
+      const phoneRegex = /^\+639\d{9}$/;
+      if (!phoneRegex.test(formState.phoneNumber)) {
+        Alert.alert('Invalid Phone Number', 'Please enter the number in the format +639xxxxxxxxx.');
+        return;
+      }
+    }
+
+
     try {
       const newPaymentMethod = {
         id: `pm_${Date.now()}`,
@@ -211,7 +221,19 @@ export default function AddPaymentFormScreen() {
               placeholder="+63 9XX XXX XXXX"
               keyboardType="phone-pad"
               value={formState.phoneNumber}
-              onChangeText={(val) => handleInputChange('phoneNumber', val)}
+              onChangeText={(val) => {
+                let formatted = val.replace(/[^0-9+]/g, ''); // Allow only numbers and '+'
+
+                if (formatted.length > 0 && !formatted.startsWith('+')) {
+                  // If it doesn't start with '+', remove any '+' and prepend it.
+                  formatted = `+${formatted.replace(/\+/g, '')}`;
+                }
+
+                if (formatted.length > 13) {
+                  formatted = formatted.substring(0, 13); // Enforce max length
+                }
+                handleInputChange('phoneNumber', formatted);
+              }}
             />
           </>
         );
