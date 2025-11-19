@@ -61,6 +61,7 @@ export default function Messages() {
         landlordName: item.landlord.name,
         landlordImage: item.landlord.image,
         houseName: item.houseName,
+        houseId: item.houseId,
       },
     });
   };
@@ -149,9 +150,6 @@ export default function Messages() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Messages</Text>
-        <TouchableOpacity style={styles.newMessageButton}>
-          <Ionicons name="create" size={24} color="#667eea" />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
@@ -167,6 +165,13 @@ export default function Messages() {
           <Ionicons name="chatbubbles-outline" size={64} color="#ccc" />
           <Text style={styles.emptyText}>No messages yet</Text>
           <Text style={styles.emptySubtext}>Start a conversation with a landlord.</Text>
+          <TouchableOpacity 
+            style={styles.startConversationButton}
+            onPress={() => router.push('/(tenant)/home')}
+          >
+            <Ionicons name="home" size={20} color="white" />
+            <Text style={styles.startConversationButtonText}>Book a boarding house</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -177,10 +182,6 @@ export default function Messages() {
           showsVerticalScrollIndicator={false}
         />
       )}
-
-      <TouchableOpacity style={styles.fab}>
-        <Ionicons name="create" size={24} color="white" />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -204,9 +205,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
-  },
-  newMessageButton: {
-    padding: 8,
   },
   searchContainer: {
     marginHorizontal: 20,
@@ -275,22 +273,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#667eea',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -308,5 +290,21 @@ const styles = StyleSheet.create({
     color: '#aaa',
     marginTop: 8,
     textAlign: 'center',
+  },
+  startConversationButton: {
+    marginTop: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#667eea',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  startConversationButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
