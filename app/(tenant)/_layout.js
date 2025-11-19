@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { MessagesTabIcon, NotificationsTabIcon } from '../../components/TabBarBadge';
 
 export default function TenantLayout() {
   return (
@@ -47,7 +48,7 @@ export default function TenantLayout() {
             fontWeight: 'bold',
           },
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
+            <MessagesTabIcon color={color} size={size} />
           ),
         }}
       />
@@ -64,7 +65,7 @@ export default function TenantLayout() {
             fontWeight: 'bold',
           },
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="notifications" size={size} color={color} />
+            <NotificationsTabIcon color={color} size={size} />
           ),
         }}
       />
