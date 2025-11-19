@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  BackHandler,
+  Platform,
 } from 'react-native';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +31,34 @@ export default function Favorites() {
     React.useCallback(() => {
       loadFavorites();
     }, [])
+  );
+
+  // Handle System Back Action
+  useFocusEffect(
+    useCallback(() => {
+      
+      const handleBackPress = () => {
+        // This function is executed when the system "Back" action occurs.
+        router.replace('/(tenant)/menu');
+        
+        return true; 
+      };
+      let backHandlerSubscription; // variable to hold the listener object
+
+      if (Platform.OS === 'android') {
+        // listener and capture the returned subscription object
+        backHandlerSubscription = BackHandler.addEventListener(
+          'hardwareBackPress', 
+          handleBackPress
+        );
+      }
+      //Removes the listener when the screen is no longer focused.
+      return () => {
+        if (Platform.OS === 'android' && backHandlerSubscription) {
+          backHandlerSubscription.remove();
+        }
+      };
+    }, []) 
   );
 
   const loadFavorites = async () => {

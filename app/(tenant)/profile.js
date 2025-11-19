@@ -1,7 +1,9 @@
 // app/(tenant)/profile.js
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
+  KeyboardAvoidingView,
+  Platform,
   Text,
   StyleSheet,
   ScrollView,
@@ -9,10 +11,12 @@ import {
   Image,
   TextInput,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function Profile() {
   const [userData, setUserData] = React.useState({
@@ -62,6 +66,34 @@ export default function Profile() {
     }
   };
 
+    // Handle System Back Action
+  useFocusEffect(
+    useCallback(() => {
+      
+      const handleBackPress = () => {
+        // This function is executed when the system "Back" action occurs.
+        router.replace('/(tenant)/menu');
+        
+        return true; 
+      };
+      let backHandlerSubscription; // variable to hold the listener object
+
+      if (Platform.OS === 'android') {
+        // listener and capture the returned subscription object
+        backHandlerSubscription = BackHandler.addEventListener(
+          'hardwareBackPress', 
+          handleBackPress
+        );
+      }
+      //Removes the listener when the screen is no longer focused.
+      return () => {
+        if (Platform.OS === 'android' && backHandlerSubscription) {
+          backHandlerSubscription.remove();
+        }
+      };
+    }, []) 
+  );
+  
   const takePhoto = async () => {
     try {
       // Request camera permissions
@@ -121,7 +153,10 @@ export default function Profile() {
   ];
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+    >
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -279,7 +314,7 @@ export default function Profile() {
           </TouchableOpacity>
         )}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

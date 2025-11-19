@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
+  Platform,
+  KeyboardAvoidingView,
   StyleSheet,
   Image,
   TouchableOpacity,
   TextInput,
   Alert,
   Switch,
+  BackHandler,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '../../constants/Colors';
@@ -72,6 +76,34 @@ export default function LandlordProfile() {
       Alert.alert('Error', 'Failed to pick image.');
     }
   };
+
+  // Handle System Back Action
+  useFocusEffect(
+    useCallback(() => {
+      
+      const handleBackPress = () => {
+        // This function is executed when the system "Back" action occurs.
+        router.replace('/landlord/menu');
+        
+        return true; 
+      };
+      let backHandlerSubscription; // variable to hold the listener object
+
+    if (Platform.OS === 'android') {
+      // listener and capture the returned subscription object
+      backHandlerSubscription = BackHandler.addEventListener(
+        'hardwareBackPress', 
+        handleBackPress
+      );
+    }
+    //Removes the listener when the screen is no longer focused.
+    return () => {
+      if (Platform.OS === 'android' && backHandlerSubscription) {
+        backHandlerSubscription.remove();
+      }
+    };
+  }, []) 
+);
 
   const handleSave = () => {
     if (!name.trim() || !email.trim()) {
@@ -146,217 +178,221 @@ export default function LandlordProfile() {
           ),
         }}
       />
-      
-      <ScrollView style={styles.page} contentContainerStyle={styles.container}>
-        
-        <View style={styles.profileHeader}>
-          <TouchableOpacity 
-            style={styles.photoContainer} 
-            onPress={isEditing ? pickImage : null}
-            disabled={!isEditing}
-          >
-            <Image
-              source={{ uri: landlordData.photoURL }}
-              style={styles.profileImage}
-            />
-            {isEditing && (
-              <View style={styles.editPhotoOverlay}>
-                <Ionicons name="camera" size={24} color="white" />
-              </View>
-            )}
-            {landlordData.verified && (
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={20} color="#10b981" />
-              </View>
-            )}
-          </TouchableOpacity>
+      <KeyboardAvoidingView style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 95 : 0} 
+      >
+        <ScrollView style={styles.page} contentContainerStyle={styles.container}>
           
-          {isEditing ? (
-            <>
-              <TextInput
-                style={styles.editNameInput}
-                value={name}
-                onChangeText={setName}
-                placeholder="Your name"
+          <View style={styles.profileHeader}>
+            <TouchableOpacity 
+              style={styles.photoContainer} 
+              onPress={isEditing ? pickImage : null}
+              disabled={!isEditing}
+            >
+              <Image
+                source={{ uri: landlordData.photoURL }}
+                style={styles.profileImage}
               />
-              <TextInput
-                style={styles.editCompanyInput}
-                value={company}
-                onChangeText={setCompany}
-                placeholder="Company name"
-              />
-            </>
-          ) : (
-            <>
-              <Text style={styles.name}>{landlordData.name}</Text>
-              <Text style={styles.company}>{landlordData.company}</Text>
-            </>
-          )}
-          
-          <View style={styles.verificationSection}>
-            <View style={styles.verificationBadge}>
-              <Ionicons 
-                name={landlordData.verified ? "shield-checkmark" : "time"} 
-                size={16} 
-                color={landlordData.verified ? "#10b981" : "#666"} 
-              />
-              <Text style={[
-                styles.verificationText,
-                { color: landlordData.verified ? "#10b981" : "#666" }
-              ]}>
-                {landlordData.verified ? 'Verified Landlord' : 'Pending Verification'}
-              </Text>
-            </View>
-            <Text style={styles.joinDate}>Member since {landlordData.joinDate}</Text>
-          </View>
-        </View>
-
-        
-        <View style={styles.statsSection}>
-          {stats.map((stat, index) => (
-            <View key={index} style={styles.statItem}>
-              <View style={styles.statIcon}>
-                <Ionicons name={stat.icon} size={20} color={Colors.primary} />
+              {isEditing && (
+                <View style={styles.editPhotoOverlay}>
+                  <Ionicons name="camera" size={24} color="white" />
+                </View>
+              )}
+              {landlordData.verified && (
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+                </View>
+              )}
+            </TouchableOpacity>
+            
+            {isEditing ? (
+              <>
+                <TextInput
+                  style={styles.editNameInput}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Your name"
+                />
+                <TextInput
+                  style={styles.editCompanyInput}
+                  value={company}
+                  onChangeText={setCompany}
+                  placeholder="Company name"
+                />
+              </>
+            ) : (
+              <>
+                <Text style={styles.name}>{landlordData.name}</Text>
+                <Text style={styles.company}>{landlordData.company}</Text>
+              </>
+            )}
+            
+            <View style={styles.verificationSection}>
+              <View style={styles.verificationBadge}>
+                <Ionicons 
+                  name={landlordData.verified ? "shield-checkmark" : "time"} 
+                  size={16} 
+                  color={landlordData.verified ? "#10b981" : "#666"} 
+                />
+                <Text style={[
+                  styles.verificationText,
+                  { color: landlordData.verified ? "#10b981" : "#666" }
+                ]}>
+                  {landlordData.verified ? 'Verified Landlord' : 'Pending Verification'}
+                </Text>
               </View>
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
+              <Text style={styles.joinDate}>Member since {landlordData.joinDate}</Text>
             </View>
-          ))}
-        </View>
-
-       
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About Me</Text>
-          {isEditing ? (
-            <TextInput
-              style={styles.editBioInput}
-              value={bio}
-              onChangeText={setBio}
-              placeholder="Tell tenants about yourself and your experience..."
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          ) : (
-            <Text style={styles.bioText}>{landlordData.bio}</Text>
-          )}
-          <View style={styles.experienceBadge}>
-            <Ionicons name="trophy" size={16} color="#f59e0b" />
-            <Text style={styles.experienceText}>
-              {landlordData.yearsExperience}+ years experience
-            </Text>
           </View>
-        </View>
 
-        
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Information</Text>
-          <View style={styles.contactList}>
-            {contactInfo.map((contact, index) => (
-              <View key={index} style={styles.contactItem}>
-                <View style={styles.contactIcon}>
-                  <Ionicons name={contact.icon} size={18} color={Colors.primary} />
+          
+          <View style={styles.statsSection}>
+            {stats.map((stat, index) => (
+              <View key={index} style={styles.statItem}>
+                <View style={styles.statIcon}>
+                  <Ionicons name={stat.icon} size={20} color={Colors.primary} />
                 </View>
-                <View style={styles.contactDetails}>
-                  <Text style={styles.contactLabel}>{contact.label}</Text>
-                  {isEditing && contact.label === 'Email' ? (
-                    <TextInput
-                      style={styles.editContactInput}
-                      value={email}
-                      onChangeText={setEmail}
-                      placeholder="Email address"
-                      keyboardType="email-address"
-                    />
-                  ) : isEditing && contact.label === 'Phone' ? (
-                    <TextInput
-                      style={styles.editContactInput}
-                      value={phone}
-                      onChangeText={setPhone}
-                      placeholder="Phone number"
-                      keyboardType="phone-pad"
-                    />
-                  ) : (
-                    <Text style={styles.contactValue}>{contact.value}</Text>
-                  )}
-                </View>
+                <Text style={styles.statValue}>{stat.value}</Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
               </View>
             ))}
           </View>
-        </View>
 
-       
-        {isEditing && (
+        
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Notification Settings</Text>
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingTitle}>Email Notifications</Text>
-                <Text style={styles.settingDescription}>Receive booking requests and messages via email</Text>
-              </View>
-              <Switch
-                value={emailNotifications}
-                onValueChange={setEmailNotifications}
-                trackColor={{ false: '#f1f5f9', true: '#c7d2fe' }}
-                thumbColor={emailNotifications ? Colors.primary : '#f8fafc'}
+            <Text style={styles.sectionTitle}>About Me</Text>
+            {isEditing ? (
+              <TextInput
+                style={styles.editBioInput}
+                value={bio}
+                onChangeText={setBio}
+                placeholder="Tell tenants about yourself and your experience..."
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
               />
-            </View>
-
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingTitle}>SMS Notifications</Text>
-                <Text style={styles.settingDescription}>Get important updates via text message</Text>
-              </View>
-              <Switch
-                value={smsNotifications}
-                onValueChange={setSmsNotifications}
-                trackColor={{ false: '#f1f5f9', true: '#c7d2fe' }}
-                thumbColor={smsNotifications ? Colors.primary : '#f8fafc'}
-              />
-            </View>
-
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingTitle}>Show Contact Info</Text>
-                <Text style={styles.settingDescription}>Display your contact information to tenants</Text>
-              </View>
-              <Switch
-                value={showContactInfo}
-                onValueChange={setShowContactInfo}
-                trackColor={{ false: '#f1f5f9', true: '#c7d2fe' }}
-                thumbColor={showContactInfo ? Colors.primary : '#f8fafc'}
-              />
+            ) : (
+              <Text style={styles.bioText}>{landlordData.bio}</Text>
+            )}
+            <View style={styles.experienceBadge}>
+              <Ionicons name="trophy" size={16} color="#f59e0b" />
+              <Text style={styles.experienceText}>
+                {landlordData.yearsExperience}+ years experience
+              </Text>
             </View>
           </View>
-        )}
 
-        {/* Action Buttons */}
-        {isEditing ? (
-          <View style={styles.editActions}>
-            <TouchableOpacity 
-              style={styles.saveButton}
-              onPress={handleSave}
-            >
-              <Ionicons name="checkmark" size={20} color="white" />
-              <Text style={styles.saveButtonText}>Save Changes</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.cancelButton}
-              onPress={handleCancel}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
+          
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Contact Information</Text>
+            <View style={styles.contactList}>
+              {contactInfo.map((contact, index) => (
+                <View key={index} style={styles.contactItem}>
+                  <View style={styles.contactIcon}>
+                    <Ionicons name={contact.icon} size={18} color={Colors.primary} />
+                  </View>
+                  <View style={styles.contactDetails}>
+                    <Text style={styles.contactLabel}>{contact.label}</Text>
+                    {isEditing && contact.label === 'Email' ? (
+                      <TextInput
+                        style={styles.editContactInput}
+                        value={email}
+                        onChangeText={setEmail}
+                        placeholder="Email address"
+                        keyboardType="email-address"
+                      />
+                    ) : isEditing && contact.label === 'Phone' ? (
+                      <TextInput
+                        style={styles.editContactInput}
+                        value={phone}
+                        onChangeText={setPhone}
+                        placeholder="Phone number"
+                        keyboardType="phone-pad"
+                      />
+                    ) : (
+                      <Text style={styles.contactValue}>{contact.value}</Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
-        ) : (
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={() => setIsEditing(true)}
-          >
-            <Ionicons name="create" size={20} color={Colors.primary} />
-            <Text style={styles.editButtonText}>Edit Profile</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+
+        
+          {isEditing && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Notification Settings</Text>
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>Email Notifications</Text>
+                  <Text style={styles.settingDescription}>Receive booking requests and messages via email</Text>
+                </View>
+                <Switch
+                  value={emailNotifications}
+                  onValueChange={setEmailNotifications}
+                  trackColor={{ false: '#f1f5f9', true: '#c7d2fe' }}
+                  thumbColor={emailNotifications ? Colors.primary : '#f8fafc'}
+                />
+              </View>
+
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>SMS Notifications</Text>
+                  <Text style={styles.settingDescription}>Get important updates via text message</Text>
+                </View>
+                <Switch
+                  value={smsNotifications}
+                  onValueChange={setSmsNotifications}
+                  trackColor={{ false: '#f1f5f9', true: '#c7d2fe' }}
+                  thumbColor={smsNotifications ? Colors.primary : '#f8fafc'}
+                />
+              </View>
+
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingTitle}>Show Contact Info</Text>
+                  <Text style={styles.settingDescription}>Display your contact information to tenants</Text>
+                </View>
+                <Switch
+                  value={showContactInfo}
+                  onValueChange={setShowContactInfo}
+                  trackColor={{ false: '#f1f5f9', true: '#c7d2fe' }}
+                  thumbColor={showContactInfo ? Colors.primary : '#f8fafc'}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* Action Buttons */}
+          {isEditing ? (
+            <View style={styles.editActions}>
+              <TouchableOpacity 
+                style={styles.saveButton}
+                onPress={handleSave}
+              >
+                <Ionicons name="checkmark" size={20} color="white" />
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.cancelButton}
+                onPress={handleCancel}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={() => setIsEditing(true)}
+            >
+              <Ionicons name="create" size={20} color={Colors.primary} />
+              <Text style={styles.editButtonText}>Edit Profile</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </>
   );
 }

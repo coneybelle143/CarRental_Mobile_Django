@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  BackHandler,
+  Platform,
 } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 
@@ -127,6 +129,34 @@ export default function SettingsScreen() {
       ]
     }
   ];
+
+    // Handle System Back Action
+  useFocusEffect(
+    useCallback(() => {
+      
+      const handleBackPress = () => {
+        // This function is executed when the system "Back" action occurs.
+        router.replace('/(tenant)/menu');
+        
+        return true; 
+      };
+      let backHandlerSubscription; // variable to hold the listener object
+
+      if (Platform.OS === 'android') {
+        // listener and capture the returned subscription object
+        backHandlerSubscription = BackHandler.addEventListener(
+          'hardwareBackPress', 
+          handleBackPress
+        );
+      }
+      //Removes the listener when the screen is no longer focused.
+      return () => {
+        if (Platform.OS === 'android' && backHandlerSubscription) {
+          backHandlerSubscription.remove();
+        }
+      };
+    }, []) 
+  );
 
   const handleResetSettings = () => {
     Alert.alert(

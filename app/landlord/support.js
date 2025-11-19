@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,11 @@ import {
   Image,
   Linking,
   Alert,
+  BackHandler,
+  Platform,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from './AuthContext';
@@ -55,6 +58,34 @@ export default function SupportScreen() {
       action: 'privacy',
     },
   ];
+
+  // Handle System Back Action
+  useFocusEffect(
+    useCallback(() => {
+      
+      const handleBackPress = () => {
+        // This function is executed when the system "Back" action occurs.
+        router.replace('/landlord/menu');
+        
+        return true; 
+      };
+      let backHandlerSubscription; // variable to hold the listener object
+
+      if (Platform.OS === 'android') {
+        // listener and capture the returned subscription object
+        backHandlerSubscription = BackHandler.addEventListener(
+          'hardwareBackPress', 
+          handleBackPress
+        );
+      }
+      //Removes the listener when the screen is no longer focused.  
+      return () => {
+        if (Platform.OS === 'android' && backHandlerSubscription) {
+          backHandlerSubscription.remove();
+        }
+      };
+    }, []) 
+  );
 
   const handleSupportAction = (action) => {
     switch (action) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useFocusEffect } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -134,7 +134,7 @@ export default function FinancialsScreen() {
         description: 'Security Deposit & First Month Rent',
         bookingId: booking.id
       }))
-  ].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  ];
 
   const handlePayNow = (payment) => {
     setSelectedPayment(payment);

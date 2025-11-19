@@ -1,5 +1,5 @@
 // app/landlord/privacy-security.js
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  BackHandler,
+  Platform,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from './AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function PrivacySecurityScreen() {
   const { user } = useAuth();
@@ -23,6 +26,34 @@ export default function PrivacySecurityScreen() {
   const handleViewTerms = () => {
     router.push('/landlord/terms');
   };
+
+  // Handle System Back Action
+  useFocusEffect(
+    useCallback(() => {
+      
+      const handleBackPress = () => {
+        // This function is executed when the system "Back" action occurs.
+        router.replace('/landlord/settings');
+        
+        return true; 
+      };
+      let backHandlerSubscription; // variable to hold the listener object
+
+      if (Platform.OS === 'android') {
+        // listener and capture the returned subscription object
+        backHandlerSubscription = BackHandler.addEventListener(
+          'hardwareBackPress', 
+          handleBackPress
+        );
+      }
+      //Removes the listener when the screen is no longer focused.  
+      return () => {
+        if (Platform.OS === 'android' && backHandlerSubscription) {
+          backHandlerSubscription.remove();
+        }
+      };
+    }, []) 
+  );
 
   return (
     <>

@@ -7,13 +7,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  BackHandler,
+  Platform,
 } from 'react-native';
-import { Stack, router, useFocusEffect } from 'expo-router';
+import { Stack, router,} from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 
 const PAYMENT_METHODS_STORAGE_KEY = '@landlord_payment_methods';
 
@@ -39,6 +42,34 @@ export default function PaymentMethodsScreen() {
     useCallback(() => {
       loadPaymentMethods();
     }, [])
+  );
+
+  // Handle System Back Action
+  useFocusEffect(
+    useCallback(() => {
+      
+      const handleBackPress = () => {
+        // This function is executed when the system "Back" action occurs.
+        router.replace('/landlord/menu');
+        
+        return true; 
+      };
+      let backHandlerSubscription; // variable to hold the listener object
+
+      if (Platform.OS === 'android') {
+        // listener and capture the returned subscription object
+        backHandlerSubscription = BackHandler.addEventListener(
+          'hardwareBackPress', 
+          handleBackPress
+        );
+      }
+      //Removes the listener when the screen is no longer focused.  
+      return () => {
+        if (Platform.OS === 'android' && backHandlerSubscription) {
+          backHandlerSubscription.remove();
+        }
+      };
+    }, []) 
   );
 
   const handleAddPaymentMethod = () => {
