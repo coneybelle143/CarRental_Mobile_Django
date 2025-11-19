@@ -4,7 +4,8 @@ import { TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { boardingHouses } from '../../data/mockData'; 
-import AsyncStorage from '@react-native-async-storage/async-storage'; 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { InquiriesTabIcon, LandlordNotificationsTabIcon } from '../../components/TabBarBadge'; 
 
 
 const LISTINGS_STORAGE_KEY = '@landlord_listings';
@@ -136,7 +137,7 @@ export default function LandlordLayout() {
             title: 'Messages',
             headerShown: false,
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="chatbubbles" size={size} color={color} />
+              <InquiriesTabIcon color={color} size={size} />
             ),
           }}
         />
@@ -158,7 +159,7 @@ export default function LandlordLayout() {
             title: 'Notifications',
             headerShown: false,
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="notifications" size={size} color={color} />
+              <LandlordNotificationsTabIcon color={color} size={size} />
             ),
           }}
         />
