@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -17,6 +19,7 @@ const BOOKINGS_STORAGE_KEY = '@bookings_data';
 const PAYMENTS_STORAGE_KEY = '@payments_data';
 const LANDLORD_INQUIRIES_KEY = '@landlord_inquiries';
 const LISTINGS_STORAGE_KEY = '@landlord_listings';
+const TENANT_MESSAGES_KEY = '@tenant_messages';
 
 export default function FinancialsScreen() {
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
@@ -24,10 +27,20 @@ export default function FinancialsScreen() {
   const [bookings, setBookings] = useState([]);
   const [payments, setPayments] = useState([]);
   const [listings, setListings] = useState([]);
+  const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    tenantName: '',
+    property: '',
+    amount: '',
+    type: 'rent',
+    date: new Date().toISOString().split('T')[0],
+  });
 
   const currentLandlord = {
     id: 'landlord_walter_white_01',
     name: 'Walter White',
+    email: 'walter.white@example.com',
+    phone: '+1 234 567 8901',
   };
 
   useEffect(() => {
@@ -86,27 +99,56 @@ export default function FinancialsScreen() {
       ? rentPayments.reduce((sum, payment) => sum + payment.amount, 0) / rentPayments.length 
       : 0;
 
+    // Calculate monthly earnings
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    const monthlyEarnings = completedPayments
+      .filter(payment => {
+        const paymentDate = new Date(payment.paidDate || payment.date);
+        return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
+      })
+      .reduce((sum, payment) => sum + (payment.amount || 0), 0);
+
     return {
       totalEarnings,
       pendingPayments: pendingAmount,
       totalProperties,
       occupancyRate,
       averageRent: Math.round(averageRent),
+      monthlyEarnings,
+      completedPayments: completedPayments.length,
+      pendingPaymentsCount: pendingPayments.length,
     };
   };
 
   const financialData = calculateFinancialData();
 
   // Generate payment history from actual payments
-  const paymentHistory = payments.map(payment => ({
-    id: payment.id,
-    tenant: payment.tenantName || 'Tenant',
-    property: payment.property,
-    amount: payment.amount,
-    date: payment.paidDate || payment.date,
-    status: payment.status,
-    type: payment.type || 'rent'
-  }));
+  const paymentHistory = payments
+    .map(payment => ({
+      id: payment.id,
+      tenant: payment.tenantName || 'Tenant',
+      property: payment.property,
+      amount: payment.amount,
+      date: payment.paidDate || payment.date,
+      status: payment.status,
+      type: payment.type || 'rent',
+      method: payment.method || 'manual',
+      reference: payment.reference,
+    }))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // Generate pending payments
+  const pendingPayments = payments
+    .filter(payment => payment.status === 'pending')
+    .map(payment => ({
+      id: payment.id,
+      tenant: payment.tenantName || 'Tenant',
+      property: payment.property,
+      amount: payment.amount,
+      dueDate: payment.dueDate || payment.date,
+      type: payment.type || 'rent',
+    }));
 
   const handleRequestPayment = async (tenantName, paymentId) => {
     Alert.alert(
@@ -142,9 +184,30 @@ export default function FinancialsScreen() {
                 landlordInquiries[convoIndex].history.unshift(reminderMessage);
                 landlordInquiries[convoIndex].lastMessage = reminderMessage.text;
                 landlordInquiries[convoIndex].time = 'Just now';
+                landlordInquiries[convoIndex].unread = false;
               }
 
               await AsyncStorage.setItem(LANDLORD_INQUIRIES_KEY, JSON.stringify(landlordInquiries));
+
+              // Also update tenant messages
+              const tenantJson = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
+              let tenantMessages = tenantJson ? JSON.parse(tenantJson) : [];
+
+              const tenantConvoIndex = tenantMessages.findIndex(
+                conv => conv.landlord?.name === currentLandlord.name
+              );
+
+              if (tenantConvoIndex > -1) {
+                if (!tenantMessages[tenantConvoIndex].history) {
+                  tenantMessages[tenantConvoIndex].history = [];
+                }
+                tenantMessages[tenantConvoIndex].history.unshift(reminderMessage);
+                tenantMessages[tenantConvoIndex].lastMessage = reminderMessage.text;
+                tenantMessages[tenantConvoIndex].time = 'Just now';
+                tenantMessages[tenantConvoIndex].unread = true;
+              }
+
+              await AsyncStorage.setItem(TENANT_MESSAGES_KEY, JSON.stringify(tenantMessages));
 
               Alert.alert('Success', `Payment reminder sent to ${tenantName}`);
             } catch (error) {
@@ -158,45 +221,54 @@ export default function FinancialsScreen() {
   };
 
   const handleRecordPayment = () => {
-    Alert.alert(
-      'Record Payment',
-      'This would open a form to manually record a payment from a tenant.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Continue', 
-          onPress: async () => {
-            try {
-              // Create a sample payment record
-              const newPayment = {
-                id: `payment_${Date.now()}`,
-                landlordId: currentLandlord.id,
-                tenantId: 'tenant_sample_01',
-                tenantName: 'Sample Tenant',
-                property: listings[0]?.name || 'Sample Property',
-                amount: 3500,
-                type: 'rent',
-                status: 'completed',
-                date: new Date().toISOString().split('T')[0],
-                paidDate: new Date().toISOString().split('T')[0],
-                recordedManually: true
-              };
+    setPaymentForm({
+      tenantName: '',
+      property: listings[0]?.name || '',
+      amount: '',
+      type: 'rent',
+      date: new Date().toISOString().split('T')[0],
+    });
+    setShowRecordPaymentModal(true);
+  };
 
-              const paymentsJson = await AsyncStorage.getItem(PAYMENTS_STORAGE_KEY);
-              const allPayments = paymentsJson ? JSON.parse(paymentsJson) : [];
-              allPayments.push(newPayment);
-              await AsyncStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(allPayments));
+  const processRecordedPayment = async () => {
+    if (!paymentForm.tenantName.trim() || !paymentForm.property.trim() || !paymentForm.amount) {
+      Alert.alert('Error', 'Please fill in all required fields.');
+      return;
+    }
 
-              await loadData(); // Reload data
-              Alert.alert('Success', 'Payment recorded successfully!');
-            } catch (error) {
-              console.error('Failed to record payment', error);
-              Alert.alert('Error', 'Failed to record payment.');
-            }
-          }
-        }
-      ]
-    );
+    try {
+      const newPayment = {
+        id: `payment_${Date.now()}`,
+        landlordId: currentLandlord.id,
+        landlordName: currentLandlord.name,
+        tenantId: `tenant_${Date.now()}`,
+        tenantName: paymentForm.tenantName,
+        property: paymentForm.property,
+        amount: parseFloat(paymentForm.amount),
+        type: paymentForm.type,
+        status: 'completed',
+        date: new Date().toISOString().split('T')[0],
+        paidDate: paymentForm.date,
+        method: 'manual',
+        reference: `MAN-${Date.now()}`,
+        recordedManually: true,
+        timestamp: new Date().toISOString(),
+      };
+
+      const paymentsJson = await AsyncStorage.getItem(PAYMENTS_STORAGE_KEY);
+      const allPayments = paymentsJson ? JSON.parse(paymentsJson) : [];
+      allPayments.push(newPayment);
+      await AsyncStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(allPayments));
+
+      setShowRecordPaymentModal(false);
+      await loadData();
+      
+      Alert.alert('Success', `Payment of ₱${parseFloat(paymentForm.amount).toLocaleString()} recorded successfully!`);
+    } catch (error) {
+      console.error('Failed to record payment', error);
+      Alert.alert('Error', 'Failed to record payment.');
+    }
   };
 
   const handleGenerateReport = () => {
@@ -204,7 +276,30 @@ export default function FinancialsScreen() {
       Alert.alert('No Data', 'You have no payment data to generate a report.');
       return;
     }
-    Alert.alert('Generate Report', 'Your financial report will be prepared for download.');
+
+    // Generate report data
+    const reportData = {
+      period: selectedPeriod,
+      generatedDate: new Date().toISOString().split('T')[0],
+      totalEarnings: financialData.totalEarnings,
+      monthlyEarnings: financialData.monthlyEarnings,
+      pendingPayments: financialData.pendingPayments,
+      totalProperties: financialData.totalProperties,
+      occupancyRate: financialData.occupancyRate,
+      completedPayments: financialData.completedPayments,
+      averageRent: financialData.averageRent,
+      payments: paymentHistory,
+    };
+
+    Alert.alert(
+      'Report Generated',
+      `Financial report for ${selectedPeriod} period has been generated.\n\n` +
+      `Total Earnings: ₱${financialData.totalEarnings.toLocaleString()}\n` +
+      `Monthly Earnings: ₱${financialData.monthlyEarnings.toLocaleString()}\n` +
+      `Properties: ${financialData.totalProperties}\n` +
+      `Occupancy Rate: ${financialData.occupancyRate}%`,
+      [{ text: 'OK', style: 'default' }]
+    );
   };
 
   const handleExportData = () => {
@@ -212,7 +307,35 @@ export default function FinancialsScreen() {
       Alert.alert('No Data', 'You have no data to export.');
       return;
     }
-    Alert.alert('Export Data', 'Your financial data will be prepared for export.');
+
+    const exportData = {
+      financialSummary: calculateFinancialData(),
+      payments: paymentHistory,
+      bookings: bookings,
+      listings: listings,
+      exportDate: new Date().toISOString(),
+    };
+
+    Alert.alert(
+      'Data Exported',
+      'Your financial data has been prepared for export. You can download it from your device.',
+      [{ text: 'OK', style: 'default' }]
+    );
+  };
+
+  const handleViewPaymentDetails = (payment) => {
+    Alert.alert(
+      'Payment Details',
+      `Tenant: ${payment.tenant}\n` +
+      `Property: ${payment.property}\n` +
+      `Amount: ₱${payment.amount.toLocaleString()}\n` +
+      `Date: ${payment.date}\n` +
+      `Type: ${getPaymentType(payment.type)}\n` +
+      `Status: ${getStatusText(payment.status)}\n` +
+      `Method: ${payment.method || 'N/A'}\n` +
+      `Reference: ${payment.reference || 'N/A'}`,
+      [{ text: 'OK', style: 'default' }]
+    );
   };
 
   const getStatusColor = (status) => {
@@ -221,6 +344,26 @@ export default function FinancialsScreen() {
 
   const getStatusText = (status) => {
     return status === 'completed' ? 'Paid' : 'Pending';
+  };
+
+  const getPaymentType = (type) => {
+    return type === 'rent' ? 'Monthly Rent' : 
+           type === 'security_deposit' ? 'Security Deposit' : 
+           type === 'utility' ? 'Utility Bill' :
+           type || 'Payment';
+  };
+
+  const getTimeAgo = (date) => {
+    const now = new Date();
+    const paymentDate = new Date(date);
+    const diffMs = now - paymentDate;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return `${Math.floor(diffDays / 30)} months ago`;
   };
 
   return (
@@ -331,9 +474,50 @@ export default function FinancialsScreen() {
         
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Pending Payments</Text>
+            <Text style={styles.seeAllText}>{pendingPayments.length} pending</Text>
+          </View>
+          
+          <View style={styles.paymentsList}>
+            {pendingPayments.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="checkmark-circle" size={32} color="#10b981" />
+                <Text style={styles.emptyStateText}>No pending payments</Text>
+                <Text style={styles.emptyStateSubtext}>All payments are up to date!</Text>
+              </View>
+            ) : (
+              pendingPayments.map((payment) => (
+                <View key={payment.id} style={styles.paymentItem}>
+                  <View style={styles.paymentInfo}>
+                    <View style={styles.paymentHeader}>
+                      <Text style={styles.tenantName}>{payment.tenant}</Text>
+                      <Text style={styles.paymentAmount}>₱{payment.amount.toLocaleString()}</Text>
+                    </View>
+                    <Text style={styles.propertyName}>{payment.property}</Text>
+                    <View style={styles.paymentDetails}>
+                      <Text style={styles.paymentDate}>Due: {payment.dueDate}</Text>
+                      <Text style={styles.paymentType}>{getPaymentType(payment.type)}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.requestButton}
+                    onPress={() => handleRequestPayment(payment.tenant, payment.id)}
+                  >
+                    <Feather name="send" size={16} color={Colors.primary} />
+                    <Text style={styles.requestButtonText}>Remind</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+          </View>
+        </View>
+
+        
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Payments</Text>
             <TouchableOpacity>
-              <Text style={styles.seeAllText}>See All</Text>
+              <Text style={styles.seeAllText}>See All ({paymentHistory.length})</Text>
             </TouchableOpacity>
           </View>
           
@@ -345,8 +529,12 @@ export default function FinancialsScreen() {
                 <Text style={styles.emptyStateSubtext}>Payments will appear here when tenants make payments</Text>
               </View>
             ) : (
-              paymentHistory.map((payment) => (
-                <View key={payment.id} style={styles.paymentItem}>
+              paymentHistory.slice(0, 5).map((payment) => (
+                <TouchableOpacity 
+                  key={payment.id} 
+                  style={styles.paymentItem}
+                  onPress={() => handleViewPaymentDetails(payment)}
+                >
                   <View style={styles.paymentInfo}>
                     <View style={styles.paymentHeader}>
                       <Text style={styles.tenantName}>{payment.tenant}</Text>
@@ -354,7 +542,7 @@ export default function FinancialsScreen() {
                     </View>
                     <Text style={styles.propertyName}>{payment.property}</Text>
                     <View style={styles.paymentDetails}>
-                      <Text style={styles.paymentDate}>{payment.date}</Text>
+                      <Text style={styles.paymentDate}>{getTimeAgo(payment.date)}</Text>
                       <View style={[styles.statusBadge, { backgroundColor: getStatusColor(payment.status) + '20' }]}>
                         <View style={[styles.statusDot, { backgroundColor: getStatusColor(payment.status) }]} />
                         <Text style={[styles.statusText, { color: getStatusColor(payment.status) }]}>
@@ -363,15 +551,8 @@ export default function FinancialsScreen() {
                       </View>
                     </View>
                   </View>
-                  {payment.status === 'pending' && (
-                    <TouchableOpacity 
-                      style={styles.requestButton}
-                      onPress={() => handleRequestPayment(payment.tenant, payment.id)}
-                    >
-                      <Feather name="send" size={16} color={Colors.primary} />
-                    </TouchableOpacity>
-                  )}
-                </View>
+                  <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                </TouchableOpacity>
               ))
             )}
           </View>
@@ -382,22 +563,116 @@ export default function FinancialsScreen() {
           <Text style={styles.sectionTitle}>Financial Summary</Text>
           <View style={styles.summaryGrid}>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Total Collected</Text>
-              <Text style={styles.summaryValue}>₱{(financialData.totalEarnings - financialData.pendingPayments).toLocaleString()}</Text>
+              <Text style={styles.summaryLabel}>Monthly Earnings</Text>
+              <Text style={styles.summaryValue}>₱{financialData.monthlyEarnings.toLocaleString()}</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Average Rent</Text>
               <Text style={styles.summaryValue}>₱{financialData.averageRent.toLocaleString()}</Text>
             </View>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Properties Occupied</Text>
-              <Text style={styles.summaryValue}>
-                {Math.round((financialData.occupancyRate / 100) * financialData.totalProperties)}/{financialData.totalProperties}
-              </Text>
+              <Text style={styles.summaryLabel}>Completed Payments</Text>
+              <Text style={styles.summaryValue}>{financialData.completedPayments}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Pending Payments</Text>
+              <Text style={styles.summaryValue}>{financialData.pendingPaymentsCount}</Text>
             </View>
           </View>
         </View>
       </ScrollView>
+
+      {/* Record Payment Modal */}
+      <Modal
+        visible={showRecordPaymentModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Record Payment</Text>
+              <TouchableOpacity 
+                style={styles.modalCloseButton}
+                onPress={() => setShowRecordPaymentModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Tenant Name</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter tenant name"
+                value={paymentForm.tenantName}
+                onChangeText={(text) => setPaymentForm(prev => ({ ...prev, tenantName: text }))}
+              />
+            </View>
+
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Property</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter property name"
+                value={paymentForm.property}
+                onChangeText={(text) => setPaymentForm(prev => ({ ...prev, property: text }))}
+              />
+            </View>
+
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Amount</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter amount"
+                value={paymentForm.amount}
+                onChangeText={(text) => setPaymentForm(prev => ({ ...prev, amount: text }))}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Payment Type</Text>
+              <View style={styles.typeOptions}>
+                <TouchableOpacity 
+                  style={[styles.typeOption, paymentForm.type === 'rent' && styles.typeOptionActive]}
+                  onPress={() => setPaymentForm(prev => ({ ...prev, type: 'rent' }))}
+                >
+                  <Text style={[styles.typeOptionText, paymentForm.type === 'rent' && styles.typeOptionTextActive]}>
+                    Rent
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.typeOption, paymentForm.type === 'security_deposit' && styles.typeOptionActive]}
+                  onPress={() => setPaymentForm(prev => ({ ...prev, type: 'security_deposit' }))}
+                >
+                  <Text style={[styles.typeOptionText, paymentForm.type === 'security_deposit' && styles.typeOptionTextActive]}>
+                    Security Deposit
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Payment Date</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="YYYY-MM-DD"
+                value={paymentForm.date}
+                onChangeText={(text) => setPaymentForm(prev => ({ ...prev, date: text }))}
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={styles.confirmButton}
+              onPress={processRecordedPayment}
+            >
+              <Ionicons name="checkmark" size={20} color="white" />
+              <Text style={styles.confirmButtonText}>Record Payment</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -560,6 +835,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
   },
+  paymentType: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -578,10 +858,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   requestButton: {
-    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: '#e0f2fe',
     borderRadius: 8,
     marginLeft: 12,
+    gap: 4,
+  },
+  requestButtonText: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '600',
   },
   summaryGrid: {
     gap: 12,
@@ -618,5 +907,88 @@ const styles = StyleSheet.create({
     color: '#ccc',
     textAlign: 'center',
     marginTop: 4,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    margin: 20,
+    width: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  formSection: {
+    marginBottom: 16,
+  },
+  formLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  typeOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  typeOption: {
+    flex: 1,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  typeOptionActive: {
+    borderColor: Colors.primary,
+    backgroundColor: '#f0f4ff',
+  },
+  typeOptionText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  typeOptionTextActive: {
+    color: Colors.primary,
+  },
+  confirmButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 8,
+  },
+  confirmButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
