@@ -4,8 +4,8 @@ export const boardingHouses = [
     name: 'Sunrise Boarding House',
     price: 3500,
     location: 'Divisoria, Cagayan de Oro',
-    rating: 4.5,
-    reviews: 128,    
+    rating: 0,
+    reviews: 0,    
     images: [
       'https://q-xx.bstatic.com/xdata/images/hotel/max500/410394094.jpg?k=cce2a4d520a8a46c2188d53163afe508d71c3e43f3dc8a64448ba09cda13b116&o=',
       'https://q-xx.bstatic.com/xdata/images/hotel/max500/160733814.jpg?k=5ee8bfbefc802123d9c3970cea3c2f51953b7854e10c665456407437c5fbe1d2&o=',
@@ -28,8 +28,8 @@ export const boardingHouses = [
     name: 'CDO Student Dorm',
     price: 2800,
     location: 'Nazareth, Cagayan de Oro',
-    rating: 4.2,
-    reviews: 95,    
+    rating: 0,
+    reviews: 0,    
     images: [
       'https://i.ytimg.com/vi/yEwHy_U9ZKE/hq720.jpg?sqp=-oaymwE7CK4FEIIDSFryq4qpAy0IARUAAAAAGAElAADIQj0AgKJD8AEB-AH-CYAC0AWKAgwIABABGFUgXyhlMA8=&rs=AOn4CLCh2RvNAlKiqAwmrofXeupwFcvEFg',
       'https://cf.bstatic.com/xdata/images/hotel/max1024x768/560858655.jpg?k=37451059691736cd90e025ea14705eebafb92b2793f25b43da91aa40dff8ec3e&o='
@@ -51,8 +51,8 @@ export const boardingHouses = [
     name: 'Green Valley Apartelle',
     price: 4500,
     location: 'Carmen, Cagayan de Oro',
-    rating: 4.8,
-    reviews: 203,    
+    rating: 0,
+    reviews: 0,    
     images: [
       'https://josoromabuilders.wordpress.com/wp-content/uploads/2019/04/pers-01.jpg',
       'https://jcs-boarding-house.getmanilahotels.com/data/Pictures/OriginalPhoto/6009/600927/600927660/manila-jcs-boarding-house-picture-5.JPEG'
@@ -74,8 +74,8 @@ export const boardingHouses = [
     name: 'XU Area Boarding',
     price: 3200,
     location: 'Corrales Ext, Cagayan de Oro',
-    rating: 4.3,
-    reviews: 87,    
+    rating: 0,
+    reviews: 0,    
     images: [
       'https://img1.wsimg.com/isteam/ip/a19e7d0d-593a-464c-a9c8-b3a2fe8b40e8/68771ea1-50da-41f1-bb68-88599351ce8d.jpeg/:/rs=h:1000,cg:true,m',
       'https://media-cdn.tripadvisor.com/media/photo-s/06/e2/98/b0/chill-out-guesthouse.jpg'
@@ -97,8 +97,8 @@ export const boardingHouses = [
     name: 'Downtown Comfort',
     price: 5200,
     location: 'Lapasan, Cagayan de Oro',
-    rating: 4.6,
-    reviews: 156,    
+    rating: 0,
+    reviews: 0,    
     images: [
       'https://kaoonta.com/wp-content/uploads/2025/05/Tirasol-Boarding-House-Ma-a.webp',
       'https://www.piliko.com/media/fotos/casita_starosa_1_1407230229.jpg'
