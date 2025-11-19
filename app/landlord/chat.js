@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 const LANDLORD_INQUIRIES_KEY = '@landlord_inquiries';
 const TENANT_MESSAGES_KEY = '@tenant_messages';
 const BOOKINGS_STORAGE_KEY = '@bookings_data';
+const LISTINGS_STORAGE_KEY = '@landlord_listings';
 
 export default function LandlordChat() {
   const { tenantId, tenantName, tenantImage, property } = useLocalSearchParams();
@@ -29,6 +30,7 @@ export default function LandlordChat() {
   const [isLoading, setIsLoading] = useState(true);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [propertyPrice, setPropertyPrice] = useState(0);
 
   const currentLandlord = {
     id: 'landlord_walter_white_01',
@@ -38,7 +40,21 @@ export default function LandlordChat() {
 
   useEffect(() => {
     loadConversation();
-  }, [tenantId]);
+    loadPropertyPrice();
+  }, [tenantId, property]);
+
+  const loadPropertyPrice = async () => {
+    try {
+      const json = await AsyncStorage.getItem(LISTINGS_STORAGE_KEY);
+      const listings = json != null ? JSON.parse(json) : [];
+      const propertyListing = listings.find(listing => listing.name === property);
+      if (propertyListing) {
+        setPropertyPrice(propertyListing.price || 0);
+      }
+    } catch (error) {
+      console.error('Failed to load property price', error);
+    }
+  };
 
   const loadConversation = async () => {
     try {
@@ -211,7 +227,10 @@ export default function LandlordChat() {
 
   const handleApproveBooking = async (bookingMessage) => {
     try {
-      // Extract booking details from message
+      // Calculate final amount (use property price if no specific amount mentioned)
+      const finalAmount = bookingMessage.amount > 0 ? bookingMessage.amount : propertyPrice;
+
+      // Create booking details
       const bookingDetails = {
         id: `booking_${Date.now()}`,
         tenantId: tenantId,
@@ -219,12 +238,16 @@ export default function LandlordChat() {
         landlordId: currentLandlord.id,
         landlordName: currentLandlord.name,
         property: property,
+        propertyId: `prop_${Date.now()}`,
         status: 'approved',
         date: new Date().toISOString(),
         moveInDate: bookingMessage.bookingDate || 'Not specified',
         guests: bookingMessage.bookingGuests || '1',
-        amount: bookingMessage.amount || 0,
+        amount: finalAmount,
         bookedAt: new Date().toISOString(),
+        landlordEmail: 'walter.white@example.com',
+        landlordPhone: '+1 234 567 8901',
+        landlordImage: currentLandlord.image,
       };
 
       // Save booking to storage
@@ -233,14 +256,14 @@ export default function LandlordChat() {
       bookings.push(bookingDetails);
       await AsyncStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookings));
 
-      // Send approval message
-      const approvalMessage = `✅ Booking Approved! \n\nYour booking for ${property} has been approved. \nMove-in date: ${bookingDetails.moveInDate} \nGuests: ${bookingDetails.guests} \n\nWe'll contact you soon for the next steps.`;
+      // Send approval message with amount details
+      const approvalMessage = `✅ Booking Approved! \n\nYour booking for ${property} has been approved. \n\n📅 Move-in date: ${bookingDetails.moveInDate} \n👥 Guests: ${bookingDetails.guests} \n💰 Monthly Rent: ₱${finalAmount.toLocaleString()} \n\nWe'll contact you soon for the next steps and payment details.`;
       await sendMessage(approvalMessage);
 
       setShowBookingModal(false);
       setSelectedBooking(null);
       
-      Alert.alert('Booking Approved', 'The booking has been approved and the tenant has been notified.');
+      Alert.alert('Booking Approved', `The booking has been approved with monthly rent of ₱${finalAmount.toLocaleString()}.`);
     } catch (error) {
       console.error('Failed to approve booking', error);
       Alert.alert('Error', 'Failed to approve booking.');
@@ -273,12 +296,17 @@ export default function LandlordChat() {
   const extractBookingDetails = (message) => {
     // Simple parsing for booking messages
     if (message.text && message.text.toLowerCase().includes('book')) {
+      const extractedAmount = extractAmount(message.text);
+      const finalAmount = extractedAmount > 0 ? extractedAmount : propertyPrice;
+      
       return {
         isBooking: true,
         text: message.text,
         bookingDate: extractDate(message.text),
         bookingGuests: extractGuests(message.text),
-        amount: extractAmount(message.text),
+        amount: finalAmount,
+        originalAmount: extractedAmount,
+        usesPropertyPrice: extractedAmount === 0,
       };
     }
     return null;
@@ -398,10 +426,21 @@ export default function LandlordChat() {
             
             {selectedBooking && (
               <View style={styles.bookingDetails}>
-                <Text style={styles.bookingDetail}>Move-in Date: {selectedBooking.bookingDate}</Text>
-                <Text style={styles.bookingDetail}>Guests: {selectedBooking.bookingGuests}</Text>
-                <Text style={styles.bookingDetail}>Suggested Amount: ₱{selectedBooking.amount || 'To be discussed'}</Text>
-                <Text style={styles.bookingMessage}>{selectedBooking.text}</Text>
+                <Text style={styles.bookingDetail}>📅 Move-in Date: {selectedBooking.bookingDate}</Text>
+                <Text style={styles.bookingDetail}>👥 Guests: {selectedBooking.bookingGuests}</Text>
+                <Text style={styles.bookingDetail}>
+                  💰 Monthly Rent: ₱{selectedBooking.amount.toLocaleString()}
+                  {selectedBooking.usesPropertyPrice && (
+                    <Text style={styles.priceNote}> (based on property listing)</Text>
+                  )}
+                  {!selectedBooking.usesPropertyPrice && selectedBooking.originalAmount > 0 && (
+                    <Text style={styles.priceNote}> (as mentioned by tenant)</Text>
+                  )}
+                </Text>
+                <View style={styles.bookingMessageContainer}>
+                  <Text style={styles.bookingMessageLabel}>Tenant's Message:</Text>
+                  <Text style={styles.bookingMessage}>{selectedBooking.text}</Text>
+                </View>
               </View>
             )}
             
@@ -549,13 +588,30 @@ const styles = StyleSheet.create({
   bookingDetail: {
     fontSize: 14,
     color: '#333',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  priceNote: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  bookingMessageContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
+  },
+  bookingMessageLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
     marginBottom: 4,
   },
   bookingMessage: {
     fontSize: 14,
     color: '#666',
     fontStyle: 'italic',
-    marginTop: 8,
   },
   modalButtons: {
     flexDirection: 'row',
