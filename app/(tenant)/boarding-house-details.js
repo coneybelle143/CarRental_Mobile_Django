@@ -1354,6 +1354,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    flexDirection: 'column',
   },
   header: {
     flexDirection: 'row',
@@ -2112,10 +2113,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   bottomActionBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     flexDirection: 'row',
     backgroundColor: 'white',
     paddingHorizontal: 16,
