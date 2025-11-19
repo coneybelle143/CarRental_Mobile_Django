@@ -20,7 +20,7 @@ const TENANT_MESSAGES_KEY = '@tenant_messages';
 const LANDLORD_INQUIRIES_KEY = '@landlord_inquiries';
 
 export default function ChatScreen() {
-  const { landlordId, landlordEmail, landlordPhone, landlordName, houseName, landlordImage } = useLocalSearchParams();
+  const { landlordId, landlordEmail, landlordPhone, landlordName, houseName, houseId, landlordImage } = useLocalSearchParams();
   
   // Create a flexible landlord key that tries to match by any available identifier
   const createFlexibleKey = () => {
@@ -32,6 +32,8 @@ export default function ChatScreen() {
   };
   
   const landlordKey = createFlexibleKey();
+  // Create unique conversation ID combining landlord and property
+  const expectedConversationId = houseId ? `${landlordKey}_${houseId}` : null;
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [conversationStatus, setConversationStatus] = useState(null);
@@ -54,16 +56,22 @@ export default function ChatScreen() {
       const jsonValue = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
       const allConversations = jsonValue != null ? JSON.parse(jsonValue) : [];
       
-      // Find conversation using flexible matching
-      const conversation = allConversations.find(conv => {
-        const convLandlord = conv.landlord || {};
-        return (
-          (landlordId && convLandlord.id === landlordId) ||
-          (landlordEmail && convLandlord.email === landlordEmail) ||
-          (landlordPhone && convLandlord.phone === landlordPhone) ||
-          (landlordName && convLandlord.name === landlordName)
-        );
-      });
+      // Find conversation using unique ID if available, otherwise use flexible matching
+      let conversation = null;
+      if (expectedConversationId) {
+        conversation = allConversations.find(conv => conv.id === expectedConversationId);
+      } else {
+        // Fallback to flexible matching if no houseId
+        conversation = allConversations.find(conv => {
+          const convLandlord = conv.landlord || {};
+          return (
+            (landlordId && convLandlord.id === landlordId) ||
+            (landlordEmail && convLandlord.email === landlordEmail) ||
+            (landlordPhone && convLandlord.phone === landlordPhone) ||
+            (landlordName && convLandlord.name === landlordName)
+          );
+        });
+      }
       
       if (conversation) {
         const initialMessages = conversation.history || [];
@@ -126,15 +134,23 @@ export default function ChatScreen() {
       const tenantJson = await AsyncStorage.getItem(TENANT_MESSAGES_KEY);
       let tenantConversations = tenantJson != null ? JSON.parse(tenantJson) : [];
 
-      const tenantConvoIndex = tenantConversations.findIndex(c => {
-        const convLandlord = c.landlord || {};
-        return (
-          (landlordId && convLandlord.id === landlordId) ||
-          (landlordEmail && convLandlord.email === landlordEmail) ||
-          (landlordPhone && convLandlord.phone === landlordPhone) ||
-          (landlordName && convLandlord.name === landlordName)
-        );
-      });
+      // Find conversation using unique ID if available, otherwise use flexible matching
+      let tenantConvoIndex = -1;
+      if (expectedConversationId) {
+        tenantConvoIndex = tenantConversations.findIndex(c => c.id === expectedConversationId);
+      } else {
+        tenantConvoIndex = tenantConversations.findIndex(c => {
+          const convLandlord = c.landlord || {};
+          const landlordMatches = (
+            (landlordId && convLandlord.id === landlordId) ||
+            (landlordEmail && convLandlord.email === landlordEmail) ||
+            (landlordPhone && convLandlord.phone === landlordPhone) ||
+            (landlordName && convLandlord.name === landlordName)
+          );
+          const propertyMatches = !houseName || c.houseName === houseName;
+          return landlordMatches && propertyMatches;
+        });
+      }
 
       if (tenantConvoIndex > -1) {
         if (!tenantConversations[tenantConvoIndex].history) {
@@ -145,8 +161,10 @@ export default function ChatScreen() {
         tenantConversations[tenantConvoIndex].time = 'Just now';
         tenantConversations[tenantConvoIndex].unread = false;
       } else {
+        // Create new conversation with unique ID if houseId available
+        const newConvId = expectedConversationId || `convo_${Date.now()}`;
         const newConversation = {
-          id: `convo_${Date.now()}`,
+          id: newConvId,
           landlord: {
             id: landlordId,
             email: landlordEmail,
@@ -155,6 +173,7 @@ export default function ChatScreen() {
             image: landlordImage,
           },
           houseName: houseName || 'General Inquiry',
+          houseId: houseId || null,
           lastMessage: messageData.text || '📷 Image',
           time: 'Just now',
           unread: false,
@@ -173,7 +192,14 @@ export default function ChatScreen() {
       const landlordJson = await AsyncStorage.getItem(LANDLORD_INQUIRIES_KEY);
       let landlordInquiries = landlordJson != null ? JSON.parse(landlordJson) : [];
       
-      const landlordConvoIndex = landlordInquiries.findIndex(c => c.tenant.id === currentUser.id);
+      // Match by tenant AND landlord AND property to keep separate property conversations separate
+      const contactKey = (c) => (c?.id || c?.email || c?.phone || c?.name || '').toString();
+      const landlordKey = contactKey({ id: landlordId, email: landlordEmail, phone: landlordPhone, name: landlordName });
+      const landlordConvoIndex = landlordInquiries.findIndex(c => 
+        c.tenant.id === currentUser.id && 
+        contactKey(c.landlord) === landlordKey &&
+        c.property === (houseName || 'General Inquiry')
+      );
 
       if (landlordConvoIndex > -1) {
         if (!landlordInquiries[landlordConvoIndex].history) {
