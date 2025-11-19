@@ -5,22 +5,50 @@ import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const FAVORITES_STORAGE_KEY = '@tenant_favorites';
+const REVIEWS_STORAGE_KEY = '@boarding_house_reviews';
 
 const BoardingHouseCard = ({ house, onPress }) => {
   const [imageError, setImageError] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [averageRating, setAverageRating] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
   
   const imageUrl = house.images && house.images.length > 0 ? house.images[0] : house.image;
 
   useEffect(() => {
     checkIfFavorite();
+    loadAverageRating();
   }, [house.id]);
 
   useFocusEffect(
     React.useCallback(() => {
       checkIfFavorite();
+      loadAverageRating();
     }, [house.id])
   );
+
+  const loadAverageRating = async () => {
+    try {
+      const reviewsJson = await AsyncStorage.getItem(REVIEWS_STORAGE_KEY);
+      const allReviews = reviewsJson ? JSON.parse(reviewsJson) : [];
+      
+      // Filter reviews for this specific house
+      const houseReviews = allReviews.filter(review => review.houseId === house.id);
+      setReviewCount(houseReviews.length);
+      
+      if (houseReviews.length === 0) {
+        setAverageRating(0);
+      } else {
+        const total = houseReviews.reduce((sum, review) => sum + review.rating, 0);
+        const average = (total / houseReviews.length).toFixed(1);
+        setAverageRating(parseFloat(average));
+      }
+    } catch (error) {
+      console.error('Failed to load average rating', error);
+      setAverageRating(0);
+      setReviewCount(0);
+    }
+  };
 
   const checkIfFavorite = async () => {
     try {
@@ -111,8 +139,8 @@ const BoardingHouseCard = ({ house, onPress }) => {
         <View style={styles.ratingContainer}>
           <View style={styles.ratingGroup}>
             <Ionicons name="star" size={16} color="#FFD700" />
-            <Text style={styles.rating}>{house.rating}</Text>
-            <Text style={styles.reviews}>({house.reviews})</Text>
+            <Text style={styles.rating}>{averageRating}</Text>
+            <Text style={styles.reviews}>({reviewCount})</Text>
           </View>
           <Text style={styles.distance}>{house.distance}</Text>
         </View>
