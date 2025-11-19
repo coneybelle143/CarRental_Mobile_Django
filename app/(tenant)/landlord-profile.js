@@ -52,16 +52,25 @@ export default function LandlordProfile() {
         const jsonValue = await AsyncStorage.getItem(LISTINGS_STORAGE_KEY);
         const allListings = jsonValue != null ? JSON.parse(jsonValue) : mockData;
 
-        
-        const listing = allListings.find(h => h.landlord?.email === landlordId);
+        // Match landlord by email, id, phone, or name
+        const listing = allListings.find(h => 
+          h.landlord?.email === landlordId ||
+          h.landlord?.id === landlordId ||
+          h.landlord?.phone === landlordId ||
+          h.landlord?.name === landlordId
+        );
 
         if (listing && listing.landlord) {
           setLandlord(listing.landlord);
+          // Filter all listings by the matched landlord
+          const landlordListings = allListings.filter(h => 
+            h.landlord?.email === listing.landlord.email ||
+            h.landlord?.id === listing.landlord.id ||
+            h.landlord?.phone === listing.landlord.phone ||
+            h.landlord?.name === listing.landlord.name
+          );
+          setOtherListings(landlordListings);
         }
-
-       
-        const landlordListings = allListings.filter(h => h.landlord?.email === landlordId);
-        setOtherListings(landlordListings);
       } catch (e) {
         console.error("Failed to load landlord data", e);
       } finally {
