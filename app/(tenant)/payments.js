@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -15,16 +17,26 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BOOKINGS_STORAGE_KEY = '@bookings_data';
 const PAYMENTS_STORAGE_KEY = '@payments_data';
+const LISTINGS_STORAGE_KEY = '@landlord_listings';
 
 export default function FinancialsScreen() {
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
   const [refreshing, setRefreshing] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('gcash');
+  const [paymentDetails, setPaymentDetails] = useState({
+    accountNumber: '',
+    accountName: '',
+  });
 
   const currentUser = {
     id: 'tenant_jesse_pinkman_01',
     name: 'Jesse Pinkman',
+    email: 'jessepinkmanyo@gmail.com',
+    phone: '+1 234 567 8900',
   };
 
   useEffect(() => {
@@ -76,6 +88,7 @@ export default function FinancialsScreen() {
       activeBookings,
       savedProperties: 8, // This could be connected to favorites if you have that data
       averageRent: Math.round(averageRent),
+      completedPayments: completedPayments.length,
     };
   };
 
@@ -91,8 +104,10 @@ export default function FinancialsScreen() {
       amount: payment.amount,
       date: payment.paidDate || payment.date,
       status: 'completed',
-      type: payment.type || 'rent'
-    }));
+      type: payment.type || 'rent',
+      reference: payment.reference || `REF-${payment.id.slice(-6)}`
+    }))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   // Generate upcoming payments from pending payments and upcoming bookings
   const upcomingPayments = [
@@ -104,54 +119,181 @@ export default function FinancialsScreen() {
         property: payment.property,
         amount: payment.amount,
         dueDate: payment.dueDate,
-        type: payment.type || 'rent'
+        type: payment.type || 'rent',
+        description: payment.description || `${getPaymentType(payment.type)} Payment`
       })),
     ...bookings
-      .filter(booking => booking.status === 'approved')
+      .filter(booking => booking.status === 'approved' && !payments.some(p => p.bookingId === booking.id))
       .map(booking => ({
-        id: `upcoming_${booking.id}`,
+        id: `booking_${booking.id}`,
         landlord: booking.landlordName,
         property: booking.property,
-        amount: booking.amount || 0,
-        dueDate: booking.moveInDate,
-        type: 'rent'
+        amount: booking.amount || 5000, // Default amount if not specified
+        dueDate: booking.moveInDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        type: 'rent',
+        description: 'Security Deposit & First Month Rent',
+        bookingId: booking.id
       }))
-  ];
+  ].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
-  const handlePayNow = async (payment) => {
+  const handlePayNow = (payment) => {
+    setSelectedPayment(payment);
+    setPaymentDetails({
+      accountNumber: '',
+      accountName: currentUser.name,
+    });
+    setShowPaymentModal(true);
+  };
+
+  const processPayment = async () => {
+    if (!paymentDetails.accountNumber.trim()) {
+      Alert.alert('Error', 'Please enter your account number');
+      return;
+    }
+
+    try {
+      // Generate payment reference
+      const paymentReference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create payment record
+      const paymentRecord = {
+        id: `payment_${Date.now()}`,
+        tenantId: currentUser.id,
+        tenantName: currentUser.name,
+        landlordName: selectedPayment.landlord,
+        property: selectedPayment.property,
+        amount: selectedPayment.amount,
+        type: selectedPayment.type,
+        status: 'completed',
+        method: paymentMethod,
+        accountNumber: paymentDetails.accountNumber,
+        accountName: paymentDetails.accountName,
+        reference: paymentReference,
+        paidDate: new Date().toISOString().split('T')[0],
+        timestamp: new Date().toISOString(),
+        description: selectedPayment.description || `${getPaymentType(selectedPayment.type)} Payment`,
+        bookingId: selectedPayment.bookingId,
+      };
+
+      // Update payments storage
+      const paymentsJson = await AsyncStorage.getItem(PAYMENTS_STORAGE_KEY);
+      const allPayments = paymentsJson ? JSON.parse(paymentsJson) : [];
+      allPayments.push(paymentRecord);
+      await AsyncStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(allPayments));
+
+      // If this was a booking payment, update booking status
+      if (selectedPayment.bookingId) {
+        const bookingsJson = await AsyncStorage.getItem(BOOKINGS_STORAGE_KEY);
+        const allBookings = bookingsJson ? JSON.parse(bookingsJson) : [];
+        const updatedBookings = allBookings.map(booking => 
+          booking.id === selectedPayment.bookingId 
+            ? { ...booking, paymentStatus: 'paid', paidAmount: selectedPayment.amount }
+            : booking
+        );
+        await AsyncStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(updatedBookings));
+      }
+
+      // Close modal and reload data
+      setShowPaymentModal(false);
+      setSelectedPayment(null);
+      await loadData();
+
+      // Show success message with receipt
+      Alert.alert(
+        'Payment Successful!',
+        `Payment of ₱${selectedPayment.amount.toLocaleString()} completed successfully.\n\nReference: ${paymentReference}`,
+        [
+          { text: 'OK', style: 'default' },
+          { 
+            text: 'View Receipt', 
+            onPress: () => handleViewReceipt(paymentRecord)
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Failed to process payment', error);
+      Alert.alert('Error', 'Failed to process payment. Please try again.');
+    }
+  };
+
+  const handleViewReceipt = (payment) => {
     Alert.alert(
-      'Make Payment',
-      `Pay ₱${payment.amount.toLocaleString()} to ${payment.landlord}?`,
+      'Payment Receipt',
+      `Payment Details:\n\n` +
+      `Amount: ₱${payment.amount.toLocaleString()}\n` +
+      `Property: ${payment.property}\n` +
+      `Landlord: ${payment.landlordName}\n` +
+      `Payment Method: ${payment.method.toUpperCase()}\n` +
+      `Reference: ${payment.reference}\n` +
+      `Date: ${payment.paidDate}\n` +
+      `Status: ${payment.status}`,
+      [{ text: 'OK', style: 'default' }]
+    );
+  };
+
+  const handleAddPaymentMethod = () => {
+    Alert.alert(
+      'Add Payment Method',
+      'Choose your preferred payment method:',
+      [
+        {
+          text: 'GCash',
+          onPress: () => setPaymentMethod('gcash')
+        },
+        {
+          text: 'PayMaya',
+          onPress: () => setPaymentMethod('paymaya')
+        },
+        {
+          text: 'Bank Transfer',
+          onPress: () => setPaymentMethod('bank')
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        }
+      ]
+    );
+  };
+
+  const handleViewReceipts = () => {
+    const completedPayments = payments.filter(p => p.status === 'completed');
+    if (completedPayments.length === 0) {
+      Alert.alert('No Receipts', 'You have no completed payments yet.');
+      return;
+    }
+    
+    Alert.alert(
+      'Payment Receipts',
+      `You have ${completedPayments.length} completed payments.`,
+      [
+        { text: 'View All', onPress: () => {
+          // This would navigate to a detailed receipts screen
+          Alert.alert('Receipts', 'This would show all your payment receipts in detail.');
+        }},
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
+  const handleExportHistory = () => {
+    if (payments.length === 0) {
+      Alert.alert('No Data', 'You have no payment history to export.');
+      return;
+    }
+    
+    // Simulate export functionality
+    Alert.alert(
+      'Export History',
+      'Your payment history will be prepared for download. This may take a few moments.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Pay Now', 
-          onPress: async () => {
-            try {
-              // Update payment status to completed
-              const paymentsJson = await AsyncStorage.getItem(PAYMENTS_STORAGE_KEY);
-              const allPayments = paymentsJson ? JSON.parse(paymentsJson) : [];
-              
-              const updatedPayments = allPayments.map(p => 
-                p.id === payment.id 
-                  ? { 
-                      ...p, 
-                      status: 'completed',
-                      paidDate: new Date().toISOString().split('T')[0]
-                    }
-                  : p
-              );
-
-              await AsyncStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(updatedPayments));
-              
-              // Reload data
-              await loadData();
-              
-              Alert.alert('Success', `Payment of ₱${payment.amount.toLocaleString()} completed!`);
-            } catch (error) {
-              console.error('Failed to process payment', error);
-              Alert.alert('Error', 'Failed to process payment. Please try again.');
-            }
+          text: 'Export', 
+          onPress: () => {
+            setTimeout(() => {
+              Alert.alert('Export Complete', 'Your payment history has been exported successfully.');
+            }, 2000);
           }
         }
       ]
@@ -169,28 +311,29 @@ export default function FinancialsScreen() {
   const getPaymentType = (type) => {
     return type === 'rent' ? 'Monthly Rent' : 
            type === 'security_deposit' ? 'Security Deposit' : 
+           type === 'utility' ? 'Utility Bill' :
            type || 'Payment';
   };
 
-  const handleAddPaymentMethod = () => {
-    Alert.alert('Add Payment Method', 'This would open payment method setup screen.');
+  const getDaysUntilDue = (dueDate) => {
+    const today = new Date();
+    const due = new Date(dueDate);
+    const diffTime = due - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return 'Overdue';
+    if (diffDays === 0) return 'Due Today';
+    if (diffDays === 1) return 'Due Tomorrow';
+    return `Due in ${diffDays} days`;
   };
 
-  const handleViewReceipts = () => {
-    const completedPayments = payments.filter(p => p.status === 'completed');
-    if (completedPayments.length === 0) {
-      Alert.alert('No Receipts', 'You have no completed payments yet.');
-      return;
+  const getPaymentMethodIcon = (method) => {
+    switch (method) {
+      case 'gcash': return 'phone-portrait';
+      case 'paymaya': return 'card';
+      case 'bank': return 'business';
+      default: return 'card';
     }
-    Alert.alert('View Receipts', 'This would show all your payment receipts.');
-  };
-
-  const handleExportHistory = () => {
-    if (payments.length === 0) {
-      Alert.alert('No Data', 'You have no payment history to export.');
-      return;
-    }
-    Alert.alert('Export History', 'Your payment history will be prepared for download.');
   };
 
   return (
@@ -276,10 +419,10 @@ export default function FinancialsScreen() {
             </View>
             <View style={styles.statCard}>
               <View style={[styles.statIcon, { backgroundColor: '#f0f4ff' }]}>
-                <Ionicons name="heart" size={24} color={Colors.primary} />
+                <Ionicons name="receipt" size={24} color={Colors.primary} />
               </View>
-              <Text style={styles.statValue}>{financialData.savedProperties}</Text>
-              <Text style={styles.statLabel}>Saved Properties</Text>
+              <Text style={styles.statValue}>{financialData.completedPayments}</Text>
+              <Text style={styles.statLabel}>Payments Made</Text>
             </View>
           </View>
         </View>
@@ -290,7 +433,7 @@ export default function FinancialsScreen() {
           <View style={styles.quickActions}>
             <TouchableOpacity style={styles.actionButton} onPress={handleAddPaymentMethod}>
               <Ionicons name="card" size={24} color={Colors.primary} />
-              <Text style={styles.actionText}>Add Payment Method</Text>
+              <Text style={styles.actionText}>Payment Method</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.actionButton} onPress={handleViewReceipts}>
               <Ionicons name="receipt" size={24} color={Colors.primary} />
@@ -317,6 +460,7 @@ export default function FinancialsScreen() {
               <View style={styles.emptyState}>
                 <Ionicons name="card-outline" size={32} color="#ccc" />
                 <Text style={styles.emptyStateText}>No upcoming payments</Text>
+                <Text style={styles.emptyStateSubtext}>All payments are up to date!</Text>
               </View>
             ) : (
               upcomingPayments.map((payment) => (
@@ -327,8 +471,11 @@ export default function FinancialsScreen() {
                       <Text style={styles.paymentAmount}>₱{payment.amount.toLocaleString()}</Text>
                     </View>
                     <Text style={styles.propertyName}>{payment.property}</Text>
+                    <Text style={styles.paymentDescription}>{payment.description}</Text>
                     <View style={styles.paymentDetails}>
-                      <Text style={styles.paymentDate}>Due: {payment.dueDate}</Text>
+                      <Text style={styles.paymentDate}>
+                        {getDaysUntilDue(payment.dueDate)} • Due: {payment.dueDate}
+                      </Text>
                       <Text style={styles.paymentType}>{getPaymentType(payment.type)}</Text>
                     </View>
                   </View>
@@ -359,9 +506,10 @@ export default function FinancialsScreen() {
               <View style={styles.emptyState}>
                 <Ionicons name="receipt-outline" size={32} color="#ccc" />
                 <Text style={styles.emptyStateText}>No payment history yet</Text>
+                <Text style={styles.emptyStateSubtext}>Your payment history will appear here</Text>
               </View>
             ) : (
-              paymentHistory.map((payment) => (
+              paymentHistory.slice(0, 5).map((payment) => (
                 <View key={payment.id} style={styles.paymentItem}>
                   <View style={styles.paymentInfo}>
                     <View style={styles.paymentHeader}>
@@ -378,12 +526,14 @@ export default function FinancialsScreen() {
                         </Text>
                       </View>
                     </View>
+                    <Text style={styles.paymentReference}>Ref: {payment.reference}</Text>
                   </View>
-                  {payment.status === 'completed' && (
-                    <TouchableOpacity style={styles.receiptButton}>
-                      <Ionicons name="receipt" size={16} color={Colors.primary} />
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity 
+                    style={styles.receiptButton}
+                    onPress={() => handleViewReceipt(payment)}
+                  >
+                    <Ionicons name="receipt" size={16} color={Colors.primary} />
+                  </TouchableOpacity>
                 </View>
               ))
             )}
@@ -403,12 +553,121 @@ export default function FinancialsScreen() {
               <Text style={styles.summaryValue}>{financialData.activeBookings}</Text>
             </View>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Properties Saved</Text>
-              <Text style={styles.summaryValue}>{financialData.savedProperties}</Text>
+              <Text style={styles.summaryLabel}>Total Payments</Text>
+              <Text style={styles.summaryValue}>{financialData.completedPayments}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Pending Amount</Text>
+              <Text style={styles.summaryValue}>₱{financialData.pendingPayments.toLocaleString()}</Text>
             </View>
           </View>
         </View>
       </ScrollView>
+
+      {/* Payment Modal */}
+      <Modal
+        visible={showPaymentModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Make Payment</Text>
+              <TouchableOpacity 
+                style={styles.modalCloseButton}
+                onPress={() => setShowPaymentModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedPayment && (
+              <>
+                <View style={styles.paymentSummary}>
+                  <Text style={styles.paymentSummaryTitle}>Payment Details</Text>
+                  <View style={styles.paymentSummaryRow}>
+                    <Text style={styles.paymentSummaryLabel}>Amount:</Text>
+                    <Text style={styles.paymentSummaryValue}>₱{selectedPayment.amount.toLocaleString()}</Text>
+                  </View>
+                  <View style={styles.paymentSummaryRow}>
+                    <Text style={styles.paymentSummaryLabel}>Property:</Text>
+                    <Text style={styles.paymentSummaryValue}>{selectedPayment.property}</Text>
+                  </View>
+                  <View style={styles.paymentSummaryRow}>
+                    <Text style={styles.paymentSummaryLabel}>Landlord:</Text>
+                    <Text style={styles.paymentSummaryValue}>{selectedPayment.landlord}</Text>
+                  </View>
+                  <View style={styles.paymentSummaryRow}>
+                    <Text style={styles.paymentSummaryLabel}>Description:</Text>
+                    <Text style={styles.paymentSummaryValue}>{selectedPayment.description}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.paymentMethodSection}>
+                  <Text style={styles.sectionLabel}>Payment Method</Text>
+                  <View style={styles.paymentMethodOptions}>
+                    <TouchableOpacity 
+                      style={[styles.paymentMethodOption, paymentMethod === 'gcash' && styles.paymentMethodActive]}
+                      onPress={() => setPaymentMethod('gcash')}
+                    >
+                      <Ionicons name="phone-portrait" size={20} color={paymentMethod === 'gcash' ? Colors.primary : '#666'} />
+                      <Text style={[styles.paymentMethodText, paymentMethod === 'gcash' && styles.paymentMethodTextActive]}>
+                        GCash
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.paymentMethodOption, paymentMethod === 'paymaya' && styles.paymentMethodActive]}
+                      onPress={() => setPaymentMethod('paymaya')}
+                    >
+                      <Ionicons name="card" size={20} color={paymentMethod === 'paymaya' ? Colors.primary : '#666'} />
+                      <Text style={[styles.paymentMethodText, paymentMethod === 'paymaya' && styles.paymentMethodTextActive]}>
+                        PayMaya
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.paymentMethodOption, paymentMethod === 'bank' && styles.paymentMethodActive]}
+                      onPress={() => setPaymentMethod('bank')}
+                    >
+                      <Ionicons name="business" size={20} color={paymentMethod === 'bank' ? Colors.primary : '#666'} />
+                      <Text style={[styles.paymentMethodText, paymentMethod === 'bank' && styles.paymentMethodTextActive]}>
+                        Bank Transfer
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.paymentDetailsSection}>
+                  <Text style={styles.sectionLabel}>Account Details</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Account Number"
+                    value={paymentDetails.accountNumber}
+                    onChangeText={(text) => setPaymentDetails(prev => ({ ...prev, accountNumber: text }))}
+                    keyboardType="numeric"
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Account Name"
+                    value={paymentDetails.accountName}
+                    onChangeText={(text) => setPaymentDetails(prev => ({ ...prev, accountName: text }))}
+                  />
+                </View>
+
+                <TouchableOpacity 
+                  style={styles.confirmPaymentButton}
+                  onPress={processPayment}
+                >
+                  <Ionicons name="lock-closed" size={20} color="white" />
+                  <Text style={styles.confirmPaymentText}>
+                    Pay ₱{selectedPayment.amount.toLocaleString()}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -560,6 +819,11 @@ const styles = StyleSheet.create({
   propertyName: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 2,
+  },
+  paymentDescription: {
+    fontSize: 12,
+    color: '#999',
     marginBottom: 8,
   },
   paymentDetails: {
@@ -575,6 +839,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     fontWeight: '500',
+  },
+  paymentReference: {
+    fontSize: 10,
+    color: '#999',
+    marginTop: 4,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -642,5 +911,127 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginTop: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 12,
+    color: '#ccc',
+    marginTop: 4,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    margin: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  paymentSummary: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  paymentSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  paymentSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  paymentSummaryLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  paymentSummaryValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  paymentMethodSection: {
+    marginBottom: 20,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  paymentMethodOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  paymentMethodOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 8,
+    gap: 6,
+  },
+  paymentMethodActive: {
+    borderColor: Colors.primary,
+    backgroundColor: '#f0f4ff',
+  },
+  paymentMethodText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  paymentMethodTextActive: {
+    color: Colors.primary,
+  },
+  paymentDetailsSection: {
+    marginBottom: 24,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  confirmPaymentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  confirmPaymentText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
