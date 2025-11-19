@@ -162,6 +162,11 @@ export default function SupportScreen() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.replace('/landlord/menu')}>
+              <Ionicons name="arrow-back" size={24} color="#fff" style={{ marginLeft: 12 }} />
+            </TouchableOpacity>
+          ),
         }}
       />
 
