@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { ScrollView, Text, StyleSheet, View, BackHandler, Platform, TouchableOpacity } from 'react-native';
+import { ScrollView, Text, StyleSheet, View, BackHandler, TouchableOpacity } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { useFocusEffect } from '@react-navigation/native';
@@ -7,11 +7,17 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function PrivacyPolicyScreen() {
 
+  const handleBack = () => {
+    // UPDATED: Explicitly navigate back to the privacy-security screen
+    // instead of relying on the generic router.back()
+    router.replace('/landlord/privacy-security');
+  };
+
   // Handle System Back Action
   useFocusEffect(
     useCallback(() => {
       const handleBackPress = () => {
-        router.back();
+        handleBack();
         return true; 
       };
 
@@ -38,7 +44,7 @@ export default function PrivacyPolicyScreen() {
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: 'bold' },
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={handleBack}>
               <Ionicons name="arrow-back" size={24} color="#fff" style={{ marginLeft: 10 }} />
             </TouchableOpacity>
           ),
