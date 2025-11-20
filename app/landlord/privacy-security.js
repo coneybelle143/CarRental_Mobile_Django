@@ -1,12 +1,11 @@
 // app/landlord/privacy-security.js
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   BackHandler,
   Platform,
 } from 'react-native';
@@ -19,6 +18,10 @@ import { useFocusEffect } from '@react-navigation/native';
 export default function PrivacySecurityScreen() {
   const { user } = useAuth();
 
+  const handleBack = () => {
+    router.replace('/landlord/settings');
+  };
+
   const handleViewPrivacyPolicy = () => {
     router.push('/landlord/privacy');
   };
@@ -30,23 +33,18 @@ export default function PrivacySecurityScreen() {
   // Handle System Back Action
   useFocusEffect(
     useCallback(() => {
-      
       const handleBackPress = () => {
-        // This function is executed when the system "Back" action occurs.
-        router.replace('/landlord/settings');
-        
+        handleBack();
         return true; 
       };
-      let backHandlerSubscription; // variable to hold the listener object
+      let backHandlerSubscription;
 
       if (Platform.OS === 'android') {
-        // listener and capture the returned subscription object
         backHandlerSubscription = BackHandler.addEventListener(
           'hardwareBackPress', 
           handleBackPress
         );
       }
-      //Removes the listener when the screen is no longer focused.  
       return () => {
         if (Platform.OS === 'android' && backHandlerSubscription) {
           backHandlerSubscription.remove();
@@ -68,6 +66,17 @@ export default function PrivacySecurityScreen() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
+          // Fixed Placement: Added marginLeft to the icon to move it off the edge
+          headerLeft: () => (
+            <TouchableOpacity onPress={handleBack}>
+              <Ionicons 
+                name="arrow-back" 
+                size={24} 
+                color="#fff" 
+                style={{ marginLeft: 10 }} 
+              />
+            </TouchableOpacity>
+          ),
         }}
       />
 
