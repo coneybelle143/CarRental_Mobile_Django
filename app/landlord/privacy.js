@@ -1,8 +1,9 @@
 import React, { useCallback } from 'react';
-import { ScrollView, Text, StyleSheet, View, BackHandler, Platform } from 'react-native';
+import { ScrollView, Text, StyleSheet, View, BackHandler, Platform, TouchableOpacity } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function PrivacyPolicyScreen() {
 
@@ -36,6 +37,11 @@ export default function PrivacyPolicyScreen() {
           headerStyle: { backgroundColor: Colors.primary },
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: 'bold' },
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color="#fff" style={{ marginLeft: 10 }} />
+            </TouchableOpacity>
+          ),
         }}
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
