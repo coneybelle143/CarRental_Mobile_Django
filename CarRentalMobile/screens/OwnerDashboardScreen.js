@@ -169,6 +169,7 @@ function RentalsTab({ rentalHistory, setRentalHistory, reports, onRecordLog }) {
   }), [rentalHistory]);
 
   const TABS = ['all', 'pending', 'approved', 'completed', 'rejected'];
+  const SHORT_LABELS = { all: 'All', pending: 'Pend', approved: 'Appr', completed: 'Done', rejected: 'Rej' };
   const BC = {
     pending:   { bg: '#fef3c7', color: '#92400e' },
     approved:  { bg: '#d1fae5', color: '#065f46' },
@@ -208,18 +209,21 @@ function RentalsTab({ rentalHistory, setRentalHistory, reports, onRecordLog }) {
       </View>
 
       {/* Filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
+      <View style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          {TABS.map(t => (
-            <TouchableOpacity key={t} onPress={() => setFilter(t)}
-              style={[s.filterTab, filter === t && s.filterTabActive]}>
+          {TABS.map((t, i) => (
+            <TouchableOpacity
+              key={t}
+              onPress={() => setFilter(t)}
+              style={[s.filterTab, filter === t && s.filterTabActive, i < TABS.length - 1 && { marginRight: 6 }]}
+            >
               <Text style={[s.filterTabText, filter === t && s.filterTabTextActive]}>
-                {t.charAt(0).toUpperCase() + t.slice(1)}
+                {SHORT_LABELS[t] || (t.charAt(0).toUpperCase() + t.slice(1))}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
-      </ScrollView>
+      </View>
 
       {/* Search */}
       <View style={[s.searchWrap, { marginHorizontal: 16, marginBottom: 10 }]}>
@@ -464,9 +468,9 @@ const s = StyleSheet.create({
   statusText:  { fontSize: 10, fontWeight: '700' },
   iconBtn:     { width: 36, height: 36, borderRadius: 8, backgroundColor: C.g50, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.g200 },
   rentalCard:  { backgroundColor: C.white, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.g200, elevation: 2 },
-  filterTab:   { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.g200 },
+  filterTab:   { flex: 1, height: 36, paddingHorizontal: 8, paddingVertical: 0, borderRadius: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.g200, alignItems: 'center', justifyContent: 'center' },
   filterTabActive:     { backgroundColor: C.primary, borderColor: C.primary },
-  filterTabText:       { fontSize: 13, color: C.g500 },
+  filterTabText:       { fontSize: 12, color: C.g500 },
   filterTabTextActive: { color: C.white, fontWeight: '700' },
   empty:       { alignItems: 'center', padding: 48, backgroundColor: C.g50, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: C.g200 },
   emptyTitle:  { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 6 },

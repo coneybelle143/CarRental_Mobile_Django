@@ -2,8 +2,9 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Platform, StatusBar,
+  ScrollView, ActivityIndicator, Platform, StatusBar, KeyboardAvoidingView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';   // ← NEW
@@ -96,6 +97,7 @@ const DEMO = [
 export default function LoginScreen() {
   const router    = useRouter();
   const { login } = useAuth();   // ← NEW
+  const insets = useSafeAreaInsets();
   const scrollRef = useRef(null);
   const pwInputRef = useRef(null);
 
@@ -150,12 +152,16 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.navy }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: C.navy }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={insets.top + 10}
+    >
       <StatusBar barStyle="light-content" backgroundColor={C.navy} />
 
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={s.scroll}
+        contentContainerStyle={[s.scroll, { paddingBottom: Math.max(160, insets.bottom + 40) }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         bounces={false}
@@ -217,7 +223,10 @@ export default function LoginScreen() {
           <View onLayout={e => { fieldY.current['password'] = e.nativeEvent.layout.y + 300; }}>
             <View style={s.labelRow}>
               <Text style={s.label}>Password</Text>
-              <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => router.push('/forgot-password')}
+              >
                 <Text style={s.forgotLink}>Forgot password?</Text>
               </TouchableOpacity>
             </View>
@@ -275,7 +284,7 @@ export default function LoginScreen() {
 
         <View style={{ height: 120 }} />
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

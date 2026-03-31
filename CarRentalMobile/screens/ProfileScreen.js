@@ -449,7 +449,11 @@ export default function ProfileScreen() {
             {/* Role-specific quick action */}
             <TouchableOpacity
               style={p.quickItem}
-              onPress={() => router.push(u.role === 'owner' ? '/dashboard' : '/renter')}
+              onPress={() =>
+                router.push(
+                  u.role === 'owner' ? '/dashboard' : u.role === 'admin' ? '/admin' : '/renter'
+                )
+              }
             >
               <View style={[p.quickIcon, { backgroundColor: 'rgba(63,155,132,0.1)' }]}>
                 <IconCar size={16} color={C.primary} />
@@ -462,25 +466,38 @@ export default function ProfileScreen() {
 
             <View style={p.divider} />
 
-            <TouchableOpacity style={p.quickItem} onPress={() => {}}>
+            <TouchableOpacity style={p.quickItem} onPress={() => router.push('/bookings')}>
               <View style={[p.quickIcon, { backgroundColor: 'rgba(99,102,241,0.1)' }]}>
                 <IconBooking size={16} color="#6366f1" />
               </View>
               <Text style={p.quickLabel}>
-                {u.role === 'owner' ? 'Rental Requests' : 'My Bookings'}
+                {u.role === 'owner' ? 'Rental Requests' : u.role === 'admin' ? 'Booking Summary' : 'My Bookings'}
               </Text>
               <IconBack size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
             </TouchableOpacity>
 
             <View style={p.divider} />
 
-            <TouchableOpacity style={p.quickItem} onPress={() => {}}>
+            <TouchableOpacity style={p.quickItem} onPress={() => router.push('/change-password')}>
               <View style={[p.quickIcon, { backgroundColor: 'rgba(245,158,11,0.1)' }]}>
                 <IconLock size={16} color={C.warning} />
               </View>
               <Text style={p.quickLabel}>Change Password</Text>
               <IconBack size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
             </TouchableOpacity>
+
+            {u.role === 'admin' && (
+              <>
+                <View style={p.divider} />
+                <TouchableOpacity style={p.quickItem} onPress={() => router.push('/email-log')}>
+                  <View style={[p.quickIcon, { backgroundColor: 'rgba(63,155,132,0.1)' }]}>
+                    <IconMail size={15} color={C.primary} />
+                  </View>
+                  <Text style={p.quickLabel}>Email Log</Text>
+                  <IconBack size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
+                </TouchableOpacity>
+              </>
+            )}
 
             <View style={p.divider} />
 

@@ -13,6 +13,10 @@ export default function RootLayout() {
           <Stack.Screen name="index"    />
           <Stack.Screen name="login"    />
           <Stack.Screen name="register" />
+          <Stack.Screen name="forgot-password" />
+          <Stack.Screen name="change-password" />
+          <Stack.Screen name="bookings" />
+          <Stack.Screen name="email-log" />
           <Stack.Screen name="dashboard"/>
           <Stack.Screen name="renter"   />
           <Stack.Screen name="profile"  />

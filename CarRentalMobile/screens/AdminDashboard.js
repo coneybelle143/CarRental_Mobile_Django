@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, Alert, StatusBar, FlatList
+  TextInput, StatusBar, FlatList
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle, Rect, Polyline, Line } from 'react-native-svg';
+import { useAuth } from '../context/AuthContext';
 
 const C = {
   primary:   '#3F9B84', primaryDk: '#2d7a67', primaryLt: '#ecfdf5',
@@ -33,9 +34,6 @@ const CheckCircleIcon = ({ color = C.g500 }) => (
 const SearchIcon = ({ color = C.g400 }) => (
   <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><Circle cx="11" cy="11" r="8" /><Line x1="21" y1="21" x2="16.65" y2="16.65" /></Svg>
 );
-const LogOutIcon = ({ color = C.danger }) => (
-  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><Polyline points="16 17 21 12 16 7" /><Line x1="21" y1="12" x2="9" y2="12" /></Svg>
-);
 
 // ── Mock Data ────────────────────────────────────────────────────────────────
 // Default/demo data has been removed. Real data should be supplied
@@ -56,9 +54,20 @@ const TABS = [
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [search, setSearch] = useState('');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (!user) {
+      router.replace('/login');
+      return;
+    }
+    if (user.role !== 'admin') {
+      router.replace(user.role === 'owner' ? '/dashboard' : '/renter');
+    }
+  }, [router, user]);
 
   const toggleProfileMenu = () => setProfileMenuOpen(o => !o);
   const closeProfileMenu = () => setProfileMenuOpen(false);
@@ -69,6 +78,10 @@ export default function AdminDashboard() {
   const onProfile = () => {
     closeProfileMenu();
     router.push('/profile');
+  };
+  const onEmailLog = () => {
+    closeProfileMenu();
+    router.push('/email-log');
   };
 
   // ── Sub-components ─────────────────────────────────────────────────────────
@@ -94,15 +107,11 @@ export default function AdminDashboard() {
         <Text style={s.itemTitle}>{item.title}</Text>
         <Text style={s.itemSub}>{item.type} • {item.owner}</Text>
         <Text style={s.itemDate}>{item.date}</Text>
+        <Text style={s.mobileLimitNote}>Review-only on mobile. Use web app to approve or reject.</Text>
       </View>
-      <View style={{ gap: 8 }}>
-        <TouchableOpacity style={s.btnSmPrimary} onPress={() => Alert.alert('Approved', `${item.title} approved.`)}>
-          <Text style={s.btnSmTextWhite}>Approve</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.btnSmOutline} onPress={() => Alert.alert('Rejected', `${item.title} rejected.`)}>
-          <Text style={s.btnSmText}>Reject</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity style={s.btnSmOutline} onPress={onEmailLog}>
+        <Text style={s.btnSmText}>Open Logs</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -226,6 +235,9 @@ export default function AdminDashboard() {
               <TouchableOpacity style={s.profileMenuItem} onPress={onProfile}>
                 <Text style={s.profileMenuText}>My Profile</Text>
               </TouchableOpacity>
+              <TouchableOpacity style={s.profileMenuItem} onPress={onEmailLog}>
+                <Text style={s.profileMenuText}>Email Log</Text>
+              </TouchableOpacity>
               <TouchableOpacity style={s.profileMenuItem} onPress={onLogout}>
                 <Text style={[s.profileMenuText, s.logoutText]}>Logout</Text>
               </TouchableOpacity>
@@ -343,6 +355,7 @@ const s = StyleSheet.create({
   avatarText: { color: C.white, fontWeight: '700', fontSize: 16 },
   itemTitle:  { fontSize: 14, fontWeight: '700', color: C.g800 },
   itemSub:    { fontSize: 12, color: C.g500, marginTop: 2 },
+  mobileLimitNote: { fontSize: 10, color: C.g400, marginTop: 4 },
   itemRole:   { fontSize: 10, fontWeight: '700', color: C.g400, marginTop: 2, textTransform: 'uppercase' },
   itemDate:   { fontSize: 11, color: C.g400, marginTop: 4 },
   iconBtn:    { padding: 8 },
@@ -352,16 +365,11 @@ const s = StyleSheet.create({
   badgeTextDanger: { fontSize: 9, fontWeight: '700', color: C.danger },
 
   /* Buttons */
-  btnSmPrimary: {
-    backgroundColor: C.primary, paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 6, alignItems: 'center',
-  },
   btnSmOutline: {
     borderWidth: 1, borderColor: C.g300, paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: 6, alignItems: 'center',
   },
   btnSmText:      { fontSize: 11, fontWeight: '600', color: C.g600 },
-  btnSmTextWhite: { fontSize: 11, fontWeight: '600', color: C.white },
 
   /* Search */
   searchBar: {

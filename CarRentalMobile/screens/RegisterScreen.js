@@ -2,8 +2,9 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, ActivityIndicator, Platform, StatusBar, Modal,
+  ScrollView, ActivityIndicator, Platform, StatusBar, Modal, KeyboardAvoidingView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';   // ← NEW
@@ -221,6 +222,7 @@ export default function RegisterScreen() {
   const router    = useRouter();
   const { register } = useAuth();          // ← NEW
   const scrollRef = useRef(null);
+  const insets = useSafeAreaInsets();
 
   const lastNameInput  = useRef(null);
   const middleInput    = useRef(null);
@@ -337,12 +339,16 @@ export default function RegisterScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.navy }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: C.navy }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={insets.top + 10}
+    >
       <StatusBar barStyle="light-content" backgroundColor={C.navy} />
 
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={r.scroll}
+        contentContainerStyle={[r.scroll, { paddingBottom: Math.max(160, insets.bottom + 40) }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         bounces={false}
@@ -619,7 +625,7 @@ export default function RegisterScreen() {
         onConfirm={handleDobConfirm}
         currentDate={form.dob}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
