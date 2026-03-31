@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';   // ← NEW
 const C = {
   primary:   '#3F9B84', primaryDk: '#2d7a67', primaryLt: '#ecfdf5',
   navy:      '#1a2c5e',
-  danger:    '#ef4444',
+  danger:    '#e86161',
   g50:  '#f8fafc', g100: '#f1f5f9', g200: '#e2e8f0',
   g300: '#cbd5e1', g400: '#94a3b8', g500: '#64748b',
   g600: '#475569', g700: '#334155', g800: '#1e293b',

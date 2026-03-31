@@ -1,7 +1,3 @@
-// screens/RenterDashboardScreen.js
-// Bottom nav: Home | Bookings | Log Book (read-only) | Profile
-// Removed header action buttons — all navigation via bottom bar
-
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
@@ -14,7 +10,6 @@ import BottomNav from '../components/BottomNav';
 import ProfileAvatar from '../components/ProfileAvatar';
 import LogReportScreen from './LogReportScreen';
 
-/* ─── Design tokens ─── */
 const C = {
   primary:   '#3F9B84',
   primaryDk: '#2d7a67',
@@ -34,7 +29,6 @@ const C = {
   white: '#ffffff',
 };
 
-// vehicles available to rent – demo data (replace with backend list in production)
 const DEMO_VEHICLES = [
   { id: 1, name: 'Toyota Vios',    model: '1.3 E CVT',  year: '2022', pricePerDay: '2500', status: 'available', location: 'Davao City',    seats: '5', fuel: 'Gasoline', ownerName: 'Carlos Owner' },
   { id: 2, name: 'Honda City',     model: '1.5 RS CVT', year: '2021', pricePerDay: '3000', status: 'available', location: 'Davao City',    seats: '5', fuel: 'Gasoline', ownerName: 'Carlos Owner' },
@@ -44,7 +38,6 @@ const DEMO_VEHICLES = [
 ];
 
 
-/* ─── Vehicle Card ─── */
 function VehicleCard({ vehicle, onRent }) {
   const available = vehicle.status === 'available';
   return (
@@ -79,7 +72,6 @@ function VehicleCard({ vehicle, onRent }) {
   );
 }
 
-/* ─── RENT MODAL ─── */
 function RentModal({ visible, vehicle, onClose, onConfirm }) {
   const [startDate, setStart] = useState('');
   const [endDate,   setEnd]   = useState('');
