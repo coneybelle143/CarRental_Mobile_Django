@@ -32,9 +32,6 @@ const C = {
   white: '#ffffff',
 };
 
-// DEMO_VEHICLES removed — now using live data from VehicleContext
-
-/* ─── Tab Header Config ─── */
 const TAB_HEADERS = {
   home: {
     title: 'Renter Dashboard',
@@ -53,7 +50,6 @@ const TAB_HEADERS = {
   },
 };
 
-/* ─── Dynamic Header ─── */
 function DashboardHeader({ activeTab, userName }) {
   const config   = TAB_HEADERS[activeTab] || TAB_HEADERS.home;
   const subtitle = config.getSubtitle(userName);
@@ -68,7 +64,6 @@ function DashboardHeader({ activeTab, userName }) {
   );
 }
 
-/* ─── VehicleCard ─── */
 function VehicleCard({ vehicle, onRent }) {
   const available = vehicle.status === 'available';
   return (
@@ -110,7 +105,6 @@ function VehicleCard({ vehicle, onRent }) {
   );
 }
 
-/* ─── RentModal ─── */
 function RentModal({ visible, vehicle, onClose, onConfirm }) {
   const [startDate, setStart] = useState('');
   const [endDate,   setEnd]   = useState('');
@@ -152,9 +146,7 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
             <Text style={{ fontSize: 16, fontWeight: '800', color: C.navy }}>{vehicle.name}</Text>
             <Text style={{ fontSize: 13, color: C.g500, marginTop: 2 }}>{vehicle.model} · {vehicle.year}</Text>
             {vehicle.ownerName && (
-              <Text style={{ fontSize: 12, color: C.g500, marginTop: 2 }}>
-                Owner: {vehicle.ownerName}
-              </Text>
+              <Text style={{ fontSize: 12, color: C.g500, marginTop: 2 }}>Owner: {vehicle.ownerName}</Text>
             )}
             <Text style={{ fontSize: 14, color: C.primary, fontWeight: '700', marginTop: 6 }}>
               ₱{parseFloat(vehicle.pricePerDay).toLocaleString()}/day
@@ -208,7 +200,6 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
   );
 }
 
-/* ─── HOME TAB ─── */
 function HomeTab({ vehicles, myRentals }) {
   const [search,     setSearch]     = useState('');
   const [filter,     setFilter]     = useState('all');
@@ -301,7 +292,7 @@ function HomeTab({ vehicles, myRentals }) {
           <View style={s.empty}>
             <Text style={{ fontSize: 40, marginBottom: 10 }}>🚗</Text>
             <Text style={s.emptyTitle}>No vehicles listed yet</Text>
-            <Text style={s.emptySub}>Owners haven't added any vehicles yet. Check back soon!</Text>
+            <Text style={s.emptySub}>No approved vehicles available. Check back soon!</Text>
           </View>
         ) : filtered.length === 0 ? (
           <View style={s.empty}>
@@ -324,13 +315,10 @@ function HomeTab({ vehicles, myRentals }) {
   );
 }
 
-/* ═══════════════════════════════════════════
-   MAIN COMPONENT
-═══════════════════════════════════════════ */
 export default function RenterDashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { vehicles } = useVehicles();   // ← live data from all owners
+  const { getApprovedVehicles } = useVehicles(); // ← only approved vehicles
 
   React.useEffect(() => {
     if (!user) router.replace('/login');
@@ -340,6 +328,9 @@ export default function RenterDashboardScreen() {
   const userName  = user?.firstName || user?.fullName || 'Renter';
   const myRentals = [];
 
+  // Only show vehicles the admin has approved
+  const approvedVehicles = getApprovedVehicles();
+
   const handleTabPress = tab => {
     if (tab === 'profile') { router.push('/profile'); return; }
     setActiveTab(tab);
@@ -348,7 +339,7 @@ export default function RenterDashboardScreen() {
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
-        return <HomeTab vehicles={vehicles} myRentals={myRentals} />;
+        return <HomeTab vehicles={approvedVehicles} myRentals={myRentals} />;
       case 'bookings':
         return <BookingsScreen hideHeader={true} />;
       case 'logreport':
@@ -374,7 +365,6 @@ export default function RenterDashboardScreen() {
   );
 }
 
-/* ─── Styles ─── */
 const s = StyleSheet.create({
   header: {
     backgroundColor: C.navy,
