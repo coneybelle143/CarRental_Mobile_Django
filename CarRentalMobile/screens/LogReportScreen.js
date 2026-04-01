@@ -476,25 +476,21 @@ function ConditionColumn({ title, data, newIssues = [], onEdit, isOwner }) {
           </TouchableOpacity>
         )}
       </View>
-      {/* Odometer */}
       <View style={st.miniField}>
         <Text style={st.miniLabel}>Odometer</Text>
         <Text style={st.miniVal}>{data.odometer ? `${data.odometer.toLocaleString()} km` : '—'}</Text>
       </View>
-      {/* Fuel */}
       <View style={st.miniField}>
         <Text style={st.miniLabel}>Fuel</Text>
         <Text style={st.miniVal}>{data.fuel || '—'}</Text>
         <FuelGauge level={data.fuel} />
       </View>
-      {/* Condition */}
       {data.condition && (
         <View style={[st.miniField, { alignItems: 'flex-start' }]}>
           <Text style={st.miniLabel}>Condition</Text>
           <CondBadge value={data.condition} />
         </View>
       )}
-      {/* Issues */}
       {data.issues && data.issues.length > 0 && (
         <View style={st.miniField}>
           <Text style={st.miniLabel}>Issues</Text>
@@ -512,7 +508,6 @@ function ConditionColumn({ title, data, newIssues = [], onEdit, isOwner }) {
           })}
         </View>
       )}
-      {/* Notes */}
       {!!data.notes && (
         <View style={st.miniField}>
           <Text style={st.miniLabel}>Notes</Text>
@@ -640,7 +635,6 @@ function CommentsSection({ report, onAddComment, currentUser }) {
           </View>
         ))
       )}
-      {/* Reply box */}
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
         <TextInput
           style={[st.input, { flex: 1, marginBottom: 0, paddingVertical: 10 }]}
@@ -705,7 +699,6 @@ function DetailView({ report, onBack, onUpdateReport, isOwner, currentUser, onAd
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Sub-header */}
       <View style={[st.subHeader, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
         <TouchableOpacity onPress={onBack} style={st.backBtn}>
           <Ic.Back s={18} c={C.white} />
@@ -714,30 +707,15 @@ function DetailView({ report, onBack, onUpdateReport, isOwner, currentUser, onAd
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        {/* Rental banner */}
         <RentalBanner rental={report.rental} />
-
-        {/* Trip summary */}
         <TripSummary report={report} />
 
-        {/* Before/After comparison or pending notice */}
         {report.checkout ? (
           <>
             <Text style={{ fontSize: 12, fontWeight: '800', color: C.g500, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, marginTop: 4 }}>Condition Comparison</Text>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <ConditionColumn
-                title="Before Trip"
-                data={report.checkin}
-                onEdit={isOwner ? () => setView('editCI') : null}
-                isOwner={isOwner}
-              />
-              <ConditionColumn
-                title="After Trip"
-                data={report.checkout}
-                newIssues={newIssues}
-                onEdit={isOwner ? () => setView('editCO') : null}
-                isOwner={isOwner}
-              />
+              <ConditionColumn title="Before Trip" data={report.checkin} onEdit={isOwner ? () => setView('editCI') : null} isOwner={isOwner} />
+              <ConditionColumn title="After Trip"  data={report.checkout} newIssues={newIssues} onEdit={isOwner ? () => setView('editCO') : null} isOwner={isOwner} />
             </View>
           </>
         ) : (
@@ -757,38 +735,21 @@ function DetailView({ report, onBack, onUpdateReport, isOwner, currentUser, onAd
                 </TouchableOpacity>
               </View>
             )}
-            {/* Show check-in data alone */}
             {report.checkin && (
-              <ConditionColumn
-                title="Check-in Record"
-                data={report.checkin}
-                onEdit={isOwner ? () => setView('editCI') : null}
-                isOwner={isOwner}
-              />
+              <ConditionColumn title="Check-in Record" data={report.checkin} onEdit={isOwner ? () => setView('editCI') : null} isOwner={isOwner} />
             )}
           </>
         )}
 
-        {/* Signatures */}
-        <SignaturesSection
-          report={report}
-          isOwner={isOwner}
-          onUpdate={updates => onUpdateReport(report.id, updates)}
-        />
-
-        {/* Comments */}
-        <CommentsSection
-          report={report}
-          onAddComment={onAddComment}
-          currentUser={currentUser}
-        />
+        <SignaturesSection report={report} isOwner={isOwner} onUpdate={updates => onUpdateReport(report.id, updates)} />
+        <CommentsSection   report={report} onAddComment={onAddComment} currentUser={currentUser} />
       </ScrollView>
     </View>
   );
 }
 
 /* ═══════════════════════════════════════════
-   NEW ENTRY FORM  (called from Rentals tab)
+   NEW ENTRY FORM
 ═══════════════════════════════════════════ */
 function NewEntryForm({ rental, onSave, onCancel }) {
   return (
@@ -808,19 +769,24 @@ function NewEntryForm({ rental, onSave, onCancel }) {
 
 /* ═══════════════════════════════════════════
    MAIN LIST VIEW
+   Props:
+     hideHeader       — boolean, hides the internal navy header when true
+                        (used when embedded inside RenterDashboardScreen
+                        which already renders its own header)
+     pendingRental    — rental object to pre-open as a new entry
+     onClearPendingRental — callback to clear the pending rental
 ═══════════════════════════════════════════ */
-export default function LogReportScreen({ pendingRental, onClearPendingRental }) {
-  const { user }                                              = useAuth();
+export default function LogReportScreen({ hideHeader = false, pendingRental, onClearPendingRental }) {
+  const { user }                                                        = useAuth();
   const { reports, addReport, updateReport, deleteReport, addComment } = useLogReport();
 
   const isOwner  = user?.role === 'owner';
   const isRenter = user?.role === 'renter';
 
   const [search,   setSearch]   = useState('');
-  const [selected, setSelected] = useState(null); // detail view
-  const [newEntry, setNewEntry] = useState(null);  // rental being recorded
+  const [selected, setSelected] = useState(null);
+  const [newEntry, setNewEntry] = useState(null);
 
-  // If owner launched "Record to Log" from Rentals tab
   React.useEffect(() => {
     if (pendingRental) {
       setNewEntry(pendingRental);
@@ -843,25 +809,16 @@ export default function LogReportScreen({ pendingRental, onClearPendingRental })
     );
   }, [myReports, search]);
 
-  /* ── New entry save ── */
   const handleNewSave = async ({ rental, checkin }) => {
-    await addReport({
-      rental,
-      checkin,
-      checkout: null,
-      comments: [],
-    });
+    await addReport({ rental, checkin, checkout: null, comments: [] });
     setNewEntry(null);
   };
 
-  /* ── Update report ── */
   const handleUpdateReport = async (id, updates) => {
     await updateReport(id, updates);
-    // Refresh selected view
     setSelected(prev => prev ? { ...prev, ...updates } : prev);
   };
 
-  /* ── Delete ── */
   const handleDelete = id => {
     Alert.alert('Delete Entry?', 'This will permanently remove the log entry.', [
       { text: 'Cancel', style: 'cancel' },
@@ -869,7 +826,7 @@ export default function LogReportScreen({ pendingRental, onClearPendingRental })
     ]);
   };
 
-  /* ── Sub-views ── */
+  /* ── Sub-views (always rendered without outer header) ── */
   if (newEntry) {
     return (
       <NewEntryForm
@@ -881,7 +838,6 @@ export default function LogReportScreen({ pendingRental, onClearPendingRental })
   }
 
   if (selected) {
-    // Always get freshest version from reports array
     const fresh = reports.find(r => r.id === selected.id) || selected;
     return (
       <DetailView
@@ -895,24 +851,22 @@ export default function LogReportScreen({ pendingRental, onClearPendingRental })
     );
   }
 
-  /* ── List ── */
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.g50 }} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.white} />
-      {/* Header */}
-      <View style={st.header}>
-        <View>
+  /* ── Main list ── */
+  const listContent = (
+    <>
+      {/* Internal header — hidden when dashboard provides its own */}
+      {!hideHeader && (
+        <View style={st.header}>
           <Text style={st.headerTitle}>Log Report</Text>
           <Text style={st.headerSub}>
             {isOwner ? 'Vehicle condition records' : 'Your rental condition reports'}
           </Text>
         </View>
-      </View>
+      )}
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         <StatsBar reports={myReports} />
 
-        {/* Search */}
         <View style={st.searchWrap}>
           <Ic.Search s={15} c={C.g400} />
           <TextInput
@@ -924,7 +878,6 @@ export default function LogReportScreen({ pendingRental, onClearPendingRental })
           />
         </View>
 
-        {/* Empty state */}
         {filtered.length === 0 ? (
           <View style={st.emptyBox}>
             <Text style={st.emptyTitle}>No log entries yet</Text>
@@ -944,12 +897,11 @@ export default function LogReportScreen({ pendingRental, onClearPendingRental })
             return (
               <TouchableOpacity key={r.id} onPress={() => setSelected(r)} style={st.logCard} activeOpacity={0.85}>
                 <View style={{ flex: 1 }}>
-                  {/* Tags */}
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginBottom: 7 }}>
                     <Pill label="Check-in" bg="rgba(16,185,129,.1)" color="#059669" border="rgba(16,185,129,.25)" />
                     {r.checkout
-                      ? <Pill label="Trip Complete" bg={C.primary + '14'} color={C.primary} border={C.primary + '35'} />
-                      : <Pill label="Awaiting Check-out" bg="rgba(245,158,11,.1)" color="#b45309" border="rgba(245,158,11,.3)" />
+                      ? <Pill label="Trip Complete"       bg={C.primary + '14'} color={C.primary}  border={C.primary + '35'} />
+                      : <Pill label="Awaiting Check-out"  bg="rgba(245,158,11,.1)" color="#b45309" border="rgba(245,158,11,.3)" />
                     }
                     {condOpt && <Pill label={r.checkin.condition} bg={condOpt.bg} color={condOpt.color} border={condOpt.border} />}
                     {newDmg.length > 0 && <Pill label={`${newDmg.length} New Damage`} bg="#fef2f2" color="#991b1b" border="#fca5a5" />}
@@ -959,9 +911,7 @@ export default function LogReportScreen({ pendingRental, onClearPendingRental })
                       </View>
                     )}
                   </View>
-                  {/* Vehicle name */}
                   <Text style={{ fontSize: 15, fontWeight: '700', color: C.navy, marginBottom: 4 }}>{r.rental?.vehicleName || 'Vehicle'}</Text>
-                  {/* Meta */}
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                     <Text style={{ fontSize: 12, color: C.g500 }}>{fmtDate(r.checkin?.createdAt || r.createdAt)}</Text>
                     {ciIssues.length > 0
@@ -986,6 +936,18 @@ export default function LogReportScreen({ pendingRental, onClearPendingRental })
           })
         )}
       </ScrollView>
+    </>
+  );
+
+  /* When embedded in the dashboard, skip SafeAreaView + StatusBar */
+  if (hideHeader) {
+    return <View style={{ flex: 1, backgroundColor: C.g50 }}>{listContent}</View>;
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.g50 }} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.white} />
+      {listContent}
     </SafeAreaView>
   );
 }
@@ -994,7 +956,6 @@ export default function LogReportScreen({ pendingRental, onClearPendingRental })
 const st = StyleSheet.create({
   header: {
     backgroundColor: C.navy,
-    paddingTop: Platform.OS === 'ios' ? 0 : 0,
     paddingBottom: 16,
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -1019,8 +980,6 @@ const st = StyleSheet.create({
     marginBottom: 14,
   },
   searchInput: { flex: 1, fontSize: 14, color: C.g900 },
-
-  // List card
   logCard: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: C.white, borderRadius: 12,
@@ -1034,31 +993,23 @@ const st = StyleSheet.create({
   },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 8 },
   emptySub:   { fontSize: 13, color: C.g400, textAlign: 'center', lineHeight: 20 },
-
-  // Rental banner
   rentalBanner: {
     backgroundColor: C.primaryLt, borderRadius: 12,
     borderWidth: 1, borderColor: C.primary + '30',
     padding: 14, marginBottom: 14,
   },
   bannerMeta: { fontSize: 12, color: C.g500 },
-
-  // Trip card
   tripCard: {
     backgroundColor: C.white, borderRadius: 12,
     borderWidth: 1, borderColor: C.g200,
     padding: 14, marginBottom: 14, elevation: 2,
   },
-
-  // Pending notice
   pendingNotice: {
     backgroundColor: C.warningLt, borderRadius: 10,
     borderWidth: 1, borderColor: '#fde68a',
     padding: 14, marginBottom: 14,
     borderStyle: 'dashed',
   },
-
-  // Condition columns
   condCol: {
     flex: 1, backgroundColor: C.white, borderRadius: 12,
     borderWidth: 1, borderColor: C.g200, padding: 12, marginBottom: 14,
@@ -1066,16 +1017,12 @@ const st = StyleSheet.create({
   miniField: { marginBottom: 10 },
   miniLabel: { fontSize: 10, fontWeight: '700', color: C.g400, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 },
   miniVal:   { fontSize: 13, fontWeight: '600', color: C.g900 },
-
-  // Edit button
   editBtn: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: C.primaryLt, borderRadius: 8,
     paddingHorizontal: 10, paddingVertical: 5,
     borderWidth: 1, borderColor: C.primary + '30',
   },
-
-  // Checklist
   checkRow: {
     flexDirection: 'row', alignItems: 'center',
     padding: 10, borderWidth: 1, borderColor: C.g200,
@@ -1096,8 +1043,6 @@ const st = StyleSheet.create({
     paddingHorizontal: 5, paddingVertical: 2,
   },
   newBadgeText: { fontSize: 9, fontWeight: '800', color: C.white },
-
-  // Forms
   fieldLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: C.g400, marginBottom: 6 },
   input: {
     padding: 12, borderWidth: 1.5, borderColor: C.g200,
@@ -1116,16 +1061,12 @@ const st = StyleSheet.create({
     borderWidth: 1.5,
   },
   condBtnText: { fontSize: 13, fontWeight: '600' },
-
-  // Damage warning
   dmgWarning: {
     backgroundColor: '#fef2f2', borderRadius: 10,
     borderWidth: 1, borderColor: '#fecaca',
     padding: 12, marginBottom: 14,
   },
   dmgWarningText: { fontSize: 13, fontWeight: '700', color: C.danger, textAlign: 'center' },
-
-  // Buttons
   btnPrimary: {
     backgroundColor: C.primary, borderRadius: 10,
     paddingVertical: 13, paddingHorizontal: 20,
@@ -1139,8 +1080,6 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: C.g200,
   },
   btnSecondaryText: { color: C.g700, fontSize: 14, fontWeight: '600' },
-
-  // Signatures
   sigSection: {
     backgroundColor: C.white, borderRadius: 12,
     borderWidth: 1, borderColor: C.g200,
@@ -1151,8 +1090,6 @@ const st = StyleSheet.create({
     borderWidth: 1, borderColor: C.g200,
     padding: 12, borderTopWidth: 3, borderTopColor: C.primary,
   },
-
-  // Comments
   commSection: {
     backgroundColor: C.white, borderRadius: 12,
     borderWidth: 1, borderColor: C.g200,

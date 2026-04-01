@@ -38,6 +38,41 @@ const DEMO_VEHICLES = [
   { id: 5, name: 'Toyota Hi-Ace',      model: 'GL Grandia', year: '2020', pricePerDay: '4500', status: 'available', location: 'Gensan',     seats: '15', fuel: 'Diesel',   ownerName: 'Ben Rentals'  },
 ];
 
+/* ─── Tab Header Config ─── */
+const TAB_HEADERS = {
+  home: {
+    title: 'Renter Dashboard',
+    getSubtitle: (userName) => `Welcome back, ${userName}!`,
+    showAvatar: true,
+  },
+  bookings: {
+    title: 'My Bookings',
+    getSubtitle: () => 'Track your rental requests',
+    showAvatar: true,
+  },
+  logreport: {
+    title: 'Log & Report',
+    getSubtitle: () => 'Your rental conditions reported by owners',
+    showAvatar: true,
+  },
+};
+
+/* ─── Dynamic Header ─── */
+function DashboardHeader({ activeTab, userName }) {
+  const config = TAB_HEADERS[activeTab] || TAB_HEADERS.home;
+  const subtitle = config.getSubtitle(userName);
+
+  return (
+    <View style={s.header}>
+      <View style={{ flex: 1 }}>
+        <Text style={s.headerTitle}>{config.title}</Text>
+        <Text style={s.headerSub}>{subtitle}</Text>
+      </View>
+      {config.showAvatar !== false && <ProfileAvatar size={38} />}
+    </View>
+  );
+}
+
 /* ─── VehicleCard ─── */
 function VehicleCard({ vehicle, onRent }) {
   const available = vehicle.status === 'available';
@@ -249,7 +284,9 @@ function HomeTab({ vehicles, myRentals }) {
   );
 }
 
-/* ═══════════ MAIN COMPONENT ═══════════ */
+/* ═══════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════ */
 export default function RenterDashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -269,10 +306,16 @@ export default function RenterDashboardScreen() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'home':      return <HomeTab vehicles={DEMO_VEHICLES} myRentals={myRentals} />;
-      case 'bookings':  return <BookingsScreen hideHeader={true} />;
-      case 'logreport': return <LogReportScreen />;
-      default:          return null;
+      case 'home':
+        return <HomeTab vehicles={DEMO_VEHICLES} myRentals={myRentals} />;
+      case 'bookings':
+        return <BookingsScreen hideHeader={true} />;
+      case 'logreport':
+        // hideHeader=true suppresses LogReportScreen's own navy header
+        // since DashboardHeader above already shows "Log & Report"
+        return <LogReportScreen hideHeader={true} />;
+      default:
+        return null;
     }
   };
 
@@ -280,13 +323,8 @@ export default function RenterDashboardScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#edf1f7' }}>
-      <View style={s.header}>
-        <View>
-          <Text style={s.headerTitle}>Renter Dashboard</Text>
-          <Text style={s.headerSub}>Welcome back, {userName}!</Text>
-        </View>
-        <ProfileAvatar size={38} />
-      </View>
+      {/* Single shared header — title & subtitle change per tab */}
+      <DashboardHeader activeTab={activeTab} userName={userName} />
 
       <View style={{ flex: 1 }}>{renderContent()}</View>
 
