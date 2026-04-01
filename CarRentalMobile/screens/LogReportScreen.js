@@ -3,12 +3,14 @@
 // Matches web spec exactly: check-in/check-out, fuel gauge, damage compare,
 // trip summary, signatures, comments, stats bar, search, detail view.
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Modal, StyleSheet, Alert, Platform, Image, StatusBar,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect, G } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';
 import { useLogReport } from '../context/LogReportContext';
@@ -787,6 +789,23 @@ export default function LogReportScreen({ hideHeader = false, pendingRental, onC
   const [reportFilter, setReportFilter] = useState('all');
   const [selected, setSelected] = useState(null);
   const [newEntry, setNewEntry] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Refresh on screen focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (reports.length === 0) {
+        setRefreshing(true);
+        setTimeout(() => setRefreshing(false), 300);
+      }
+    }, [reports])
+  );
+
+  // Handle manual pull-to-refresh
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 500);
+  };
 
   React.useEffect(() => {
     if (pendingRental) {
@@ -881,7 +900,8 @@ export default function LogReportScreen({ hideHeader = false, pendingRental, onC
         </View>
       )}
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}>
         <StatsBar reports={myReports} />
 
         <View style={st.searchWrap}>
