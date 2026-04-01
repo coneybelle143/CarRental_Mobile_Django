@@ -497,7 +497,7 @@ const s = StyleSheet.create({
   },
   rejectionText: { fontSize: 12, color: '#dc2626' },
 
-  // Empty
+  // Empty state
   empty: {
     alignItems: 'center',
     padding: 48,

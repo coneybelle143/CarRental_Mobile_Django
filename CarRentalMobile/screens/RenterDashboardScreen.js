@@ -283,7 +283,7 @@ export default function RenterDashboardScreen() {
       <View style={s.header}>
         <View>
           <Text style={s.headerTitle}>Renter Dashboard</Text>
-          <Text style={s.headerSub}>Welcome back, {userName}</Text>
+          <Text style={s.headerSub}>Welcome back, {userName}!</Text>
         </View>
         <ProfileAvatar size={38} />
       </View>
