@@ -1,15 +1,17 @@
+// screens/RenterDashboardScreen.js
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Modal, StyleSheet, Alert, Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useAuth } from '../context/AuthContext';
+import { useRouter }    from 'expo-router';
+import { useAuth }      from '../context/AuthContext';
 import { useLogReport } from '../context/LogReportContext';
-import BottomNav from '../components/BottomNav';
-import ProfileAvatar from '../components/ProfileAvatar';
-import LogReportScreen from './LogReportScreen';
-import BookingsScreen from './BookingsScreen';
+import { useVehicles }  from '../context/VehicleContext';
+import BottomNav        from '../components/BottomNav';
+import ProfileAvatar    from '../components/ProfileAvatar';
+import LogReportScreen  from './LogReportScreen';
+import BookingsScreen   from './BookingsScreen';
 
 const C = {
   primary:   '#3F9B84',
@@ -30,13 +32,7 @@ const C = {
   white: '#ffffff',
 };
 
-const DEMO_VEHICLES = [
-  { id: 1, name: 'Toyota Vios',        model: '1.3 E CVT',  year: '2022', pricePerDay: '2500', status: 'available', location: 'Davao City', seats: '5',  fuel: 'Gasoline', ownerName: 'Carlos Owner' },
-  { id: 2, name: 'Honda City',         model: '1.5 RS CVT', year: '2021', pricePerDay: '3000', status: 'available', location: 'Davao City', seats: '5',  fuel: 'Gasoline', ownerName: 'Carlos Owner' },
-  { id: 3, name: 'Mitsubishi Xpander', model: 'GLS',        year: '2023', pricePerDay: '3500', status: 'rented',   location: 'Tagum City', seats: '7',  fuel: 'Gasoline', ownerName: 'Ana Vehicle'  },
-  { id: 4, name: 'Ford Everest',       model: 'Titanium',   year: '2022', pricePerDay: '5000', status: 'available', location: 'Davao City', seats: '7',  fuel: 'Diesel',   ownerName: 'Ana Vehicle'  },
-  { id: 5, name: 'Toyota Hi-Ace',      model: 'GL Grandia', year: '2020', pricePerDay: '4500', status: 'available', location: 'Gensan',     seats: '15', fuel: 'Diesel',   ownerName: 'Ben Rentals'  },
-];
+// DEMO_VEHICLES removed — now using live data from VehicleContext
 
 /* ─── Tab Header Config ─── */
 const TAB_HEADERS = {
@@ -59,9 +55,8 @@ const TAB_HEADERS = {
 
 /* ─── Dynamic Header ─── */
 function DashboardHeader({ activeTab, userName }) {
-  const config = TAB_HEADERS[activeTab] || TAB_HEADERS.home;
+  const config   = TAB_HEADERS[activeTab] || TAB_HEADERS.home;
   const subtitle = config.getSubtitle(userName);
-
   return (
     <View style={s.header}>
       <View style={{ flex: 1 }}>
@@ -81,7 +76,10 @@ function VehicleCard({ vehicle, onRent }) {
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <Text style={s.vehicleName}>{vehicle.name}</Text>
-          <View style={{ backgroundColor: available ? '#d1fae5' : '#fef3c7', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+          <View style={{
+            backgroundColor: available ? '#d1fae5' : '#fef3c7',
+            borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2,
+          }}>
             <Text style={{ fontSize: 10, fontWeight: '700', color: available ? '#065f46' : '#92400e' }}>
               {available ? 'Available' : 'Rented'}
             </Text>
@@ -89,9 +87,10 @@ function VehicleCard({ vehicle, onRent }) {
         </View>
         <Text style={s.vehicleSub}>{vehicle.model} · {vehicle.year}</Text>
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 12, color: C.g500 }}>📍 {vehicle.location}</Text>
-          <Text style={{ fontSize: 12, color: C.g500 }}>👥 {vehicle.seats} seats</Text>
-          <Text style={{ fontSize: 12, color: C.g500 }}>⛽ {vehicle.fuel}</Text>
+          {vehicle.location  && <Text style={{ fontSize: 12, color: C.g500 }}>📍 {vehicle.location}</Text>}
+          {vehicle.seats     && <Text style={{ fontSize: 12, color: C.g500 }}>👥 {vehicle.seats} seats</Text>}
+          {vehicle.fuel      && <Text style={{ fontSize: 12, color: C.g500 }}>⛽ {vehicle.fuel}</Text>}
+          {vehicle.ownerName && <Text style={{ fontSize: 12, color: C.g500 }}>🧑‍💼 {vehicle.ownerName}</Text>}
         </View>
         <Text style={s.vehiclePrice}>
           ₱{parseFloat(vehicle.pricePerDay).toLocaleString()}
@@ -131,7 +130,7 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
 
   const handleConfirm = () => {
     if (!startDate || !endDate) { Alert.alert('Required', 'Please enter both start and end dates.'); return; }
-    if (days <= 0) { Alert.alert('Invalid', 'End date must be after start date.'); return; }
+    if (days <= 0)              { Alert.alert('Invalid',  'End date must be after start date.');      return; }
     onConfirm({ startDate, endDate, days, total, notes });
   };
 
@@ -145,25 +144,46 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
           <TouchableOpacity onPress={onClose}><Text style={s.modalClose}>✕</Text></TouchableOpacity>
         </View>
         <ScrollView contentContainerStyle={{ padding: 20 }}>
-          <View style={{ backgroundColor: C.primaryLt, borderRadius: 12, borderWidth: 1, borderColor: C.primary + '28', padding: 14, marginBottom: 20 }}>
+          <View style={{
+            backgroundColor: C.primaryLt, borderRadius: 12,
+            borderWidth: 1, borderColor: C.primary + '28',
+            padding: 14, marginBottom: 20,
+          }}>
             <Text style={{ fontSize: 16, fontWeight: '800', color: C.navy }}>{vehicle.name}</Text>
             <Text style={{ fontSize: 13, color: C.g500, marginTop: 2 }}>{vehicle.model} · {vehicle.year}</Text>
-            <Text style={{ fontSize: 14, color: C.primary, fontWeight: '700', marginTop: 6 }}>₱{parseFloat(vehicle.pricePerDay).toLocaleString()}/day</Text>
+            {vehicle.ownerName && (
+              <Text style={{ fontSize: 12, color: C.g500, marginTop: 2 }}>
+                Owner: {vehicle.ownerName}
+              </Text>
+            )}
+            <Text style={{ fontSize: 14, color: C.primary, fontWeight: '700', marginTop: 6 }}>
+              ₱{parseFloat(vehicle.pricePerDay).toLocaleString()}/day
+            </Text>
           </View>
           <View style={{ marginBottom: 14 }}>
             <Text style={s.fieldLabel}>Start Date</Text>
-            <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor={C.g400} value={startDate} onChangeText={setStart} />
+            <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor={C.g400}
+              value={startDate} onChangeText={setStart} />
           </View>
           <View style={{ marginBottom: 14 }}>
             <Text style={s.fieldLabel}>End Date</Text>
-            <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor={C.g400} value={endDate} onChangeText={setEnd} />
+            <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor={C.g400}
+              value={endDate} onChangeText={setEnd} />
           </View>
           <View style={{ marginBottom: 20 }}>
             <Text style={s.fieldLabel}>Notes (optional)</Text>
-            <TextInput style={[s.input, { height: 70, textAlignVertical: 'top' }]} multiline placeholder="Any special requests…" placeholderTextColor={C.g400} value={notes} onChangeText={setNotes} />
+            <TextInput
+              style={[s.input, { height: 70, textAlignVertical: 'top' }]}
+              multiline placeholder="Any special requests…"
+              placeholderTextColor={C.g400} value={notes} onChangeText={setNotes}
+            />
           </View>
           {days > 0 && (
-            <View style={{ backgroundColor: C.g50, borderRadius: 12, borderWidth: 1, borderColor: C.g200, padding: 14, marginBottom: 20 }}>
+            <View style={{
+              backgroundColor: C.g50, borderRadius: 12,
+              borderWidth: 1, borderColor: C.g200,
+              padding: 14, marginBottom: 20,
+            }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                 <Text style={{ fontSize: 13, color: C.g500 }}>Duration</Text>
                 <Text style={{ fontSize: 13, fontWeight: '600', color: C.g700 }}>{days} day{days > 1 ? 's' : ''}</Text>
@@ -202,9 +222,10 @@ function HomeTab({ vehicles, myRentals }) {
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(v =>
-        v.name?.toLowerCase().includes(q) ||
-        v.model?.toLowerCase().includes(q) ||
-        v.location?.toLowerCase().includes(q)
+        v.name?.toLowerCase().includes(q)     ||
+        v.model?.toLowerCase().includes(q)    ||
+        v.location?.toLowerCase().includes(q) ||
+        v.ownerName?.toLowerCase().includes(q)
       );
     }
     return list;
@@ -215,7 +236,7 @@ function HomeTab({ vehicles, myRentals }) {
   const handleConfirmRent = data => {
     if (!selVehicle) { Alert.alert('Error', 'No vehicle selected. Please try again.'); return; }
     const newBooking = {
-      id: `rent-${Date.now()}`,
+      id:           `rent-${Date.now()}`,
       vehicleId:    selVehicle.id,
       vehicleName:  selVehicle.name,
       vehicleModel: selVehicle.model,
@@ -241,17 +262,29 @@ function HomeTab({ vehicles, myRentals }) {
       <View style={{ backgroundColor: C.navy, paddingHorizontal: 20, paddingBottom: 24, paddingTop: 4 }}>
         <Text style={{ fontSize: 14, color: 'rgba(255,255,255,.7)' }}>Find your next ride</Text>
         {activeBooking && (
-          <View style={{ backgroundColor: 'rgba(63,155,132,.3)', borderRadius: 12, padding: 12, marginTop: 12, borderWidth: 1, borderColor: 'rgba(63,155,132,.5)' }}>
+          <View style={{
+            backgroundColor: 'rgba(63,155,132,.3)', borderRadius: 12,
+            padding: 12, marginTop: 12,
+            borderWidth: 1, borderColor: 'rgba(63,155,132,.5)',
+          }}>
             <Text style={{ fontSize: 12, color: '#6ee7b7', fontWeight: '600', marginBottom: 2 }}>✓ Active Rental</Text>
             <Text style={{ fontSize: 14, fontWeight: '700', color: C.white }}>{activeBooking.vehicleName}</Text>
-            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>{activeBooking.startDate} → {activeBooking.endDate}</Text>
+            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>
+              {activeBooking.startDate} → {activeBooking.endDate}
+            </Text>
           </View>
         )}
       </View>
 
       <View style={{ padding: 16 }}>
         <View style={s.searchWrap}>
-          <TextInput style={s.searchInput} placeholder="Search vehicles, location…" placeholderTextColor={C.g400} value={search} onChangeText={setSearch} />
+          <TextInput
+            style={s.searchInput}
+            placeholder="Search vehicles, location, owner…"
+            placeholderTextColor={C.g400}
+            value={search}
+            onChangeText={setSearch}
+          />
         </View>
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
           {['all', 'available'].map(f => (
@@ -263,9 +296,16 @@ function HomeTab({ vehicles, myRentals }) {
             </TouchableOpacity>
           ))}
         </View>
-        {filtered.length === 0 ? (
+
+        {vehicles.length === 0 ? (
           <View style={s.empty}>
             <Text style={{ fontSize: 40, marginBottom: 10 }}>🚗</Text>
+            <Text style={s.emptyTitle}>No vehicles listed yet</Text>
+            <Text style={s.emptySub}>Owners haven't added any vehicles yet. Check back soon!</Text>
+          </View>
+        ) : filtered.length === 0 ? (
+          <View style={s.empty}>
+            <Text style={{ fontSize: 40, marginBottom: 10 }}>🔍</Text>
             <Text style={s.emptyTitle}>No vehicles found</Text>
             <Text style={s.emptySub}>Try adjusting your search filters.</Text>
           </View>
@@ -290,6 +330,7 @@ function HomeTab({ vehicles, myRentals }) {
 export default function RenterDashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { vehicles } = useVehicles();   // ← live data from all owners
 
   React.useEffect(() => {
     if (!user) router.replace('/login');
@@ -307,12 +348,10 @@ export default function RenterDashboardScreen() {
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
-        return <HomeTab vehicles={DEMO_VEHICLES} myRentals={myRentals} />;
+        return <HomeTab vehicles={vehicles} myRentals={myRentals} />;
       case 'bookings':
         return <BookingsScreen hideHeader={true} />;
       case 'logreport':
-        // hideHeader=true suppresses LogReportScreen's own navy header
-        // since DashboardHeader above already shows "Log & Report"
         return <LogReportScreen hideHeader={true} />;
       default:
         return null;
@@ -323,11 +362,8 @@ export default function RenterDashboardScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#edf1f7' }}>
-      {/* Single shared header — title & subtitle change per tab */}
       <DashboardHeader activeTab={activeTab} userName={userName} />
-
       <View style={{ flex: 1 }}>{renderContent()}</View>
-
       <BottomNav
         role="renter"
         activeTab={activeTab}
@@ -340,8 +376,6 @@ export default function RenterDashboardScreen() {
 
 /* ─── Styles ─── */
 const s = StyleSheet.create({
-
-  // ── Header ──
   header: {
     backgroundColor: C.navy,
     paddingTop: Platform.OS === 'ios' ? 56 : 44,
@@ -351,110 +385,29 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: C.white },
-  headerSub:   { fontSize: 13, color: 'rgba(255,255,255,.65)', marginTop: 2 },
-
-  // ── Search ──
-  searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: C.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.g200,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 14, color: C.g900 },
-
-  // ── Filter tabs ──
-  filterTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: C.white,
-    borderWidth: 1,
-    borderColor: C.g200,
-  },
+  headerTitle:         { fontSize: 22, fontWeight: '800', color: C.white },
+  headerSub:           { fontSize: 13, color: 'rgba(255,255,255,.65)', marginTop: 2 },
+  searchWrap:          { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 10, borderWidth: 1, borderColor: C.g200, paddingHorizontal: 12, marginBottom: 12 },
+  searchInput:         { flex: 1, paddingVertical: 10, fontSize: 14, color: C.g900 },
+  filterTab:           { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.g200 },
   filterTabActive:     { backgroundColor: C.primary, borderColor: C.primary },
   filterTabText:       { fontSize: 13, color: C.g500 },
   filterTabTextActive: { color: C.white, fontWeight: '700' },
-
-  // ── Vehicle cards ──
-  vehicleCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: C.white,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: C.g200,
-    elevation: 2,
-  },
-  vehicleName:     { fontSize: 15, fontWeight: '700', color: C.navy },
-  vehicleSub:      { fontSize: 12, color: C.g500, marginTop: 2 },
-  vehiclePrice:    { fontSize: 14, color: C.primary, fontWeight: '700', marginTop: 6 },
-  rentBtn: {
-    backgroundColor: C.primary,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 10,
-  },
-  rentBtnDisabled: { backgroundColor: C.g100 },
-  rentBtnText:     { color: C.white, fontSize: 13, fontWeight: '700' },
-
-  // ── Empty state ──
-  empty: {
-    alignItems: 'center',
-    padding: 48,
-    backgroundColor: C.g50,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: C.g200,
-  },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 6 },
-  emptySub:   { fontSize: 13, color: C.g400, textAlign: 'center' },
-
-  // ── Modal ──
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: C.g200,
-  },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: C.navy },
-  modalClose: { fontSize: 22, color: C.g400 },
-  fieldLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    color: C.g400,
-    marginBottom: 6,
-  },
-  input: {
-    padding: 12,
-    borderWidth: 1.5,
-    borderColor: C.g200,
-    borderRadius: 10,
-    fontSize: 14,
-    color: C.g900,
-    backgroundColor: C.white,
-  },
-  btnPrimary: {
-    backgroundColor: C.primary,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 3,
-  },
-  btnPrimaryText: { color: C.white, fontSize: 14, fontWeight: '700' },
+  vehicleCard:         { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.g200, elevation: 2 },
+  vehicleName:         { fontSize: 15, fontWeight: '700', color: C.navy },
+  vehicleSub:          { fontSize: 12, color: C.g500, marginTop: 2 },
+  vehiclePrice:        { fontSize: 14, color: C.primary, fontWeight: '700', marginTop: 6 },
+  rentBtn:             { backgroundColor: C.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
+  rentBtnDisabled:     { backgroundColor: C.g100 },
+  rentBtnText:         { color: C.white, fontSize: 13, fontWeight: '700' },
+  empty:               { alignItems: 'center', padding: 48, backgroundColor: C.g50, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: C.g200 },
+  emptyTitle:          { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 6 },
+  emptySub:            { fontSize: 13, color: C.g400, textAlign: 'center' },
+  modalHeader:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: C.g200 },
+  modalTitle:          { fontSize: 18, fontWeight: '700', color: C.navy },
+  modalClose:          { fontSize: 22, color: C.g400 },
+  fieldLabel:          { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: C.g400, marginBottom: 6 },
+  input:               { padding: 12, borderWidth: 1.5, borderColor: C.g200, borderRadius: 10, fontSize: 14, color: C.g900, backgroundColor: C.white },
+  btnPrimary:          { backgroundColor: C.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', elevation: 3 },
+  btnPrimaryText:      { color: C.white, fontSize: 14, fontWeight: '700' },
 });
