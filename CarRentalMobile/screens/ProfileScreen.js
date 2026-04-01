@@ -63,6 +63,11 @@ const IconBack     = ({ size = 20, color = C.g600 }) => (
     <Path d="M15 19l-7-7 7-7" />
   </Svg>
 );
+const IconGo     = ({ size = 20, color = C.g600 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M9 5l 7 7 -7 7" />
+  </Svg>
+);
 const IconCar      = ({ size = 18, color = C.primary }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <Path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
@@ -461,7 +466,7 @@ export default function ProfileScreen() {
               <Text style={p.quickLabel}>
                 {u.role === 'owner' ? 'My Dashboard' : 'Browse Vehicles'}
               </Text>
-              <IconBack size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
+              <IconGo size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
             </TouchableOpacity>
 
             <View style={p.divider} />
@@ -473,7 +478,7 @@ export default function ProfileScreen() {
               <Text style={p.quickLabel}>
                 {u.role === 'owner' ? 'Rental Requests' : u.role === 'admin' ? 'Booking Summary' : 'My Bookings'}
               </Text>
-              <IconBack size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
+              <IconGo size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
             </TouchableOpacity>
 
             <View style={p.divider} />
@@ -483,7 +488,7 @@ export default function ProfileScreen() {
                 <IconLock size={16} color={C.warning} />
               </View>
               <Text style={p.quickLabel}>Change Password</Text>
-              <IconBack size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
+              <IconGo size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
             </TouchableOpacity>
 
             {u.role === 'admin' && (
@@ -506,7 +511,7 @@ export default function ProfileScreen() {
                 <IconLogout size={16} color={C.danger} />
               </View>
               <Text style={[p.quickLabel, { color: C.danger }]}>Log Out</Text>
-              <IconBack size={14} color={C.danger} style={{ transform: [{ rotate: '180deg' }] }} />
+              <IconGo size={14} color={C.danger} style={{ transform: [{ rotate: '180deg' }] }} />
             </TouchableOpacity>
           </View>
         )}
