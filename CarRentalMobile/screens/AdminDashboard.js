@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, StatusBar, FlatList, Alert, Modal,
+  TextInput, StatusBar, FlatList, Alert, Modal, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -151,10 +151,22 @@ export default function AdminDashboard() {
     ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '—';
 
+  const fmtPrice = value => {
+    const amount = parseFloat(value);
+    return Number.isFinite(amount) ? `₱${amount.toLocaleString()}/day` : '—';
+  };
+
   const ApprovalItem = ({ item }) => {
     const isPending  = item.approvalStatus === 'pending';
     const isApproved = item.approvalStatus === 'approved';
     const isRejected = item.approvalStatus === 'rejected';
+    const hasPhoto = !!item.photoUri;
+    const specs = [
+      item.model,
+      item.year,
+      item.seats ? `${item.seats} seats` : null,
+      item.fuel,
+    ].filter(Boolean).join(' · ');
 
     return (
       <View style={s.listItem}>
@@ -163,18 +175,30 @@ export default function AdminDashboard() {
         </View>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={s.itemTitle}>{item.name || 'Unnamed Vehicle'}</Text>
-          <Text style={s.itemSub}>
-            {[item.model, item.year].filter(Boolean).join(' · ')} · {item.ownerName}
-          </Text>
-          {item.location && (
-            <Text style={[s.itemSub, { marginTop: 2 }]}>📍 {item.location}</Text>
-          )}
+          {specs ? <Text style={s.itemSub}>{specs}</Text> : null}
+          <Text style={s.itemSub}>Owner: {item.ownerName || 'Unknown Owner'}</Text>
+
+          <View style={s.approvalPreviewWrap}>
+            {hasPhoto ? (
+              <Image source={{ uri: item.photoUri }} style={s.approvalPreviewImage} resizeMode="cover" />
+            ) : (
+              <View style={[s.approvalPreviewImage, s.approvalPreviewFallback]}>
+                <Text style={s.approvalPreviewFallbackText}>No photo</Text>
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={s.itemSub}>Price: {fmtPrice(item.pricePerDay)}</Text>
+              <Text style={s.itemSub}>Status: {(item.status || 'available').toUpperCase()}</Text>
+              {item.location ? <Text style={s.itemSub}>Location: {item.location}</Text> : null}
+            </View>
+          </View>
+
+          {item.description ? (
+            <Text style={s.approvalDesc}>{item.description}</Text>
+          ) : null}
+
           <Text style={s.itemDate}>Submitted: {fmtDate(item.submittedAt)}</Text>
-          {item.pricePerDay && (
-            <Text style={{ fontSize: 12, color: C.primary, fontWeight: '700', marginTop: 2 }}>
-              ₱{parseFloat(item.pricePerDay).toLocaleString()}/day
-            </Text>
-          )}
+          {item.pricePerDay ? <Text style={s.itemPrice}>{fmtPrice(item.pricePerDay)}</Text> : null}
 
           {/* Status badge */}
           <View style={{ marginTop: 6 }}>
@@ -488,6 +512,12 @@ const s = StyleSheet.create({
   itemTitle:  { fontSize: 14, fontWeight: '700', color: C.g800 },
   itemSub:    { fontSize: 12, color: C.g500, marginTop: 2 },
   itemDate:   { fontSize: 11, color: C.g400, marginTop: 4 },
+  itemPrice:  { fontSize: 12, color: C.primary, fontWeight: '700', marginTop: 4 },
+  approvalPreviewWrap: { flexDirection: 'row', gap: 10, marginTop: 8, alignItems: 'center' },
+  approvalPreviewImage: { width: 92, height: 68, borderRadius: 8, backgroundColor: C.g100 },
+  approvalPreviewFallback: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.g200 },
+  approvalPreviewFallbackText: { fontSize: 11, color: C.g400 },
+  approvalDesc: { fontSize: 12, color: C.g600, marginTop: 8 },
 
   badgeWarning:     { alignSelf: 'flex-start', backgroundColor: '#fef3c7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
   badgeTextWarning: { fontSize: 10, fontWeight: '700', color: '#92400e' },

@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { useRouter }    from 'expo-router';
 import { useAuth }      from '../context/AuthContext';
+import { useBookings }  from '../context/BookingContext';
 import { useLogReport } from '../context/LogReportContext';
 import { useVehicles }  from '../context/VehicleContext';
 import BottomNav        from '../components/BottomNav';
@@ -200,12 +201,11 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
   );
 }
 
-function HomeTab({ vehicles, myRentals }) {
+function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
   const [search,     setSearch]     = useState('');
   const [filter,     setFilter]     = useState('all');
   const [rentModal,  setRentModal]  = useState(false);
   const [selVehicle, setSelVehicle] = useState(null);
-  const [bookings,   setBookings]   = useState(myRentals);
 
   const filtered = useMemo(() => {
     let list = vehicles;
@@ -231,7 +231,10 @@ function HomeTab({ vehicles, myRentals }) {
       vehicleId:    selVehicle.id,
       vehicleName:  selVehicle.name,
       vehicleModel: selVehicle.model,
+      ownerId:      selVehicle.ownerId,
       ownerName:    selVehicle.ownerName,
+      renterEmail:  user?.email,
+      renterName:   user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Renter',
       pricePerDay:  selVehicle.pricePerDay,
       totalPrice:   data.total,
       startDate:    data.startDate,
@@ -241,7 +244,7 @@ function HomeTab({ vehicles, myRentals }) {
       status:       'pending',
       createdAt:    new Date().toISOString(),
     };
-    setBookings(prev => [...prev, newBooking]);
+    onCreateBooking(newBooking);
     setRentModal(false);
     Alert.alert('Request Sent! 🎉', 'Your rental request has been submitted and is awaiting approval from the owner.');
   };
@@ -318,6 +321,7 @@ function HomeTab({ vehicles, myRentals }) {
 export default function RenterDashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { addBooking, getBookingsForRenter } = useBookings();
   const { getApprovedVehicles } = useVehicles(); // ← only approved vehicles
 
   React.useEffect(() => {
@@ -326,7 +330,7 @@ export default function RenterDashboardScreen() {
 
   const [activeTab, setActiveTab] = useState('home');
   const userName  = user?.firstName || user?.fullName || 'Renter';
-  const myRentals = [];
+  const myRentals = getBookingsForRenter(user?.email);
 
   // Only show vehicles the admin has approved
   const approvedVehicles = getApprovedVehicles();
@@ -339,7 +343,14 @@ export default function RenterDashboardScreen() {
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
-        return <HomeTab vehicles={approvedVehicles} myRentals={myRentals} />;
+        return (
+          <HomeTab
+            vehicles={approvedVehicles}
+            bookings={myRentals}
+            onCreateBooking={addBooking}
+            user={user}
+          />
+        );
       case 'bookings':
         return <BookingsScreen hideHeader={true} />;
       case 'logreport':
@@ -349,7 +360,7 @@ export default function RenterDashboardScreen() {
     }
   };
 
-  const pendingCount = 1;
+  const pendingCount = myRentals.filter((booking) => booking.status === 'pending').length;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#edf1f7' }}>

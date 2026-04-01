@@ -59,15 +59,12 @@ export function LogReportProvider({ children }) {
       createdAt: report.createdAt || new Date().toISOString(),
       checkout: null,
     };
-    await persist(prev => {
-      const next = [...prev, newReport];
-      // persist receives the array directly since we call it with a value below
-      return next;
-    });
-    // Re-derive because setState updater above is async
+    // Add the new report and persist the array (avoid passing functions to persist)
     setReports(prev => {
       const next = prev.some(r => r.id === newReport.id) ? prev : [...prev, newReport];
-      if (AsyncStorage) AsyncStorage.setItem(LOG_KEY, JSON.stringify(next)).catch(() => {});
+      try {
+        if (AsyncStorage) AsyncStorage.setItem(LOG_KEY, JSON.stringify(next)).catch(() => {});
+      } catch (_) {}
       return next;
     });
     return newReport;

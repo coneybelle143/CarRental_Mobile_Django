@@ -11,6 +11,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
+import { useBookings } from '../context/BookingContext';
 
 // ─── Theme (matches RenterDashboardScreen exactly) ────────────────────
 const C = {
@@ -40,14 +41,6 @@ const BADGE = {
   rejected:  { bg: '#fee2e2', col: '#991b1b' },
 };
 
-// ─── Data ─────────────────────────────────────────────────────────────
-const RENTAL_DATA = [
-  { id: 'b1', renterEmail: 'renter@test.com', vehicleName: 'Toyota Vios',   vehicleModel: '1.3 E CVT',  ownerName: 'Carlos Owner', startDate: '2026-03-10', endDate: '2026-03-12', totalPrice: 5000,  status: 'pending'   },
-  { id: 'b2', renterEmail: 'renter@test.com', vehicleName: 'Honda City',    vehicleModel: '1.5 RS CVT', ownerName: 'Carlos Owner', startDate: '2026-02-15', endDate: '2026-02-20', totalPrice: 15000, status: 'completed' },
-  { id: 'b3', renterEmail: 'renter@test.com', vehicleName: 'Ford Everest',  vehicleModel: 'Titanium',   ownerName: 'Ana Vehicle',  startDate: '2026-03-01', endDate: '2026-03-05', totalPrice: 20000, status: 'approved'  },
-  { id: 'b4', renterEmail: 'other@test.com',  vehicleName: 'Toyota Hi-Ace', vehicleModel: 'GL Grandia', ownerName: 'Ben Rentals',  startDate: '2026-03-16', endDate: '2026-03-18', totalPrice: 9000,  status: 'rejected'  },
-];
-
 const IconBack     = ({ size = 20, color = C.g600 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <Path d="M15 19l-7-7 7-7" />
@@ -67,15 +60,16 @@ function daysBetween(a, b) {
 export default function BookingsScreen({ hideHeader = false }) {
   const router   = useRouter();
   const { user } = useAuth();
+  const { getBookingsForOwner, getBookingsForRenter } = useBookings();
   const [activeTab, setActiveTab] = useState('all');
   const [query,     setQuery]     = useState('');
   const [expanded,  setExpanded]  = useState(null);
 
   const baseData = useMemo(() => {
-    if (user?.role === 'owner')  return RENTAL_DATA.filter(i => i.ownerName === 'Carlos Owner');
-    if (user?.role === 'renter') return RENTAL_DATA.filter(i => i.renterEmail === user?.email);
+    if (user?.role === 'owner')  return getBookingsForOwner(user?.id || user?.email);
+    if (user?.role === 'renter') return getBookingsForRenter(user?.email);
     return [];
-  }, [user]);
+  }, [getBookingsForOwner, getBookingsForRenter, user]);
 
   const stats = useMemo(() => ({
     total:     baseData.length,
