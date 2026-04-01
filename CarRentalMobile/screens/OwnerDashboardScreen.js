@@ -48,13 +48,6 @@ const IcBook = ({ s = 14, c = C.white }) => (
   </Svg>
 );
 
-// ── Approval status config ────────────────────────────────────────────────────
-const APPROVAL_CONFIG = {
-  pending:  { bg: '#fef3c7', color: '#92400e', label: '⏳ Pending Approval' },
-  approved: { bg: '#d1fae5', color: '#065f46', label: '✓ Approved'          },
-  rejected: { bg: '#fee2e2', color: '#991b1b', label: '✕ Rejected'          },
-};
-
 /* ── Vehicle Card ── */
 function VehicleCard({ vehicle, onEdit, onDelete }) {
   const statusColors = {
@@ -63,53 +56,61 @@ function VehicleCard({ vehicle, onEdit, onDelete }) {
     unavailable: { bg: '#fef3c7', color: '#92400e' },
   };
   const sc = statusColors[vehicle.status] || statusColors.available;
-  const approval = APPROVAL_CONFIG[vehicle.approvalStatus] || APPROVAL_CONFIG.pending;
+  const vehicleName = vehicle.name || 'Unnamed Vehicle';
+  const yearLabel = vehicle.year || '----';
+  const modelLabel = vehicle.model || 'Vehicle';
+  const transmissionLabel = vehicle.transmission || 'Automatic';
+  const seatsLabel = vehicle.seats ? `${vehicle.seats} seats` : 'Seats n/a';
+  const fuelLabel = vehicle.fuel || 'Fuel n/a';
+  const priceLabel = Number.isFinite(parseFloat(vehicle.pricePerDay))
+    ? `₱${parseFloat(vehicle.pricePerDay).toLocaleString()}`
+    : '₱0';
 
   return (
     <View style={s.vehicleCard}>
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-          <Text style={s.vehicleName}>{vehicle.name || 'Unnamed Vehicle'}</Text>
-          {/* Listing status (available/rented) */}
-          <View style={[s.statusBadge, { backgroundColor: sc.bg }]}>
-            <Text style={[s.statusText, { color: sc.color }]}>
-              {(vehicle.status || 'available').charAt(0).toUpperCase() + (vehicle.status || 'available').slice(1)}
-            </Text>
+      <View style={s.vehicleImageWrap}>
+        {vehicle.photoUri ? (
+          <Image source={{ uri: vehicle.photoUri }} style={s.vehicleImage} resizeMode="cover" />
+        ) : (
+          <View style={[s.vehicleImage, s.vehicleThumbFallback]}>
+            <Text style={s.vehicleThumbFallbackText}>No Image</Text>
+          </View>
+        )}
+        <View style={[s.vehicleStatusPill, { backgroundColor: sc.bg }]}>
+          <Text style={[s.vehicleStatusPillText, { color: sc.color }]}>
+            {(vehicle.status || 'available').charAt(0).toUpperCase() + (vehicle.status || 'available').slice(1)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={s.vehicleBody}>
+        <View style={s.vehicleTopRow}>
+          <Text style={s.vehicleName}>{vehicleName}</Text>
+          <View style={s.yearPill}><Text style={s.yearPillText}>{yearLabel}</Text></View>
+        </View>
+
+        <View style={s.vehicleChipRow}>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{modelLabel}</Text></View>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{transmissionLabel}</Text></View>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{seatsLabel}</Text></View>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{fuelLabel}</Text></View>
+        </View>
+
+        {vehicle.location ? <Text style={s.vehicleLocation}>{vehicle.location}</Text> : null}
+
+        <View style={s.vehicleDivider} />
+
+        <View style={s.vehicleFooter}>
+          <Text style={s.vehiclePrice}>{priceLabel}<Text style={s.vehiclePricePer}>/day</Text></Text>
+          <View style={s.vehicleActions}>
+            <TouchableOpacity onPress={() => onEdit(vehicle)} style={s.editBtn}>
+              <Text style={s.editBtnText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onDelete(vehicle.id)} style={s.deleteBtn}>
+              <Text style={s.deleteBtnText}>Delete</Text>
+            </TouchableOpacity>
           </View>
         </View>
-
-        <Text style={s.vehicleSub}>{[vehicle.model, vehicle.year].filter(Boolean).join(' · ')}</Text>
-        {vehicle.location && <Text style={[s.vehicleSub, { marginTop: 2 }]}>{vehicle.location}</Text>}
-        {vehicle.pricePerDay && (
-          <Text style={s.vehiclePrice}>₱{parseFloat(vehicle.pricePerDay).toLocaleString()}/day</Text>
-        )}
-
-        {/* Approval status badge — always visible */}
-        <View style={[s.approvalBadge, { backgroundColor: approval.bg }]}>
-          <Text style={[s.approvalText, { color: approval.color }]}>{approval.label}</Text>
-        </View>
-
-        {/* Rejection note if present */}
-        {vehicle.approvalStatus === 'rejected' && vehicle.approvalNote ? (
-          <Text style={{ fontSize: 11, color: C.danger, marginTop: 4 }}>
-            Admin note: {vehicle.approvalNote}
-          </Text>
-        ) : null}
-
-        {/* Hint for pending */}
-        {vehicle.approvalStatus === 'pending' && (
-          <Text style={{ fontSize: 11, color: C.g400, marginTop: 4 }}>
-            Waiting for admin review before renters can see this.
-          </Text>
-        )}
-      </View>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <TouchableOpacity onPress={() => onEdit(vehicle)} style={s.iconBtn}>
-          <IcEdit s={15} c={C.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => onDelete(vehicle.id)} style={[s.iconBtn, { borderColor: '#fecaca' }]}>
-          <IcTrash s={15} c={C.danger} />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -162,14 +163,6 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
           <Text style={s.modalTitle}>{isEdit ? 'Edit Vehicle' : 'Add New Vehicle'}</Text>
           <TouchableOpacity onPress={onClose}><Text style={s.modalClose}>✕</Text></TouchableOpacity>
         </View>
-        {!isEdit && (
-          <View style={{ marginHorizontal: 20, marginTop: 16, backgroundColor: '#fef3c7', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#fde68a' }}>
-            <Text style={{ fontSize: 13, color: '#92400e', fontWeight: '600' }}>⏳ Pending Admin Approval</Text>
-            <Text style={{ fontSize: 12, color: '#92400e', marginTop: 4 }}>
-              After adding, your vehicle will be reviewed by an admin before appearing to renters.
-            </Text>
-          </View>
-        )}
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
           {/* Image upload */}
           <View style={{ marginBottom: 14 }} key="photo">
@@ -224,7 +217,7 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
             </View>
           </View>
           <TouchableOpacity onPress={handleSave} style={s.btnPrimary}>
-            <Text style={s.btnPrimaryText}>{isEdit ? 'Save Changes' : 'Submit for Approval'}</Text>
+            <Text style={s.btnPrimaryText}>{isEdit ? 'Save Changes' : 'Add Vehicle'}</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -369,9 +362,6 @@ function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog }) {
 /* ── Home Tab ── */
 function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdit, onDelete }) {
   // Summary counts for approval statuses
-  const pendingCount  = vehicles.filter(v => v.approvalStatus === 'pending').length;
-  const rejectedCount = vehicles.filter(v => v.approvalStatus === 'rejected').length;
-
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
       <View style={s.statsRow}>
@@ -387,34 +377,6 @@ function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdi
           </View>
         ))}
       </View>
-
-      {/* Approval status summary banner */}
-      {pendingCount > 0 && (
-        <View style={{ marginHorizontal: 16, marginBottom: 10, backgroundColor: '#fef3c7', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#fde68a', flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ fontSize: 18, marginRight: 10 }}>⏳</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#92400e' }}>
-              {pendingCount} vehicle{pendingCount > 1 ? 's' : ''} awaiting admin approval
-            </Text>
-            <Text style={{ fontSize: 12, color: '#92400e', marginTop: 2 }}>
-              These won't be visible to renters until approved.
-            </Text>
-          </View>
-        </View>
-      )}
-      {rejectedCount > 0 && (
-        <View style={{ marginHorizontal: 16, marginBottom: 10, backgroundColor: '#fee2e2', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#fecaca', flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ fontSize: 18, marginRight: 10 }}>✕</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#991b1b' }}>
-              {rejectedCount} vehicle{rejectedCount > 1 ? 's' : ''} rejected by admin
-            </Text>
-            <Text style={{ fontSize: 12, color: '#991b1b', marginTop: 2 }}>
-              Edit and resubmit, or contact admin for details.
-            </Text>
-          </View>
-        </View>
-      )}
 
       <View style={[s.searchWrap, { marginHorizontal: 16 }]}>
         <IcSearch s={15} c={C.g400} />
@@ -471,12 +433,6 @@ export default function OwnerDashboardScreen() {
     earnings:  vehicles.reduce((a, v) => a + (parseFloat(v.pricePerDay) || 0), 0),
   }), [vehicles]);
 
-  const ownerQuickStats = useMemo(() => ({
-    pending: pendingCount,
-    approved: rentalHistory.filter(r => r.status === 'approved').length,
-    completed: rentalHistory.filter(r => r.status === 'completed').length,
-  }), [pendingCount, rentalHistory]);
-
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return vehicles;
     const q = searchQuery.toLowerCase();
@@ -501,8 +457,8 @@ export default function OwnerDashboardScreen() {
 
     setShowAddModal(false);
     Alert.alert(
-      'Submitted! ⏳',
-      'Your vehicle has been submitted and is pending admin approval. It will appear to renters once approved.'
+      'Vehicle Added',
+      'Your vehicle listing is now live and visible to renters.'
     );
   };
 
@@ -577,20 +533,6 @@ export default function OwnerDashboardScreen() {
           <Text style={s.headerKicker}>OWNER PORTAL</Text>
           <Text style={s.headerTitle}>Owner Dashboard</Text>
           <Text style={s.headerSub}>Welcome back, {userName}</Text>
-          <View style={s.quickPillsRow}>
-            <View style={s.quickPill}>
-              <Text style={s.quickPillNum}>{ownerQuickStats.pending}</Text>
-              <Text style={s.quickPillLabel}>Pending</Text>
-            </View>
-            <View style={s.quickPill}>
-              <Text style={s.quickPillNum}>{ownerQuickStats.approved}</Text>
-              <Text style={s.quickPillLabel}>Active</Text>
-            </View>
-            <View style={s.quickPill}>
-              <Text style={s.quickPillNum}>{ownerQuickStats.completed}</Text>
-              <Text style={s.quickPillLabel}>Done</Text>
-            </View>
-          </View>
         </View>
         <View style={s.avatarWrap}>
           <ProfileAvatar size={40} />
@@ -612,10 +554,6 @@ const s = StyleSheet.create({
   headerTitle:  { fontSize: 20, fontWeight: '800', color: C.white, marginTop: 2 },
   headerSub:    { fontSize: 12, color: 'rgba(255,255,255,.78)', marginTop: 2 },
   avatarWrap:   { backgroundColor: 'rgba(255,255,255,.12)', borderRadius: 999, padding: 3, marginTop: 2 },
-  quickPillsRow:{ flexDirection: 'row', gap: 8, marginTop: 8 },
-  quickPill:    { backgroundColor: 'rgba(255,255,255,.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,.18)', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 8, minWidth: 60 },
-  quickPillNum: { color: C.white, fontSize: 14, fontWeight: '800' },
-  quickPillLabel:{ color: 'rgba(255,255,255,.78)', fontSize: 9, fontWeight: '600', marginTop: 1 },
   bodyWrap:     { flex: 1, marginTop: -4, backgroundColor: '#e7eef6' },
   contentShell: { flex: 1, width: '100%', maxWidth: 430, alignSelf: 'center' },
   statsRow:     { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 18, paddingBottom: 14, gap: 8 },
@@ -624,10 +562,32 @@ const s = StyleSheet.create({
   statLabel:    { fontSize: 11, color: C.g500, marginTop: 3 },
   searchWrap:   { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 12, borderWidth: 1, borderColor: '#dbe3ee', paddingHorizontal: 12, paddingVertical: 9, marginBottom: 14 },
   searchInput:  { flex: 1, fontSize: 14, color: C.g900 },
-  vehicleCard:  { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: C.white, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#dfe7f3', elevation: 2 },
-  vehicleName:  { fontSize: 15, fontWeight: '700', color: C.navy },
+  vehicleCard:  { backgroundColor: C.white, borderRadius: 18, marginBottom: 14, borderWidth: 1, borderColor: '#dfe7f3', elevation: 2, overflow: 'hidden' },
+  vehicleImageWrap: { position: 'relative', backgroundColor: '#f3f6fb' },
+  vehicleImage: { width: '100%', height: 190, backgroundColor: '#f3f6fb' },
+  vehicleStatusPill: { position: 'absolute', top: 12, left: 12, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  vehicleStatusPillText: { fontSize: 12, fontWeight: '800' },
+  vehicleBody: { padding: 14 },
+  vehicleTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  yearPill: { backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#e5e7eb' },
+  yearPillText: { fontSize: 12, color: C.g500, fontWeight: '700' },
+  vehicleChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  vehicleInfoChip: { backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
+  vehicleInfoChipText: { fontSize: 11, color: C.g700, fontWeight: '600' },
+  vehicleLocation: { fontSize: 13, color: C.g500, marginTop: 12 },
+  vehicleDivider: { height: 1, backgroundColor: '#e5e7eb', marginTop: 14, marginBottom: 12 },
+  vehicleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  vehicleActions: { flexDirection: 'row', gap: 10 },
+  editBtn: { backgroundColor: '#e5e7eb', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9 },
+  editBtnText: { color: C.g700, fontSize: 13, fontWeight: '700' },
+  deleteBtn: { backgroundColor: '#ef4444', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9 },
+  deleteBtnText: { color: C.white, fontSize: 13, fontWeight: '700' },
+  vehicleThumbFallback: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dbe3ee' },
+  vehicleThumbFallbackText: { fontSize: 10, color: C.g400, fontWeight: '600' },
+  vehicleName:  { fontSize: 22, fontWeight: '800', color: C.navy, flex: 1 },
   vehicleSub:   { fontSize: 12, color: C.g500, marginTop: 2 },
-  vehiclePrice: { fontSize: 13, color: C.primary, fontWeight: '700', marginTop: 4 },
+  vehiclePrice: { fontSize: 20, color: C.primary, fontWeight: '800' },
+  vehiclePricePer: { fontSize: 12, color: C.primaryDk, fontWeight: '700' },
   statusBadge:  { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   statusText:   { fontSize: 10, fontWeight: '700' },
   approvalBadge:{ alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginTop: 8 },

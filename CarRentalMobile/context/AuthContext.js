@@ -6,6 +6,48 @@ const AuthContext = createContext(null);
 const USERS_KEY = 'carRental.users.v1';
 const SESSION_KEY = 'carRental.session.v1';
 
+const DEMO_USERS = [
+  {
+    id: 'demo-admin-1',
+    firstName: 'Demo',
+    lastName: 'Admin',
+    fullName: 'Demo Admin',
+    email: 'admin@demo.com',
+    password: 'admin123',
+    role: 'admin',
+    joinedAt: '2026-01-01T00:00:00.000Z',
+    photoUri: null,
+  },
+  {
+    id: 'demo-owner-1',
+    firstName: 'Demo',
+    lastName: 'Owner',
+    fullName: 'Demo Owner',
+    email: 'owner@demo.com',
+    password: 'owner123',
+    role: 'owner',
+    joinedAt: '2026-01-01T00:00:00.000Z',
+    photoUri: null,
+  },
+  {
+    id: 'demo-renter-1',
+    firstName: 'Demo',
+    lastName: 'Renter',
+    fullName: 'Demo Renter',
+    email: 'renter@demo.com',
+    password: 'renter123',
+    role: 'renter',
+    joinedAt: '2026-01-01T00:00:00.000Z',
+    photoUri: null,
+  },
+];
+
+function ensureDemoUsers(users) {
+  const byEmail = new Set((users || []).map((item) => (item.email || '').toLowerCase()));
+  const missing = DEMO_USERS.filter((demo) => !byEmail.has(demo.email.toLowerCase()));
+  return missing.length ? [...users, ...missing] : users;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [users, setUsers] = useState([]);
@@ -23,7 +65,13 @@ export function AuthProvider({ children }) {
         if (!mounted) return;
 
         const parsedUsers = rawUsers ? JSON.parse(rawUsers) : [];
-        setUsers(Array.isArray(parsedUsers) ? parsedUsers : []);
+        const baseUsers = Array.isArray(parsedUsers) ? parsedUsers : [];
+        const nextUsers = ensureDemoUsers(baseUsers);
+
+        setUsers(nextUsers);
+        if (nextUsers.length !== baseUsers.length) {
+          await AsyncStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
+        }
 
         if (rawSession) setUser(JSON.parse(rawSession));
       } catch (error) {

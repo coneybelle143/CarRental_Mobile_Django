@@ -42,10 +42,8 @@ export function VehicleProvider({ children }) {
   }, []);
 
   /**
-   * approvalStatus values:
-   *   'pending'  — waiting for admin review
-   *   'approved' — admin approved, visible to renters
-   *   'rejected' — admin rejected, not visible to renters
+   * approvalStatus values are kept for backward compatibility.
+   * New vehicles are auto-approved and become visible to renters immediately.
    */
   const addVehicle = (vehicleData, owner) => {
     if (!owner) {
@@ -68,8 +66,9 @@ export function VehicleProvider({ children }) {
       id: Date.now(),
       ownerId,
       ownerName,
-      approvalStatus: 'pending', // always starts pending
-      approvalNote: '',          // admin can attach a rejection note
+      approvalStatus: 'approved',
+      approvalNote: '',
+      reviewedAt: new Date().toISOString(),
       submittedAt: new Date().toISOString(),
     };
     mutateVehicles(prev => [...prev, newVehicle]);
@@ -118,9 +117,9 @@ export function VehicleProvider({ children }) {
     vehicles.filter(v => v.approvalStatus === 'pending'),
   [vehicles]);
 
-  // Renter: only approved + available vehicles
+  // Renter: show all non-rejected vehicles (legacy pending entries are treated as visible)
   const getApprovedVehicles = useCallback(() =>
-    vehicles.filter(v => v.approvalStatus === 'approved'),
+    vehicles.filter(v => (v.approvalStatus || 'approved') !== 'rejected'),
   [vehicles]);
 
   return (

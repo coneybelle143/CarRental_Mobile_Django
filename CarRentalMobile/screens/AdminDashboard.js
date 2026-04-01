@@ -53,29 +53,16 @@ const SearchIcon = ({ color = C.g400 }) => (
 );
 
 const TABS = [
-  { id: 'overview',  label: 'Overview',  icon: GridIcon },
-  { id: 'approvals', label: 'Approvals', icon: CheckCircleIcon },
-  { id: 'users',     label: 'Users',     icon: UsersIcon },
-  { id: 'vehicles',  label: 'Vehicles',  icon: CarIcon },
+  { id: 'overview',  label: 'Analytics',  icon: GridIcon },
 ];
 
 export default function AdminDashboard() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const {
-    vehicles,
-    getPendingVehicles,
-    getApprovedVehicles,
-    approveVehicle,
-    rejectVehicle,
-  } = useVehicles();
+  const { vehicles } = useVehicles();
 
   const [activeTab,       setActiveTab]       = useState('overview');
-  const [search,          setSearch]          = useState('');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [rejectModal,     setRejectModal]     = useState(false);
-  const [rejectTarget,    setRejectTarget]    = useState(null);
-  const [rejectNote,      setRejectNote]      = useState('');
 
   React.useEffect(() => {
     if (!user) { router.replace('/login'); return; }
@@ -86,49 +73,13 @@ export default function AdminDashboard() {
 
   if (!user || user.role !== 'admin') return null;
 
-  const pendingVehicles  = getPendingVehicles();
-  const approvedVehicles = getApprovedVehicles();
-
-  // ── Stats computed from live context ───────────────────────────────────────
+  // ── Read-only analytics ─────────────────────────────────────────────────────
   const STATS = [
-    { label: 'Total Vehicles',   value: vehicles.length,         color: C.navy,    change: 'All' },
-    { label: 'Pending Review',   value: pendingVehicles.length,  color: C.warning, change: pendingVehicles.length > 0 ? 'Urgent' : 'Clear' },
-    { label: 'Approved',         value: approvedVehicles.length, color: C.success, change: 'Active' },
-    { label: 'Rejected',         value: vehicles.filter(v => v.approvalStatus === 'rejected').length, color: C.danger, change: 'Review' },
+    { label: 'Total Vehicles', value: vehicles.length, color: C.navy, change: 'Fleet' },
+    { label: 'Available', value: vehicles.filter(v => v.status === 'available').length, color: C.success, change: 'Live' },
+    { label: 'Rented', value: vehicles.filter(v => v.status === 'rented').length, color: C.warning, change: 'Active' },
+    { label: 'Unavailable', value: vehicles.filter(v => v.status === 'unavailable').length, color: C.g600, change: 'Offline' },
   ];
-
-  // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleApprove = (vehicle) => {
-    Alert.alert(
-      'Approve Vehicle?',
-      `Approve "${vehicle.name}" by ${vehicle.ownerName}? It will become visible to renters.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Approve',
-          onPress: () => {
-            approveVehicle(vehicle.id);
-            Alert.alert('Approved ✓', `"${vehicle.name}" is now visible to renters.`);
-          },
-        },
-      ]
-    );
-  };
-
-  const openRejectModal = (vehicle) => {
-    setRejectTarget(vehicle);
-    setRejectNote('');
-    setRejectModal(true);
-  };
-
-  const handleReject = () => {
-    if (!rejectTarget) return;
-    rejectVehicle(rejectTarget.id, rejectNote.trim());
-    setRejectModal(false);
-    setRejectTarget(null);
-    setRejectNote('');
-    Alert.alert('Rejected', `"${rejectTarget.name}" has been rejected.`);
-  };
 
   const toggleProfileMenu = () => setProfileMenuOpen(o => !o);
   const closeProfileMenu  = () => setProfileMenuOpen(false);
@@ -264,95 +215,19 @@ export default function AdminDashboard() {
 
   // ── Render Content ─────────────────────────────────────────────────────────
   const renderContent = () => {
-    switch (activeTab) {
-      case 'overview':
-        return (
-          <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-            <Text style={s.sectionTitle}>Dashboard Status</Text>
-            <View style={s.statsGrid}>
-              {STATS.map((stat, i) => <StatCard key={i} item={stat} />)}
-            </View>
-
-            <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>
-                Pending Approvals
-                {pendingVehicles.length > 0 && (
-                  <Text style={{ color: C.danger }}> ({pendingVehicles.length})</Text>
-                )}
-              </Text>
-              <TouchableOpacity onPress={() => setActiveTab('approvals')}>
-                <Text style={s.linkText}>See All</Text>
-              </TouchableOpacity>
-            </View>
-            {pendingVehicles.length === 0
-              ? <Text style={s.emptyText}>No pending approvals.</Text>
-              : pendingVehicles.slice(0, 2).map(item => <ApprovalItem key={item.id} item={item} />)
-            }
-
-            <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>All Vehicles</Text>
-              <TouchableOpacity onPress={() => setActiveTab('vehicles')}>
-                <Text style={s.linkText}>View All</Text>
-              </TouchableOpacity>
-            </View>
-            {vehicles.slice(0, 3).map(item => <VehicleItem key={item.id} item={item} />)}
-            {vehicles.length === 0 && <Text style={s.emptyText}>No vehicles submitted yet.</Text>}
-          </ScrollView>
-        );
-
-      case 'approvals':
-        return (
-          <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-            <Text style={s.pageTitle}>Pending Approvals ({pendingVehicles.length})</Text>
-            <Text style={s.pageSub}>Review and approve or reject vehicle listings.</Text>
-            <View style={{ height: 16 }} />
-            {pendingVehicles.length === 0
-              ? <Text style={s.emptyText}>No pending items.</Text>
-              : pendingVehicles.map(item => <ApprovalItem key={item.id} item={item} />)
-            }
-          </ScrollView>
-        );
-
-      case 'users': {
-        const filteredUsers = []; // wire up your users source here
-        return (
-          <View style={{ flex: 1 }}>
-            <View style={s.searchBar}>
-              <SearchIcon />
-              <TextInput
-                style={s.searchInput}
-                placeholder="Search users..."
-                placeholderTextColor={C.g400}
-                value={search}
-                onChangeText={setSearch}
-              />
-            </View>
-            <FlatList
-              data={filteredUsers}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => null}
-              contentContainerStyle={s.listContent}
-              ListEmptyComponent={<Text style={s.emptyText}>No users found.</Text>}
-            />
-          </View>
-        );
-      }
-
-      case 'vehicles':
-        return (
-          <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-            <Text style={s.pageTitle}>All Vehicles ({vehicles.length})</Text>
-            <Text style={s.pageSub}>Complete fleet across all owners.</Text>
-            <View style={{ height: 16 }} />
-            {vehicles.length === 0
-              ? <Text style={s.emptyText}>No vehicles submitted yet.</Text>
-              : vehicles.map(item => <ApprovalItem key={item.id} item={item} />)
-            }
-          </ScrollView>
-        );
-
-      default: return null;
-    }
+    return (
+      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+        <Text style={s.sectionTitle}>Fleet Analytics</Text>
+        <View style={s.statsGrid}>
+          {STATS.map((stat, i) => <StatCard key={i} item={stat} />)}
+        </View>
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>Recent Vehicles</Text>
+        </View>
+        {vehicles.slice(0, 5).map(item => <VehicleItem key={item.id} item={item} />)}
+        {vehicles.length === 0 && <Text style={s.emptyText}>No vehicles submitted yet.</Text>}
+      </ScrollView>
+    );
   };
 
   return (
@@ -385,13 +260,12 @@ export default function AdminDashboard() {
         </View>
       </View>
 
-      {/* ── Pending badge on Approvals tab ── */}
+      {/* ── Analytics tab ── */}
       <View style={s.tabContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabScroll}>
           {TABS.map(t => {
             const isActive = activeTab === t.id;
             const Icon = t.icon;
-            const badge = t.id === 'approvals' && pendingVehicles.length > 0;
             return (
               <TouchableOpacity
                 key={t.id}
@@ -400,11 +274,6 @@ export default function AdminDashboard() {
               >
                 <Icon color={isActive ? C.white : C.g500} />
                 <Text style={[s.tabText, isActive && s.tabTextActive]}>{t.label}</Text>
-                {badge && (
-                  <View style={s.tabBadge}>
-                    <Text style={s.tabBadgeText}>{pendingVehicles.length}</Text>
-                  </View>
-                )}
               </TouchableOpacity>
             );
           })}
@@ -414,42 +283,6 @@ export default function AdminDashboard() {
       {/* ── Content ── */}
       <View style={s.contentContainer}>{renderContent()}</View>
 
-      {/* ── Reject Modal ── */}
-      <Modal visible={rejectModal} animationType="slide" presentationStyle="pageSheet" transparent>
-        <View style={s.modalOverlay}>
-          <View style={s.modalBox}>
-            <Text style={s.modalTitle}>Reject Vehicle</Text>
-            <Text style={s.modalSub}>
-              Rejecting "{rejectTarget?.name}" by {rejectTarget?.ownerName}.
-            </Text>
-            <Text style={[s.modalSub, { marginTop: 14, marginBottom: 6, fontWeight: '700', color: C.g700 }]}>
-              Reason (optional)
-            </Text>
-            <TextInput
-              style={s.rejectInput}
-              placeholder="e.g. Missing documents, incomplete info…"
-              placeholderTextColor={C.g400}
-              value={rejectNote}
-              onChangeText={setRejectNote}
-              multiline
-            />
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-              <TouchableOpacity
-                style={[s.modalBtn, { backgroundColor: C.g100, flex: 1 }]}
-                onPress={() => setRejectModal(false)}
-              >
-                <Text style={{ color: C.g700, fontWeight: '700' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[s.modalBtn, { backgroundColor: C.danger, flex: 1 }]}
-                onPress={handleReject}
-              >
-                <Text style={{ color: C.white, fontWeight: '700' }}>Confirm Reject</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

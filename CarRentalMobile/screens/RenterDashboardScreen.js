@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  Modal, StyleSheet, Alert, Platform,
+  Modal, StyleSheet, Alert, Platform, Image,
 } from 'react-native';
 import { useRouter }    from 'expo-router';
 import { useAuth }      from '../context/AuthContext';
@@ -70,28 +70,39 @@ function VehicleCard({ vehicle, onRent }) {
   return (
     <View style={s.vehicleCard}>
       <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <Text style={s.vehicleName}>{vehicle.name}</Text>
-          <View style={{
-            backgroundColor: available ? '#d1fae5' : '#fef3c7',
-            borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2,
-          }}>
-            <Text style={{ fontSize: 10, fontWeight: '700', color: available ? '#065f46' : '#92400e' }}>
-              {available ? 'Available' : 'Rented'}
+        <View style={s.vehicleMediaRow}>
+          {vehicle.photoUri ? (
+            <Image source={{ uri: vehicle.photoUri }} style={s.vehicleThumb} resizeMode="cover" />
+          ) : (
+            <View style={[s.vehicleThumb, s.vehicleThumbFallback]}>
+              <Text style={s.vehicleThumbFallbackText}>No Image</Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Text style={s.vehicleName}>{vehicle.name}</Text>
+              <View style={{
+                backgroundColor: available ? '#d1fae5' : '#fef3c7',
+                borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2,
+              }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: available ? '#065f46' : '#92400e' }}>
+                  {available ? 'Available' : 'Rented'}
+                </Text>
+              </View>
+            </View>
+            <Text style={s.vehicleSub}>{vehicle.model} · {vehicle.year}</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+              {vehicle.location  && <Text style={{ fontSize: 12, color: C.g500 }}>📍 {vehicle.location}</Text>}
+              {vehicle.seats     && <Text style={{ fontSize: 12, color: C.g500 }}>👥 {vehicle.seats} seats</Text>}
+              {vehicle.fuel      && <Text style={{ fontSize: 12, color: C.g500 }}>⛽ {vehicle.fuel}</Text>}
+              {vehicle.ownerName && <Text style={{ fontSize: 12, color: C.g500 }}>🧑‍💼 {vehicle.ownerName}</Text>}
+            </View>
+            <Text style={s.vehiclePrice}>
+              ₱{parseFloat(vehicle.pricePerDay).toLocaleString()}
+              <Text style={{ fontSize: 12, fontWeight: '400', color: C.g500 }}>/day</Text>
             </Text>
           </View>
         </View>
-        <Text style={s.vehicleSub}>{vehicle.model} · {vehicle.year}</Text>
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
-          {vehicle.location  && <Text style={{ fontSize: 12, color: C.g500 }}>📍 {vehicle.location}</Text>}
-          {vehicle.seats     && <Text style={{ fontSize: 12, color: C.g500 }}>👥 {vehicle.seats} seats</Text>}
-          {vehicle.fuel      && <Text style={{ fontSize: 12, color: C.g500 }}>⛽ {vehicle.fuel}</Text>}
-          {vehicle.ownerName && <Text style={{ fontSize: 12, color: C.g500 }}>🧑‍💼 {vehicle.ownerName}</Text>}
-        </View>
-        <Text style={s.vehiclePrice}>
-          ₱{parseFloat(vehicle.pricePerDay).toLocaleString()}
-          <Text style={{ fontSize: 12, fontWeight: '400', color: C.g500 }}>/day</Text>
-        </Text>
       </View>
       <TouchableOpacity
         onPress={() => onRent(vehicle)}
@@ -396,7 +407,11 @@ const s = StyleSheet.create({
   filterTabActive:     { backgroundColor: C.primary, borderColor: C.primary },
   filterTabText:       { fontSize: 13, color: C.g500 },
   filterTabTextActive: { color: C.white, fontWeight: '700' },
-  vehicleCard:         { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.g200, elevation: 2 },
+  vehicleCard:         { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: C.g200, elevation: 2 },
+  vehicleMediaRow:     { flexDirection: 'row', gap: 14 },
+  vehicleThumb:        { width: 112, height: 84, borderRadius: 12, backgroundColor: '#f3f6fb' },
+  vehicleThumbFallback:{ alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.g200 },
+  vehicleThumbFallbackText: { fontSize: 10, color: C.g400, fontWeight: '600' },
   vehicleName:         { fontSize: 15, fontWeight: '700', color: C.navy },
   vehicleSub:          { fontSize: 12, color: C.g500, marginTop: 2 },
   vehiclePrice:        { fontSize: 14, color: C.primary, fontWeight: '700', marginTop: 6 },
