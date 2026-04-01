@@ -318,7 +318,12 @@ export default function OwnerDashboardScreen() {
   const { user } = useAuth();
   const { reports } = useLogReport();
   const { getOwnerVehicles, addVehicle, updateVehicle, deleteVehicle } = useVehicles();
-  
+
+  // ── Guard: redirect to login if user is not loaded yet ──
+  if (!user) {
+    router.replace('/login');
+    return null;
+  }
   const [activeTab,        setActiveTab]        = useState('home');
   const [pendingLogRental, setPendingLogRental]  = useState(null);
   const [searchQuery,      setSearchQuery]       = useState('');
@@ -326,13 +331,6 @@ export default function OwnerDashboardScreen() {
   const [showEditModal,    setShowEditModal]     = useState(false);
   const [editTarget,       setEditTarget]        = useState(null);
   const [rentalHistory,    setRentalHistory]     = useState([]);
-
-  React.useEffect(() => {
-    if (!user) router.replace('/login');
-  }, [user]);
-
-  // THEN early return
-  if (!user) return null;
 
   // Only this owner's vehicles from shared context
   const vehicles = getOwnerVehicles(user?.id || user?.email);
