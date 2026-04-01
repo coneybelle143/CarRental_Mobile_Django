@@ -239,7 +239,7 @@ export default function AdminDashboard() {
       case 'overview':
         return (
           <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-            <Text style={s.sectionTitle}>Dashboard Stats</Text>
+            <Text style={s.sectionTitle}>Dashboard Status</Text>
             <View style={s.statsGrid}>
               {STATS.map((stat, i) => <StatCard key={i} item={stat} />)}
             </View>

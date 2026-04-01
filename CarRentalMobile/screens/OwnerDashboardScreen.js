@@ -46,6 +46,13 @@ const IcBook = ({ s = 14, c = C.white }) => (
   </Svg>
 );
 
+// ── Approval status config ────────────────────────────────────────────────────
+const APPROVAL_CONFIG = {
+  pending:  { bg: '#fef3c7', color: '#92400e', label: '⏳ Pending Approval' },
+  approved: { bg: '#d1fae5', color: '#065f46', label: '✓ Approved'          },
+  rejected: { bg: '#fee2e2', color: '#991b1b', label: '✕ Rejected'          },
+};
+
 /* ── Vehicle Card ── */
 function VehicleCard({ vehicle, onEdit, onDelete }) {
   const statusColors = {
@@ -54,21 +61,44 @@ function VehicleCard({ vehicle, onEdit, onDelete }) {
     unavailable: { bg: '#fef3c7', color: '#92400e' },
   };
   const sc = statusColors[vehicle.status] || statusColors.available;
+  const approval = APPROVAL_CONFIG[vehicle.approvalStatus] || APPROVAL_CONFIG.pending;
+
   return (
     <View style={s.vehicleCard}>
       <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
           <Text style={s.vehicleName}>{vehicle.name || 'Unnamed Vehicle'}</Text>
+          {/* Listing status (available/rented) */}
           <View style={[s.statusBadge, { backgroundColor: sc.bg }]}>
             <Text style={[s.statusText, { color: sc.color }]}>
               {(vehicle.status || 'available').charAt(0).toUpperCase() + (vehicle.status || 'available').slice(1)}
             </Text>
           </View>
         </View>
+
         <Text style={s.vehicleSub}>{[vehicle.model, vehicle.year].filter(Boolean).join(' · ')}</Text>
         {vehicle.location && <Text style={[s.vehicleSub, { marginTop: 2 }]}>{vehicle.location}</Text>}
         {vehicle.pricePerDay && (
           <Text style={s.vehiclePrice}>₱{parseFloat(vehicle.pricePerDay).toLocaleString()}/day</Text>
+        )}
+
+        {/* Approval status badge — always visible */}
+        <View style={[s.approvalBadge, { backgroundColor: approval.bg }]}>
+          <Text style={[s.approvalText, { color: approval.color }]}>{approval.label}</Text>
+        </View>
+
+        {/* Rejection note if present */}
+        {vehicle.approvalStatus === 'rejected' && vehicle.approvalNote ? (
+          <Text style={{ fontSize: 11, color: C.danger, marginTop: 4 }}>
+            Admin note: {vehicle.approvalNote}
+          </Text>
+        ) : null}
+
+        {/* Hint for pending */}
+        {vehicle.approvalStatus === 'pending' && (
+          <Text style={{ fontSize: 11, color: C.g400, marginTop: 4 }}>
+            Waiting for admin review before renters can see this.
+          </Text>
         )}
       </View>
       <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -101,6 +131,14 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
           <Text style={s.modalTitle}>{isEdit ? 'Edit Vehicle' : 'Add New Vehicle'}</Text>
           <TouchableOpacity onPress={onClose}><Text style={s.modalClose}>✕</Text></TouchableOpacity>
         </View>
+        {!isEdit && (
+          <View style={{ marginHorizontal: 20, marginTop: 16, backgroundColor: '#fef3c7', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#fde68a' }}>
+            <Text style={{ fontSize: 13, color: '#92400e', fontWeight: '600' }}>⏳ Pending Admin Approval</Text>
+            <Text style={{ fontSize: 12, color: '#92400e', marginTop: 4 }}>
+              After adding, your vehicle will be reviewed by an admin before appearing to renters.
+            </Text>
+          </View>
+        )}
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
           {[
             { key: 'name',        label: 'Vehicle Name *',      placeholder: 'e.g. Toyota Vios' },
@@ -132,7 +170,7 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
             </View>
           </View>
           <TouchableOpacity onPress={handleSave} style={s.btnPrimary}>
-            <Text style={s.btnPrimaryText}>{isEdit ? 'Save Changes' : 'Add Vehicle'}</Text>
+            <Text style={s.btnPrimaryText}>{isEdit ? 'Save Changes' : 'Submit for Approval'}</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -276,14 +314,18 @@ function RentalsTab({ rentalHistory, setRentalHistory, reports, onRecordLog }) {
 
 /* ── Home Tab ── */
 function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdit, onDelete }) {
+  // Summary counts for approval statuses
+  const pendingCount  = vehicles.filter(v => v.approvalStatus === 'pending').length;
+  const rejectedCount = vehicles.filter(v => v.approvalStatus === 'rejected').length;
+
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
       <View style={s.statsRow}>
         {[
-          { label: 'Total',     value: stats.total,                          color: C.primary },
-          { label: 'Available', value: stats.available,                      color: C.success },
-          { label: 'Rented',    value: stats.rented,                         color: C.danger  },
-          { label: 'Est./Day',  value: `₱${stats.earnings.toLocaleString()}`, color: C.navy   },
+          { label: 'Total',     value: stats.total,                            color: C.primary },
+          { label: 'Available', value: stats.available,                        color: C.success },
+          { label: 'Rented',    value: stats.rented,                           color: C.danger  },
+          { label: 'Est./Day',  value: `₱${stats.earnings.toLocaleString()}`,  color: C.navy    },
         ].map(st => (
           <View key={st.label} style={s.statCard}>
             <Text style={[s.statNum, { color: st.color }]}>{st.value}</Text>
@@ -291,6 +333,35 @@ function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdi
           </View>
         ))}
       </View>
+
+      {/* Approval status summary banner */}
+      {pendingCount > 0 && (
+        <View style={{ marginHorizontal: 16, marginBottom: 10, backgroundColor: '#fef3c7', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#fde68a', flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ fontSize: 18, marginRight: 10 }}>⏳</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#92400e' }}>
+              {pendingCount} vehicle{pendingCount > 1 ? 's' : ''} awaiting admin approval
+            </Text>
+            <Text style={{ fontSize: 12, color: '#92400e', marginTop: 2 }}>
+              These won't be visible to renters until approved.
+            </Text>
+          </View>
+        </View>
+      )}
+      {rejectedCount > 0 && (
+        <View style={{ marginHorizontal: 16, marginBottom: 10, backgroundColor: '#fee2e2', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#fecaca', flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ fontSize: 18, marginRight: 10 }}>✕</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#991b1b' }}>
+              {rejectedCount} vehicle{rejectedCount > 1 ? 's' : ''} rejected by admin
+            </Text>
+            <Text style={{ fontSize: 12, color: '#991b1b', marginTop: 2 }}>
+              Edit and resubmit, or contact admin for details.
+            </Text>
+          </View>
+        </View>
+      )}
+
       <View style={[s.searchWrap, { marginHorizontal: 16 }]}>
         <IcSearch s={15} c={C.g400} />
         <TextInput style={[s.searchInput, { marginLeft: 8 }]} placeholder="Search your vehicles…"
@@ -319,11 +390,11 @@ export default function OwnerDashboardScreen() {
   const { reports } = useLogReport();
   const { getOwnerVehicles, addVehicle, updateVehicle, deleteVehicle } = useVehicles();
 
-  // ── Guard: redirect to login if user is not loaded yet ──
   if (!user) {
     router.replace('/login');
     return null;
   }
+
   const [activeTab,        setActiveTab]        = useState('home');
   const [pendingLogRental, setPendingLogRental]  = useState(null);
   const [searchQuery,      setSearchQuery]       = useState('');
@@ -332,9 +403,7 @@ export default function OwnerDashboardScreen() {
   const [editTarget,       setEditTarget]        = useState(null);
   const [rentalHistory,    setRentalHistory]     = useState([]);
 
-  // Only this owner's vehicles from shared context
   const vehicles = getOwnerVehicles(user?.id || user?.email);
-
   const userName     = user?.firstName || user?.fullName || 'Owner';
   const pendingCount = rentalHistory.filter(r => r.status === 'pending').length;
 
@@ -358,6 +427,10 @@ export default function OwnerDashboardScreen() {
   const handleAdd = form => {
     addVehicle(form, user);
     setShowAddModal(false);
+    Alert.alert(
+      'Submitted! ⏳',
+      'Your vehicle has been submitted and is pending admin approval. It will appear to renters once approved.'
+    );
   };
 
   const handleEdit = form => {
@@ -434,41 +507,43 @@ export default function OwnerDashboardScreen() {
 }
 
 const s = StyleSheet.create({
-  header:      { backgroundColor: C.navy, paddingTop: Platform.OS === 'ios' ? 56 : 44, paddingBottom: 20, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: C.white },
-  headerSub:   { fontSize: 13, color: 'rgba(255,255,255,.65)', marginTop: 2 },
-  statsRow:    { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 16, gap: 8 },
-  statCard:    { flex: 1, backgroundColor: C.white, borderRadius: 12, padding: 12, alignItems: 'center', elevation: 2 },
-  statNum:     { fontSize: 20, fontWeight: '800' },
-  statLabel:   { fontSize: 11, color: C.g500, marginTop: 3 },
-  searchWrap:  { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 10, borderWidth: 1, borderColor: C.g200, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 14 },
-  searchInput: { flex: 1, fontSize: 14, color: C.g900 },
-  vehicleCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.g200, elevation: 2 },
-  vehicleName: { fontSize: 15, fontWeight: '700', color: C.navy },
-  vehicleSub:  { fontSize: 12, color: C.g500, marginTop: 2 },
-  vehiclePrice:{ fontSize: 13, color: C.primary, fontWeight: '700', marginTop: 4 },
-  statusBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  statusText:  { fontSize: 10, fontWeight: '700' },
-  iconBtn:     { width: 36, height: 36, borderRadius: 8, backgroundColor: C.g50, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.g200 },
-  rentalCard:  { backgroundColor: C.white, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.g200, elevation: 2 },
-  filterTab:   { flex: 1, height: 36, paddingHorizontal: 8, borderRadius: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.g200, alignItems: 'center', justifyContent: 'center' },
+  header:       { backgroundColor: C.navy, paddingTop: Platform.OS === 'ios' ? 56 : 44, paddingBottom: 20, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerTitle:  { fontSize: 22, fontWeight: '800', color: C.white },
+  headerSub:    { fontSize: 13, color: 'rgba(255,255,255,.65)', marginTop: 2 },
+  statsRow:     { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 16, gap: 8 },
+  statCard:     { flex: 1, backgroundColor: C.white, borderRadius: 12, padding: 12, alignItems: 'center', elevation: 2 },
+  statNum:      { fontSize: 20, fontWeight: '800' },
+  statLabel:    { fontSize: 11, color: C.g500, marginTop: 3 },
+  searchWrap:   { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 10, borderWidth: 1, borderColor: C.g200, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 14 },
+  searchInput:  { flex: 1, fontSize: 14, color: C.g900 },
+  vehicleCard:  { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: C.white, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.g200, elevation: 2 },
+  vehicleName:  { fontSize: 15, fontWeight: '700', color: C.navy },
+  vehicleSub:   { fontSize: 12, color: C.g500, marginTop: 2 },
+  vehiclePrice: { fontSize: 13, color: C.primary, fontWeight: '700', marginTop: 4 },
+  statusBadge:  { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  statusText:   { fontSize: 10, fontWeight: '700' },
+  approvalBadge:{ alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginTop: 8 },
+  approvalText: { fontSize: 11, fontWeight: '700' },
+  iconBtn:      { width: 36, height: 36, borderRadius: 8, backgroundColor: C.g50, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.g200 },
+  rentalCard:   { backgroundColor: C.white, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.g200, elevation: 2 },
+  filterTab:    { flex: 1, height: 36, paddingHorizontal: 8, borderRadius: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.g200, alignItems: 'center', justifyContent: 'center' },
   filterTabActive:     { backgroundColor: C.primary, borderColor: C.primary },
   filterTabText:       { fontSize: 12, color: C.g500 },
   filterTabTextActive: { color: C.white, fontWeight: '700' },
-  empty:       { alignItems: 'center', padding: 48, backgroundColor: C.g50, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: C.g200 },
-  emptyTitle:  { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 6 },
-  emptySub:    { fontSize: 13, color: C.g400, textAlign: 'center' },
-  logBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: C.primary, borderRadius: 9, paddingVertical: 10, marginTop: 10, elevation: 2 },
-  logBtnDone:  { backgroundColor: C.g100, borderWidth: 1, borderColor: C.g200, elevation: 0 },
-  logBtnText:  { fontSize: 13, fontWeight: '700', color: C.white },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: C.g200 },
-  modalTitle:  { fontSize: 18, fontWeight: '700', color: C.navy },
-  modalClose:  { fontSize: 22, color: C.g400 },
-  fieldLabel:  { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: C.g400, marginBottom: 6 },
-  input:       { padding: 12, borderWidth: 1.5, borderColor: C.g200, borderRadius: 10, fontSize: 14, color: C.g900, backgroundColor: C.white },
-  pillBtn:     { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, borderColor: C.g200, backgroundColor: C.white },
-  pillBtnText: { fontSize: 13, fontWeight: '600', color: C.g500 },
-  btnPrimary:  { backgroundColor: C.primary, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  empty:        { alignItems: 'center', padding: 48, backgroundColor: C.g50, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: C.g200 },
+  emptyTitle:   { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 6 },
+  emptySub:     { fontSize: 13, color: C.g400, textAlign: 'center' },
+  logBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: C.primary, borderRadius: 9, paddingVertical: 10, marginTop: 10, elevation: 2 },
+  logBtnDone:   { backgroundColor: C.g100, borderWidth: 1, borderColor: C.g200, elevation: 0 },
+  logBtnText:   { fontSize: 13, fontWeight: '700', color: C.white },
+  modalHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: C.g200 },
+  modalTitle:   { fontSize: 18, fontWeight: '700', color: C.navy },
+  modalClose:   { fontSize: 22, color: C.g400 },
+  fieldLabel:   { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: C.g400, marginBottom: 6 },
+  input:        { padding: 12, borderWidth: 1.5, borderColor: C.g200, borderRadius: 10, fontSize: 14, color: C.g900, backgroundColor: C.white },
+  pillBtn:      { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, borderColor: C.g200, backgroundColor: C.white },
+  pillBtnText:  { fontSize: 13, fontWeight: '600', color: C.g500 },
+  btnPrimary:   { backgroundColor: C.primary, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
   btnPrimaryText: { color: C.white, fontSize: 14, fontWeight: '700' },
-  btnDanger:   { backgroundColor: C.danger, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  btnDanger:    { backgroundColor: C.danger, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
 });
