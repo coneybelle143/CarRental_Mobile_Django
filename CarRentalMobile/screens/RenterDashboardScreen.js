@@ -4,6 +4,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Modal, StyleSheet, Alert, Platform, Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter }    from 'expo-router';
 import { useAuth }      from '../context/AuthContext';
 import { useBookings }  from '../context/BookingContext';
@@ -57,6 +58,7 @@ function DashboardHeader({ activeTab, userName }) {
   return (
     <View style={s.header}>
       <View style={{ flex: 1 }}>
+        <Text style={s.headerKicker}>RENTER PORTAL</Text>
         <Text style={s.headerTitle}>{config.title}</Text>
         <Text style={s.headerSub}>{subtitle}</Text>
       </View>
@@ -67,52 +69,63 @@ function DashboardHeader({ activeTab, userName }) {
 
 function VehicleCard({ vehicle, onRent }) {
   const available = vehicle.status === 'available';
+  const vehicleName = vehicle.name || 'Unnamed Vehicle';
+  const yearLabel = vehicle.year || '----';
+  const modelLabel = vehicle.model || 'Vehicle';
+  const seatsLabel = vehicle.seats ? `${vehicle.seats} seats` : 'Seats n/a';
+  const fuelLabel = vehicle.fuel || 'Fuel n/a';
+  const ownerLabel = vehicle.ownerName || 'Owner n/a';
+
   return (
     <View style={s.vehicleCard}>
-      <View style={{ flex: 1 }}>
-        <View style={s.vehicleMediaRow}>
-          {vehicle.photoUri ? (
-            <Image source={{ uri: vehicle.photoUri }} style={s.vehicleThumb} resizeMode="cover" />
-          ) : (
-            <View style={[s.vehicleThumb, s.vehicleThumbFallback]}>
-              <Text style={s.vehicleThumbFallbackText}>No Image</Text>
-            </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <Text style={s.vehicleName}>{vehicle.name}</Text>
-              <View style={{
-                backgroundColor: available ? '#d1fae5' : '#fef3c7',
-                borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2,
-              }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: available ? '#065f46' : '#92400e' }}>
-                  {available ? 'Available' : 'Rented'}
-                </Text>
-              </View>
-            </View>
-            <Text style={s.vehicleSub}>{vehicle.model} · {vehicle.year}</Text>
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
-              {vehicle.location  && <Text style={{ fontSize: 12, color: C.g500 }}>📍 {vehicle.location}</Text>}
-              {vehicle.seats     && <Text style={{ fontSize: 12, color: C.g500 }}>👥 {vehicle.seats} seats</Text>}
-              {vehicle.fuel      && <Text style={{ fontSize: 12, color: C.g500 }}>⛽ {vehicle.fuel}</Text>}
-              {vehicle.ownerName && <Text style={{ fontSize: 12, color: C.g500 }}>🧑‍💼 {vehicle.ownerName}</Text>}
-            </View>
-            <Text style={s.vehiclePrice}>
-              ₱{parseFloat(vehicle.pricePerDay).toLocaleString()}
-              <Text style={{ fontSize: 12, fontWeight: '400', color: C.g500 }}>/day</Text>
-            </Text>
+      <View style={s.vehicleImageWrap}>
+        {vehicle.photoUri ? (
+          <Image source={{ uri: vehicle.photoUri }} style={s.vehicleImage} resizeMode="cover" />
+        ) : (
+          <View style={[s.vehicleImage, s.vehicleThumbFallback]}>
+            <Text style={s.vehicleThumbFallbackText}>No Image</Text>
           </View>
+        )}
+        <View style={[s.vehicleStatusPill, { backgroundColor: available ? '#d1fae5' : '#fef3c7' }]}>
+          <Text style={[s.vehicleStatusPillText, { color: available ? '#065f46' : '#92400e' }]}>
+            {available ? 'Available' : 'Rented'}
+          </Text>
         </View>
       </View>
-      <TouchableOpacity
-        onPress={() => onRent(vehicle)}
-        disabled={!available}
-        style={[s.rentBtn, !available && s.rentBtnDisabled]}
-      >
-        <Text style={[s.rentBtnText, !available && { color: C.g400 }]}>
-          {available ? 'Rent' : 'Taken'}
-        </Text>
-      </TouchableOpacity>
+
+      <View style={s.vehicleBody}>
+        <View style={s.vehicleTopRow}>
+          <Text style={s.vehicleName}>{vehicleName}</Text>
+          <View style={s.yearPill}><Text style={s.yearPillText}>{yearLabel}</Text></View>
+        </View>
+
+        <View style={s.vehicleChipRow}>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{modelLabel}</Text></View>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{seatsLabel}</Text></View>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{fuelLabel}</Text></View>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{ownerLabel}</Text></View>
+        </View>
+
+        {vehicle.location ? <Text style={s.vehicleLocation}>{vehicle.location}</Text> : null}
+
+        <View style={s.vehicleDivider} />
+
+        <View style={s.vehicleFooter}>
+          <Text style={s.vehiclePrice}>
+            ₱{parseFloat(vehicle.pricePerDay).toLocaleString()}
+            <Text style={s.vehiclePricePer}>/day</Text>
+          </Text>
+          <TouchableOpacity
+            onPress={() => onRent(vehicle)}
+            disabled={!available}
+            style={[s.rentBtn, !available && s.rentBtnDisabled]}
+          >
+            <Text style={[s.rentBtnText, !available && { color: C.g400 }]}>
+              {available ? 'Rent Now' : 'Taken'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 }
@@ -260,27 +273,8 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
     Alert.alert('Request Sent! 🎉', 'Your rental request has been submitted and is awaiting approval from the owner.');
   };
 
-  const activeBooking = bookings.find(r => r.status === 'approved');
-
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
-      <View style={{ backgroundColor: C.navy, paddingHorizontal: 20, paddingBottom: 24, paddingTop: 4 }}>
-        <Text style={{ fontSize: 14, color: 'rgba(255,255,255,.7)' }}>Find your next ride</Text>
-        {activeBooking && (
-          <View style={{
-            backgroundColor: 'rgba(63,155,132,.3)', borderRadius: 12,
-            padding: 12, marginTop: 12,
-            borderWidth: 1, borderColor: 'rgba(63,155,132,.5)',
-          }}>
-            <Text style={{ fontSize: 12, color: '#6ee7b7', fontWeight: '600', marginBottom: 2 }}>✓ Active Rental</Text>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: C.white }}>{activeBooking.vehicleName}</Text>
-            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>
-              {activeBooking.startDate} → {activeBooking.endDate}
-            </Text>
-          </View>
-        )}
-      </View>
-
       <View style={{ padding: 16 }}>
         <View style={s.searchWrap}>
           <TextInput
@@ -372,52 +366,69 @@ export default function RenterDashboardScreen() {
   };
 
   const pendingCount = myRentals.filter((booking) => booking.status === 'pending').length;
-
   if (!user) return null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#edf1f7' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#edf1f7' }} edges={['top', 'bottom']}>
       <DashboardHeader activeTab={activeTab} userName={userName} />
-      <View style={{ flex: 1 }}>{renderContent()}</View>
+      <View style={s.bodyWrap}>
+        <View style={s.contentShell}>{renderContent()}</View>
+      </View>
       <BottomNav
         role="renter"
         activeTab={activeTab}
         onTabPress={handleTabPress}
         badges={{ bookings: pendingCount }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   header: {
     backgroundColor: C.navy,
-    paddingTop: Platform.OS === 'ios' ? 56 : 44,
-    paddingBottom: 20,
+    paddingTop: Platform.OS === 'ios' ? 56 : 34,
+    paddingBottom: 14,
     paddingHorizontal: 20,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
+  headerKicker:        { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,.6)', letterSpacing: 1.1 },
   headerTitle:         { fontSize: 22, fontWeight: '800', color: C.white },
   headerSub:           { fontSize: 13, color: 'rgba(255,255,255,.65)', marginTop: 2 },
+  bodyWrap:            { flex: 1, marginTop: -4, backgroundColor: '#e7eef6' },
+  contentShell:        { flex: 1, width: '100%', maxWidth: 430, alignSelf: 'center' },
   searchWrap:          { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 10, borderWidth: 1, borderColor: C.g200, paddingHorizontal: 12, marginBottom: 12 },
   searchInput:         { flex: 1, paddingVertical: 10, fontSize: 14, color: C.g900 },
   filterTab:           { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.g200 },
   filterTabActive:     { backgroundColor: C.primary, borderColor: C.primary },
   filterTabText:       { fontSize: 13, color: C.g500 },
   filterTabTextActive: { color: C.white, fontWeight: '700' },
-  vehicleCard:         { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: C.g200, elevation: 2 },
-  vehicleMediaRow:     { flexDirection: 'row', gap: 14 },
-  vehicleThumb:        { width: 112, height: 84, borderRadius: 12, backgroundColor: '#f3f6fb' },
+  vehicleCard:         { backgroundColor: C.white, borderRadius: 18, marginBottom: 14, borderWidth: 1, borderColor: '#dfe7f3', elevation: 2, overflow: 'hidden' },
+  vehicleImageWrap:    { position: 'relative', backgroundColor: '#f3f6fb' },
+  vehicleImage:        { width: '100%', height: 184, backgroundColor: '#f3f6fb' },
+  vehicleStatusPill:   { position: 'absolute', top: 12, left: 12, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  vehicleStatusPillText:{ fontSize: 12, fontWeight: '800' },
+  vehicleBody:         { padding: 14 },
+  vehicleTopRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  yearPill:            { backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#e5e7eb' },
+  yearPillText:        { fontSize: 12, color: C.g500, fontWeight: '700' },
+  vehicleChipRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  vehicleInfoChip:     { backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
+  vehicleInfoChipText: { fontSize: 11, color: C.g700, fontWeight: '600' },
+  vehicleLocation:     { fontSize: 13, color: C.g500, marginTop: 12 },
+  vehicleDivider:      { height: 1, backgroundColor: '#e5e7eb', marginTop: 14, marginBottom: 12 },
+  vehicleFooter:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   vehicleThumbFallback:{ alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.g200 },
   vehicleThumbFallbackText: { fontSize: 10, color: C.g400, fontWeight: '600' },
-  vehicleName:         { fontSize: 15, fontWeight: '700', color: C.navy },
+  vehicleName:         { fontSize: 19, fontWeight: '800', color: C.navy, flex: 1 },
   vehicleSub:          { fontSize: 12, color: C.g500, marginTop: 2 },
-  vehiclePrice:        { fontSize: 14, color: C.primary, fontWeight: '700', marginTop: 6 },
-  rentBtn:             { backgroundColor: C.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
+  vehiclePrice:        { fontSize: 20, color: C.primary, fontWeight: '800' },
+  vehiclePricePer:     { fontSize: 12, color: C.primaryDk, fontWeight: '700' },
+  rentBtn:             { backgroundColor: C.primary, borderRadius: 11, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   rentBtnDisabled:     { backgroundColor: C.g100 },
-  rentBtnText:         { color: C.white, fontSize: 13, fontWeight: '700' },
+  rentBtnText:         { color: C.white, fontSize: 13, fontWeight: '800' },
   empty:               { alignItems: 'center', padding: 48, backgroundColor: C.g50, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: C.g200 },
   emptyTitle:          { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 6 },
   emptySub:            { fontSize: 13, color: C.g400, textAlign: 'center' },

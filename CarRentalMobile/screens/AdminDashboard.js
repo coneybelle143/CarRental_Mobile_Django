@@ -231,7 +231,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={C.white} />
 
       {/* ── Header ── */}

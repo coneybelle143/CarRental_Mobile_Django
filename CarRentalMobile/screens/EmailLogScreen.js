@@ -58,6 +58,13 @@ const EMAIL_LOGS = [
   },
 ];
 
+const TAB_LABELS = {
+  all: 'All',
+  registration: 'Register',
+  rental: 'Rental',
+  password: 'Pass',
+};
+
 export default function EmailLogScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -140,7 +147,7 @@ export default function EmailLogScreen() {
         </View>
 
         {/* Tab Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabsContainer}>
+        <View style={s.tabsContainer}>
           <View style={s.tabsRow}>
             {['all', 'registration', 'rental', 'password'].map(tab => (
               <TouchableOpacity
@@ -149,12 +156,12 @@ export default function EmailLogScreen() {
                 style={[s.tab, activeTab === tab && s.tabActive]}
               >
                 <Text style={[s.tabText, activeTab === tab && s.tabTextActive]}>
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {TAB_LABELS[tab] || tab}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
-        </ScrollView>
+        </View>
 
         {/* Email List */}
         {filtered.length === 0 ? (
@@ -320,31 +327,30 @@ const s = StyleSheet.create({
   // ─── TABS ────────────────────────────────────────────────────────────────
   tabsContainer: {
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   tabsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: C.g200,
   },
   tab: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: C.white,
-    borderWidth: 1,
-    borderColor: C.g200,
+    paddingVertical: 6,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
   tabActive: {
-    backgroundColor: '#ecfdf5',
-    borderColor: C.primary,
+    borderBottomColor: C.primary,
   },
   tabText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    color: C.g600,
+    color: C.g400,
   },
   tabTextActive: {
-    color: C.primary,
+    color: C.navy,
+    fontWeight: '700',
   },
 
   // ─── COUNT LABEL ─────────────────────────────────────────────────────────
