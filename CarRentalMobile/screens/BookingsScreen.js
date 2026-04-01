@@ -7,9 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
-  StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 
@@ -108,8 +106,7 @@ export default function BookingsScreen({ hideHeader = false }) {
   const roleTitle = user?.role === 'owner' ? 'Rental Requests' : 'My Bookings';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#edf1f7' }} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#edf1f7" />
+    <View style={{ flex: 1, backgroundColor: '#edf1f7' }}>
       {/* Only show header if hideHeader is false */}
       {!hideHeader && (
         <View style={s.header}>
@@ -209,7 +206,7 @@ export default function BookingsScreen({ hideHeader = false }) {
         )}
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
