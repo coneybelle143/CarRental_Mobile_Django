@@ -1,20 +1,18 @@
 // screens/OwnerDashboardScreen.js
-// Tabs: Home | Rentals | Add | Log Report
-// Rentals tab has "Record to Log Report" button on approved/active rentals.
-
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Modal, StyleSheet, Alert, Platform, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
-import { useRouter } from 'expo-router';
-import { useAuth }      from '../context/AuthContext';
-import { useLogReport } from '../context/LogReportContext';
-import BottomNav        from '../components/BottomNav';
-import ProfileAvatar    from '../components/ProfileAvatar';
-import LogReportScreen  from './LogReportScreen';
+import Svg, { Path, Circle } from 'react-native-svg';
+import { useRouter }     from 'expo-router';
+import { useAuth }       from '../context/AuthContext';
+import { useLogReport }  from '../context/LogReportContext';
+import { useVehicles }   from '../context/VehicleContext';
+import BottomNav         from '../components/BottomNav';
+import ProfileAvatar     from '../components/ProfileAvatar';
+import LogReportScreen   from './LogReportScreen';
 
 const C = {
   primary:   '#3F9B84', primaryDk: '#2d7a67', primaryLt: '#ecfdf5',
@@ -25,7 +23,6 @@ const C = {
   g700: '#374151', g900: '#111827', white: '#ffffff',
 };
 
-/* ── Icons ── */
 const IcSearch = ({ s = 15, c = C.g400 }) => (
   <Svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <Circle cx="11" cy="11" r="8" /><Path d="M21 21l-4.35-4.35" />
@@ -93,8 +90,8 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
   React.useEffect(() => { if (visible) setForm(initial || blank); }, [visible]);
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const handleSave = () => {
-    if (!form.name.trim())    { Alert.alert('Required', 'Vehicle name is required.'); return; }
-    if (!form.pricePerDay)    { Alert.alert('Required', 'Price per day is required.'); return; }
+    if (!form.name.trim())  { Alert.alert('Required', 'Vehicle name is required.'); return; }
+    if (!form.pricePerDay)  { Alert.alert('Required', 'Price per day is required.'); return; }
     onSave(form);
   };
   return (
@@ -109,7 +106,7 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
             { key: 'name',        label: 'Vehicle Name *',      placeholder: 'e.g. Toyota Vios' },
             { key: 'model',       label: 'Model',               placeholder: 'e.g. 1.3 E CVT' },
             { key: 'year',        label: 'Year',                placeholder: 'e.g. 2022', numeric: true },
-            { key: 'pricePerDay', label: 'Price per Day (₱) *', placeholder: 'e.g. 2500',  numeric: true },
+            { key: 'pricePerDay', label: 'Price per Day (₱) *', placeholder: 'e.g. 2500', numeric: true },
             { key: 'location',    label: 'Pickup Location',     placeholder: 'e.g. Davao City' },
             { key: 'seats',       label: 'Seats',               placeholder: 'e.g. 5', numeric: true },
             { key: 'fuel',        label: 'Fuel Type',           placeholder: 'e.g. Gasoline' },
@@ -163,10 +160,10 @@ function RentalsTab({ rentalHistory, setRentalHistory, reports, onRecordLog }) {
   }, [rentalHistory, filter, search]);
 
   const stats = useMemo(() => ({
-    total:    rentalHistory.length,
-    pending:  rentalHistory.filter(r => r.status === 'pending').length,
-    approved: rentalHistory.filter(r => r.status === 'approved').length,
-    completed:rentalHistory.filter(r => r.status === 'completed').length,
+    total:     rentalHistory.length,
+    pending:   rentalHistory.filter(r => r.status === 'pending').length,
+    approved:  rentalHistory.filter(r => r.status === 'approved').length,
+    completed: rentalHistory.filter(r => r.status === 'completed').length,
   }), [rentalHistory]);
 
   const TABS = ['all', 'pending', 'approved', 'completed', 'rejected'];
@@ -194,7 +191,6 @@ function RentalsTab({ rentalHistory, setRentalHistory, reports, onRecordLog }) {
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Stats */}
       <View style={{ flexDirection: 'row', gap: 8, padding: 16, paddingBottom: 0 }}>
         {[
           { label: 'Total',   value: stats.total,     color: C.primary },
@@ -208,16 +204,11 @@ function RentalsTab({ rentalHistory, setRentalHistory, reports, onRecordLog }) {
           </View>
         ))}
       </View>
-
-      {/* Filter */}
       <View style={{ paddingHorizontal: 12, paddingVertical: 6 }}>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {TABS.map((t, i) => (
-            <TouchableOpacity
-              key={t}
-              onPress={() => setFilter(t)}
-              style={[s.filterTab, filter === t && s.filterTabActive, i < TABS.length - 1 && { marginRight: 6 }]}
-            >
+            <TouchableOpacity key={t} onPress={() => setFilter(t)}
+              style={[s.filterTab, filter === t && s.filterTabActive, i < TABS.length - 1 && { marginRight: 6 }]}>
               <Text style={[s.filterTabText, filter === t && s.filterTabTextActive]}>
                 {SHORT_LABELS[t] || (t.charAt(0).toUpperCase() + t.slice(1))}
               </Text>
@@ -225,22 +216,19 @@ function RentalsTab({ rentalHistory, setRentalHistory, reports, onRecordLog }) {
           ))}
         </View>
       </View>
-
-      {/* Search */}
       <View style={[s.searchWrap, { marginHorizontal: 16, marginBottom: 10 }]}>
         <IcSearch s={15} c={C.g400} />
-        <TextInput style={[s.searchInput, { marginLeft: 8 }]} placeholder="Search rentals…" placeholderTextColor={C.g400}
-          value={search} onChangeText={setSearch} />
+        <TextInput style={[s.searchInput, { marginLeft: 8 }]} placeholder="Search rentals…"
+          placeholderTextColor={C.g400} value={search} onChangeText={setSearch} />
       </View>
-
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 0, paddingBottom: 100 }}>
         {filtered.length === 0 ? (
           <View style={s.empty}><Text style={s.emptyTitle}>No rentals found</Text></View>
         ) : (
           filtered.map((rental, i) => {
-            const bc      = BC[rental.status] || BC.pending;
-            const logged  = isLogged(rental);
-            const canLog  = rental.status === 'approved' || rental.status === 'completed';
+            const bc     = BC[rental.status] || BC.pending;
+            const logged = isLogged(rental);
+            const canLog = rental.status === 'approved' || rental.status === 'completed';
             return (
               <View key={rental.id || i} style={s.rentalCard}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -258,8 +246,6 @@ function RentalsTab({ rentalHistory, setRentalHistory, reports, onRecordLog }) {
                     ₱{parseFloat(rental.totalPrice).toLocaleString()}
                   </Text>
                 )}
-
-                {/* Approve / Reject */}
                 {rental.status === 'pending' && (
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
                     <TouchableOpacity onPress={() => handleApprove(rental)} style={[s.btnPrimary, { flex: 1, paddingVertical: 9 }]}>
@@ -270,12 +256,8 @@ function RentalsTab({ rentalHistory, setRentalHistory, reports, onRecordLog }) {
                     </TouchableOpacity>
                   </View>
                 )}
-
-                {/* Record to Log Report */}
                 {canLog && (
-                  <TouchableOpacity
-                    onPress={() => !logged && onRecordLog(rental)}
-                    disabled={logged}
+                  <TouchableOpacity onPress={() => !logged && onRecordLog(rental)} disabled={logged}
                     style={[s.logBtn, logged && s.logBtnDone]}>
                     <IcBook s={13} c={logged ? C.g400 : C.white} />
                     <Text style={[s.logBtnText, logged && { color: C.g400 }]}>
@@ -299,9 +281,9 @@ function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdi
       <View style={s.statsRow}>
         {[
           { label: 'Total',     value: stats.total,                          color: C.primary },
-          { label: 'Available', value: stats.available,                       color: C.success },
-          { label: 'Rented',    value: stats.rented,                          color: C.danger  },
-          { label: 'Est./Day',  value: `₱${stats.earnings.toLocaleString()}`, color: C.navy    },
+          { label: 'Available', value: stats.available,                      color: C.success },
+          { label: 'Rented',    value: stats.rented,                         color: C.danger  },
+          { label: 'Est./Day',  value: `₱${stats.earnings.toLocaleString()}`, color: C.navy   },
         ].map(st => (
           <View key={st.label} style={s.statCard}>
             <Text style={[s.statNum, { color: st.color }]}>{st.value}</Text>
@@ -335,28 +317,20 @@ export default function OwnerDashboardScreen() {
   const router  = useRouter();
   const { user } = useAuth();
   const { reports } = useLogReport();
+  const { getOwnerVehicles, addVehicle, updateVehicle, deleteVehicle } = useVehicles();
 
-  const [activeTab, setActiveTab] = useState('home');
-  const [pendingLogRental, setPendingLogRental] = useState(null);
+  const [activeTab,        setActiveTab]        = useState('home');
+  const [pendingLogRental, setPendingLogRental]  = useState(null);
+  const [searchQuery,      setSearchQuery]       = useState('');
+  const [showAddModal,     setShowAddModal]      = useState(false);
+  const [showEditModal,    setShowEditModal]     = useState(false);
+  const [editTarget,       setEditTarget]        = useState(null);
+  const [rentalHistory,    setRentalHistory]     = useState([]);
 
-  // vehicles array starts empty; real data should come from persistent storage or backend
-  const [vehicles, setVehicles] = useState([
-    { id: 1, name: 'Toyota Vios', model: '1.3 E', year: '2022', pricePerDay: '2500', status: 'available', location: 'Davao City', seats: '5', fuel: 'Gasoline' },
-    { id: 2, name: 'Honda City',  model: '1.5 RS', year: '2021', pricePerDay: '3000', status: 'rented',    location: 'Davao City', seats: '5', fuel: 'Gasoline' },
-  ]);
-  const [searchQuery,   setSearchQuery]   = useState('');
-  const [showAddModal,  setShowAddModal]  = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editTarget,    setEditTarget]    = useState(null);
+  // Only this owner's vehicles from shared context
+  const vehicles = getOwnerVehicles(user?.id || user?.email);
 
-  // rentalHistory initially empty; populate from server or storage
-  const [rentalHistory, setRentalHistory] = useState([
-    { id: 'r1', vehicleId: 2, vehicleName: 'Honda City',  renterName: 'Juan Dela Cruz', renterId: 'u_renter', startDate: '2026-03-01', endDate: '2026-03-05', totalPrice: 15000, pricePerDay: 3000, status: 'approved'  },
-    { id: 'r2', vehicleId: 1, vehicleName: 'Toyota Vios', renterName: 'Maria Santos',   renterId: 'u_renter', startDate: '2026-02-15', endDate: '2026-02-20', totalPrice: 12500, pricePerDay: 2500, status: 'completed' },
-    { id: 'r3', vehicleId: 1, vehicleName: 'Toyota Vios', renterName: 'Pedro Reyes',    renterId: 'u_renter', startDate: '2026-03-10', endDate: '2026-03-12', totalPrice: 5000,  pricePerDay: 2500, status: 'pending'   },
-  ]);
-
-  const userName    = user?.firstName || user?.fullName || 'Owner';
+  const userName     = user?.firstName || user?.fullName || 'Owner';
   const pendingCount = rentalHistory.filter(r => r.status === 'pending').length;
 
   const stats = useMemo(() => ({
@@ -369,23 +343,31 @@ export default function OwnerDashboardScreen() {
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return vehicles;
     const q = searchQuery.toLowerCase();
-    return vehicles.filter(v => v.name?.toLowerCase().includes(q) || v.model?.toLowerCase().includes(q));
+    return vehicles.filter(v =>
+      v.name?.toLowerCase().includes(q) || v.model?.toLowerCase().includes(q)
+    );
   }, [vehicles, searchQuery]);
 
-  const openEdit   = v => { setEditTarget(v); setShowEditModal(true); };
-  const handleAdd  = form => { setVehicles(prev => [...prev, { ...form, id: Date.now() }]); setShowAddModal(false); };
-  const handleEdit = form => {
-    setVehicles(prev => prev.map(v => v.id === editTarget.id ? { ...v, ...form } : v));
-    setShowEditModal(false); setEditTarget(null);
+  const openEdit = v => { setEditTarget(v); setShowEditModal(true); };
+
+  const handleAdd = form => {
+    addVehicle(form, user);
+    setShowAddModal(false);
   };
+
+  const handleEdit = form => {
+    updateVehicle(editTarget.id, form);
+    setShowEditModal(false);
+    setEditTarget(null);
+  };
+
   const handleDelete = id => {
     Alert.alert('Delete Vehicle?', 'This will permanently remove the vehicle listing.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => setVehicles(prev => prev.filter(v => v.id !== id)) },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteVehicle(id) },
     ]);
   };
 
-  // Called from Rentals tab — switch to Log Report and pre-populate
   const handleRecordLog = rental => {
     setPendingLogRental({ ...rental, rentalId: rental.id });
     setActiveTab('logreport');
@@ -401,9 +383,11 @@ export default function OwnerDashboardScreen() {
     switch (activeTab) {
       case 'home':
         return (
-          <HomeTab vehicles={vehicles} stats={stats}
+          <HomeTab
+            vehicles={vehicles} stats={stats}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-            filtered={filtered} onEdit={openEdit} onDelete={handleDelete} />
+            filtered={filtered} onEdit={openEdit} onDelete={handleDelete}
+          />
         );
       case 'rentals':
         return (
@@ -436,11 +420,8 @@ export default function OwnerDashboardScreen() {
         </View>
         <ProfileAvatar size={38} />
       </View>
-
       <View style={{ flex: 1 }}>{renderContent()}</View>
-
       <BottomNav role="owner" activeTab={activeTab} onTabPress={handleTabPress} badges={{ rentals: pendingCount }} />
-
       <VehicleFormModal visible={showAddModal}  onClose={() => setShowAddModal(false)}  onSave={handleAdd}  initial={null}        isEdit={false} />
       <VehicleFormModal visible={showEditModal} onClose={() => { setShowEditModal(false); setEditTarget(null); }} onSave={handleEdit} initial={editTarget} isEdit />
     </SafeAreaView>
@@ -448,12 +429,7 @@ export default function OwnerDashboardScreen() {
 }
 
 const s = StyleSheet.create({
-  header: {
-    backgroundColor: C.navy,
-    paddingTop: Platform.OS === 'ios' ? 56 : 44,
-    paddingBottom: 20, paddingHorizontal: 20,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-  },
+  header:      { backgroundColor: C.navy, paddingTop: Platform.OS === 'ios' ? 56 : 44, paddingBottom: 20, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: C.white },
   headerSub:   { fontSize: 13, color: 'rgba(255,255,255,.65)', marginTop: 2 },
   statsRow:    { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 16, gap: 8 },
@@ -470,20 +446,16 @@ const s = StyleSheet.create({
   statusText:  { fontSize: 10, fontWeight: '700' },
   iconBtn:     { width: 36, height: 36, borderRadius: 8, backgroundColor: C.g50, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.g200 },
   rentalCard:  { backgroundColor: C.white, borderRadius: 12, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.g200, elevation: 2 },
-  filterTab:   { flex: 1, height: 36, paddingHorizontal: 8, paddingVertical: 0, borderRadius: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.g200, alignItems: 'center', justifyContent: 'center' },
+  filterTab:   { flex: 1, height: 36, paddingHorizontal: 8, borderRadius: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.g200, alignItems: 'center', justifyContent: 'center' },
   filterTabActive:     { backgroundColor: C.primary, borderColor: C.primary },
   filterTabText:       { fontSize: 12, color: C.g500 },
   filterTabTextActive: { color: C.white, fontWeight: '700' },
   empty:       { alignItems: 'center', padding: 48, backgroundColor: C.g50, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: C.g200 },
   emptyTitle:  { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 6 },
   emptySub:    { fontSize: 13, color: C.g400, textAlign: 'center' },
-  logBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    backgroundColor: C.primary, borderRadius: 9, paddingVertical: 10,
-    marginTop: 10, elevation: 2,
-  },
-  logBtnDone: { backgroundColor: C.g100, borderWidth: 1, borderColor: C.g200, elevation: 0 },
-  logBtnText: { fontSize: 13, fontWeight: '700', color: C.white },
+  logBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: C.primary, borderRadius: 9, paddingVertical: 10, marginTop: 10, elevation: 2 },
+  logBtnDone:  { backgroundColor: C.g100, borderWidth: 1, borderColor: C.g200, elevation: 0 },
+  logBtnText:  { fontSize: 13, fontWeight: '700', color: C.white },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: C.g200 },
   modalTitle:  { fontSize: 18, fontWeight: '700', color: C.navy },
   modalClose:  { fontSize: 22, color: C.g400 },
