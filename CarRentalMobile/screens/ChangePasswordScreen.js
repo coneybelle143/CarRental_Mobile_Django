@@ -8,7 +8,10 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  StatusBar,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 const C = {
@@ -68,8 +71,10 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={s.root} keyboardShouldPersistTaps="handled">
-      <View style={s.card}>
+    <SafeAreaView style={s.safeArea} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.white} />
+      <ScrollView contentContainerStyle={s.root} keyboardShouldPersistTaps="handled">
+        <View style={s.card}>
         <Text style={s.title}>Change Password</Text>
         <Text style={s.subtitle}>Use a strong password to secure your account.</Text>
 
@@ -121,12 +126,17 @@ export default function ChangePasswordScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: C.white,
+  },
   root: {
     flexGrow: 1,
     backgroundColor: C.g100,

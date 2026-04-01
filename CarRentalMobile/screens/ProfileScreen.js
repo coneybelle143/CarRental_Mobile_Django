@@ -8,6 +8,7 @@ import {
   ScrollView, Platform, StatusBar, Alert, Modal,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle, Rect, Polyline } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';
@@ -231,7 +232,7 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.g50 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.g50 }} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor={C.navy} />
 
       <ScrollView
@@ -554,7 +555,7 @@ export default function ProfileScreen() {
         )}
 
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

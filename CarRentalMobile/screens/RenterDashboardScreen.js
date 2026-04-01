@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  Modal, StyleSheet, Alert, Platform,
+  Modal, StyleSheet, Alert, Platform, StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import { useLogReport } from '../context/LogReportContext';
@@ -279,7 +280,8 @@ export default function RenterDashboardScreen() {
   const pendingCount = 1;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#edf1f7' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#edf1f7' }} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor="#edf1f7" />
       <View style={s.header}>
         <View>
           <Text style={s.headerTitle}>Renter Dashboard</Text>
@@ -296,7 +298,7 @@ export default function RenterDashboardScreen() {
         onTabPress={handleTabPress}
         badges={{ bookings: pendingCount }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
