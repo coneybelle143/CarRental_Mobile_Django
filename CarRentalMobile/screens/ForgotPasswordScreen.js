@@ -6,7 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  StatusBar,
+  Platform,
+  ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
 const C = {
@@ -35,8 +39,10 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <View style={s.root}>
-      <View style={s.card}>
+    <SafeAreaView style={s.safeArea} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.white} />
+      <ScrollView contentContainerStyle={s.root} keyboardShouldPersistTaps="handled">
+        <View style={s.card}>
         <Text style={s.title}>Reset Password</Text>
         <Text style={s.subtitle}>
           {submitted
@@ -79,13 +85,18 @@ export default function ForgotPasswordScreen() {
           <Text style={s.link}>Back to Sign In</Text>
         </TouchableOpacity>
       </View>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  root: {
+  safeArea: {
     flex: 1,
+    backgroundColor: C.white,
+  },
+  root: {
+    flexGrow: 1,
     backgroundColor: C.g100,
     alignItems: 'center',
     justifyContent: 'center',

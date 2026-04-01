@@ -8,6 +8,7 @@ import {
   ScrollView, Platform, StatusBar, Alert, Modal,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle, Rect, Polyline } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';
@@ -61,6 +62,11 @@ const IconEdit     = ({ size = 15, color = C.white }) => (
 const IconBack     = ({ size = 20, color = C.g600 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <Path d="M15 19l-7-7 7-7" />
+  </Svg>
+);
+const IconGo     = ({ size = 20, color = C.g600 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M9 5l 7 7 -7 7" />
   </Svg>
 );
 const IconCar      = ({ size = 18, color = C.primary }) => (
@@ -226,7 +232,7 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.g50 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.g50 }} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor={C.navy} />
 
       <ScrollView
@@ -461,7 +467,7 @@ export default function ProfileScreen() {
               <Text style={p.quickLabel}>
                 {u.role === 'owner' ? 'My Dashboard' : 'Browse Vehicles'}
               </Text>
-              <IconBack size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
+              <IconGo size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
             </TouchableOpacity>
 
             <View style={p.divider} />
@@ -473,7 +479,7 @@ export default function ProfileScreen() {
               <Text style={p.quickLabel}>
                 {u.role === 'owner' ? 'Rental Requests' : u.role === 'admin' ? 'Booking Summary' : 'My Bookings'}
               </Text>
-              <IconBack size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
+              <IconGo size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
             </TouchableOpacity>
 
             <View style={p.divider} />
@@ -483,7 +489,7 @@ export default function ProfileScreen() {
                 <IconLock size={16} color={C.warning} />
               </View>
               <Text style={p.quickLabel}>Change Password</Text>
-              <IconBack size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
+              <IconGo size={14} color={C.g400} style={{ transform: [{ rotate: '180deg' }] }} />
             </TouchableOpacity>
 
             {u.role === 'admin' && (
@@ -506,7 +512,7 @@ export default function ProfileScreen() {
                 <IconLogout size={16} color={C.danger} />
               </View>
               <Text style={[p.quickLabel, { color: C.danger }]}>Log Out</Text>
-              <IconBack size={14} color={C.danger} style={{ transform: [{ rotate: '180deg' }] }} />
+              <IconGo size={14} color={C.danger} style={{ transform: [{ rotate: '180deg' }] }} />
             </TouchableOpacity>
           </View>
         )}
@@ -549,7 +555,7 @@ export default function ProfileScreen() {
         )}
 
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

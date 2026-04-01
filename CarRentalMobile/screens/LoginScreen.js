@@ -4,7 +4,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator, Platform, StatusBar, KeyboardAvoidingView,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';   // ← NEW
@@ -152,14 +152,15 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: C.navy }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={insets.top + 10}
-    >
-      <StatusBar barStyle="light-content" backgroundColor={C.navy} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: C.navy }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={insets.top + 10}
+      >
+        <StatusBar barStyle="light-content" backgroundColor={C.navy} />
 
-      <ScrollView
+        <ScrollView
         ref={scrollRef}
         contentContainerStyle={[s.scroll, { paddingBottom: Math.max(160, insets.bottom + 40) }]}
         keyboardShouldPersistTaps="handled"
@@ -284,7 +285,8 @@ export default function LoginScreen() {
 
         <View style={{ height: 120 }} />
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

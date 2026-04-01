@@ -6,8 +6,9 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  Modal, StyleSheet, Alert, Platform, Image,
+  Modal, StyleSheet, Alert, Platform, Image, StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect, G } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';
 import { useLogReport } from '../context/LogReportContext';
@@ -896,7 +897,8 @@ export default function LogReportScreen({ pendingRental, onClearPendingRental })
 
   /* ── List ── */
   return (
-    <View style={{ flex: 1, backgroundColor: C.g50 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.g50 }} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.white} />
       {/* Header */}
       <View style={st.header}>
         <View>
@@ -984,7 +986,7 @@ export default function LogReportScreen({ pendingRental, onClearPendingRental })
           })
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
