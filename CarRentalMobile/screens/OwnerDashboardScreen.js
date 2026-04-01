@@ -319,6 +319,11 @@ export default function OwnerDashboardScreen() {
   const { reports } = useLogReport();
   const { getOwnerVehicles, addVehicle, updateVehicle, deleteVehicle } = useVehicles();
 
+  // ── Guard: redirect to login if user is not loaded yet ──
+  if (!user) {
+    router.replace('/login');
+    return null;
+  }
   const [activeTab,        setActiveTab]        = useState('home');
   const [pendingLogRental, setPendingLogRental]  = useState(null);
   const [searchQuery,      setSearchQuery]       = useState('');
