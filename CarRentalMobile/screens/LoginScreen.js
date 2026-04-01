@@ -58,6 +58,12 @@ const ArrowIcon = () => (
   </Svg>
 );
 
+const DEMO_CREDENTIALS = [
+  { label: 'Admin', email: 'admin@demo.com', password: 'admin123' },
+  { label: 'Owner', email: 'owner@demo.com', password: 'owner123' },
+  { label: 'Renter', email: 'renter@demo.com', password: 'renter123' },
+];
+
 export default function LoginScreen() {
   const router    = useRouter();
   const { login, user, loading: authLoading } = useAuth();
@@ -100,6 +106,12 @@ export default function LoginScreen() {
     }
   };
 
+  const useDemoAccount = ({ email: demoEmail, password: demoPassword }) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setError('');
+  };
+
   const handleLogin = async () => {
     if (loading || authLoading) return;
     setError('');
@@ -132,11 +144,11 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.g50 }} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: C.navy }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.top + 10}
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 10 : 0}
       >
         <StatusBar barStyle="light-content" backgroundColor={C.navy} />
 
@@ -146,7 +158,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         bounces={false}
-        keyboardDismissMode="interactive"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
         {/* ── HERO ── */}
         <View style={s.hero}>
@@ -264,6 +276,27 @@ export default function LoginScreen() {
           <TouchableOpacity style={s.outlineBtn} onPress={() => router.push('/register')} activeOpacity={0.85}>
             <Text style={s.outlineBtnText}>Create an Account</Text>
           </TouchableOpacity>
+
+          <View style={s.demoBox}>
+            <Text style={s.demoTitle}>demo credentials</Text>
+            {DEMO_CREDENTIALS.map((demo) => (
+              <TouchableOpacity
+                key={demo.label}
+                style={s.demoRow}
+                activeOpacity={0.85}
+                onPress={() => useDemoAccount(demo)}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.demoRole}>{demo.label}</Text>
+                  <Text style={s.demoCred}>email: {demo.email}</Text>
+                  <Text style={s.demoCred}>pass: {demo.password}</Text>
+                </View>
+                <View style={s.demoUseBtn}>
+                  <Text style={s.demoUseBtnText}>Use</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         <View style={{ height: 120 }} />
@@ -289,6 +322,13 @@ const s = StyleSheet.create({
   cardAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 6, backgroundColor: C.primary },
   cardTitle: { fontSize: 22, fontWeight: '800', color: C.g800, marginBottom: 4 },
   cardSub:   { fontSize: 14, color: C.g500, marginBottom: 24 },
+  demoBox: { backgroundColor: C.g50, borderWidth: 1, borderColor: C.g200, borderRadius: 10, padding: 10, marginTop: 16 },
+  demoTitle: { fontSize: 11, fontWeight: '700', color: C.g600, marginBottom: 6 },
+  demoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: C.g200, borderRadius: 9, backgroundColor: C.white, paddingHorizontal: 9, paddingVertical: 7, marginBottom: 6 },
+  demoRole: { fontSize: 12, fontWeight: '700', color: C.navy, marginBottom: 1 },
+  demoCred: { fontSize: 11, color: C.g600, fontWeight: '500' },
+  demoUseBtn: { backgroundColor: C.primaryLt, borderWidth: 1, borderColor: '#bbf7d0', borderRadius: 7, paddingHorizontal: 8, paddingVertical: 5 },
+  demoUseBtnText: { color: C.primaryDk, fontSize: 11, fontWeight: '700' },
   sessionBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.primaryLt, borderRadius: 10, borderWidth: 1, borderColor: '#bbf7d0', padding: 12, marginBottom: 18 },
   sessionText: { fontSize: 13, color: C.primaryDk, fontWeight: '600' },
 

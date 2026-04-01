@@ -784,6 +784,7 @@ export default function LogReportScreen({ hideHeader = false, pendingRental, onC
   const isRenter = user?.role === 'renter';
 
   const [search,   setSearch]   = useState('');
+  const [reportFilter, setReportFilter] = useState('all');
   const [selected, setSelected] = useState(null);
   const [newEntry, setNewEntry] = useState(null);
 
@@ -800,7 +801,7 @@ export default function LogReportScreen({ hideHeader = false, pendingRental, onC
     return [];
   }, [reports, user]);
 
-  const filtered = useMemo(() => {
+  const searchedReports = useMemo(() => {
     if (!search.trim()) return myReports;
     const q = search.toLowerCase();
     return myReports.filter(r =>
@@ -808,6 +809,22 @@ export default function LogReportScreen({ hideHeader = false, pendingRental, onC
       r.rental?.renterName?.toLowerCase().includes(q)
     );
   }, [myReports, search]);
+
+  const filtered = useMemo(() => {
+    if (reportFilter === 'all') return searchedReports;
+    if (reportFilter === 'awaiting') return searchedReports.filter(r => !r.checkout);
+    if (reportFilter === 'complete') return searchedReports.filter(r => !!r.checkout);
+    if (reportFilter === 'damaged') {
+      return searchedReports.filter(r => {
+        if (!r.checkout) return false;
+        const ci = r.checkin?.issues || [];
+        const co = r.checkout?.issues || [];
+        return co.some(i => !ci.includes(i));
+      });
+    }
+    if (reportFilter === 'commented') return searchedReports.filter(r => (r.comments || []).length > 0);
+    return searchedReports;
+  }, [searchedReports, reportFilter]);
 
   const handleNewSave = async ({ rental, checkin }) => {
     await addReport({ rental, checkin, checkout: null, comments: [] });
@@ -877,6 +894,26 @@ export default function LogReportScreen({ hideHeader = false, pendingRental, onC
             onChangeText={setSearch}
           />
         </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+          <View style={st.filterRow}>
+            {[
+              { key: 'all',      label: 'All' },
+              { key: 'awaiting', label: 'Awaiting C/O' },
+              { key: 'complete', label: 'Complete' },
+              { key: 'damaged',  label: 'Damaged' },
+              { key: 'commented', label: 'Commented' },
+            ].map(item => (
+              <TouchableOpacity
+                key={item.key}
+                onPress={() => setReportFilter(item.key)}
+                style={[st.filterPill, reportFilter === item.key && st.filterPillActive]}
+              >
+                <Text style={[st.filterPillText, reportFilter === item.key && st.filterPillTextActive]}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
 
         {filtered.length === 0 ? (
           <View style={st.emptyBox}>
@@ -980,6 +1017,11 @@ const st = StyleSheet.create({
     marginBottom: 14,
   },
   searchInput: { flex: 1, fontSize: 14, color: C.g900 },
+  filterRow: { flexDirection: 'row', gap: 8 },
+  filterPill: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: C.g200, backgroundColor: C.white },
+  filterPillActive: { borderColor: C.primary, backgroundColor: C.primaryLt },
+  filterPillText: { fontSize: 12, color: C.g500, fontWeight: '600' },
+  filterPillTextActive: { color: C.primaryDk },
   logCard: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: C.white, borderRadius: 12,

@@ -360,8 +360,10 @@ function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog }) {
 }
 
 /* ── Home Tab ── */
-function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdit, onDelete }) {
-  // Summary counts for approval statuses
+function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdit, onDelete, filters, onToggleFilter, onSetPriceFilter, onClearFilters }) {
+  const activeFilterCount =
+    filters.statuses.length + filters.fuels.length + (filters.minPrice ? 1 : 0) + (filters.maxPrice ? 1 : 0);
+
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
       <View style={s.statsRow}>
@@ -383,6 +385,64 @@ function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdi
         <TextInput style={[s.searchInput, { marginLeft: 8 }]} placeholder="Search your vehicles…"
           placeholderTextColor={C.g400} value={searchQuery} onChangeText={setSearchQuery} />
       </View>
+
+      <View style={s.filterPanel}>
+        <View style={s.filterPanelHeader}>
+          <Text style={s.filterPanelTitle}>Filters</Text>
+          {activeFilterCount > 0 && (
+            <TouchableOpacity onPress={onClearFilters}>
+              <Text style={s.clearFilterText}>Clear ({activeFilterCount})</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <Text style={s.filterLabel}>Status</Text>
+        <View style={s.filterRow}>
+          {['available', 'rented', 'unavailable'].map(st => {
+            const active = filters.statuses.includes(st);
+            return (
+              <TouchableOpacity key={st} onPress={() => onToggleFilter('statuses', st)} style={[s.filterPill, active && s.filterPillActive]}>
+                <Text style={[s.filterPillText, active && s.filterPillTextActive]}>
+                  {st.charAt(0).toUpperCase() + st.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={s.filterLabel}>Fuel</Text>
+        <View style={s.filterRow}>
+          {['Gasoline', 'Diesel', 'Hybrid', 'Electric'].map(fuel => {
+            const active = filters.fuels.includes(fuel);
+            return (
+              <TouchableOpacity key={fuel} onPress={() => onToggleFilter('fuels', fuel)} style={[s.filterPill, active && s.filterPillActive]}>
+                <Text style={[s.filterPillText, active && s.filterPillTextActive]}>{fuel}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={s.filterLabel}>Price / Day</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TextInput
+            style={[s.input, { flex: 1 }]}
+            keyboardType="numeric"
+            placeholder="Min"
+            placeholderTextColor={C.g400}
+            value={filters.minPrice}
+            onChangeText={v => onSetPriceFilter('minPrice', v.replace(/[^0-9]/g, ''))}
+          />
+          <TextInput
+            style={[s.input, { flex: 1 }]}
+            keyboardType="numeric"
+            placeholder="Max"
+            placeholderTextColor={C.g400}
+            value={filters.maxPrice}
+            onChangeText={v => onSetPriceFilter('maxPrice', v.replace(/[^0-9]/g, ''))}
+          />
+        </View>
+      </View>
+
       <View style={{ paddingHorizontal: 16 }}>
         {filtered.length === 0 ? (
           <View style={s.empty}>
@@ -417,7 +477,25 @@ export default function OwnerDashboardScreen() {
   const [activeTab,        setActiveTab]        = useState('home');
   const [pendingLogRental, setPendingLogRental]  = useState(null);
   const [searchQuery,      setSearchQuery]       = useState('');
+  const [ownerFilters,     setOwnerFilters]      = useState({ statuses: [], fuels: [], minPrice: '', maxPrice: '' });
   const [showAddModal,     setShowAddModal]      = useState(false);
+    const toggleOwnerFilter = (key, value) => {
+      setOwnerFilters(prev => ({
+        ...prev,
+        [key]: prev[key].includes(value)
+          ? prev[key].filter(v => v !== value)
+          : [...prev[key], value],
+      }));
+    };
+
+    const setOwnerPriceFilter = (key, value) => {
+      setOwnerFilters(prev => ({ ...prev, [key]: value }));
+    };
+
+    const clearOwnerFilters = () => {
+      setOwnerFilters({ statuses: [], fuels: [], minPrice: '', maxPrice: '' });
+    };
+
   const [showEditModal,    setShowEditModal]     = useState(false);
   const [editTarget,       setEditTarget]        = useState(null);
 
@@ -434,12 +512,35 @@ export default function OwnerDashboardScreen() {
   }), [vehicles]);
 
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return vehicles;
-    const q = searchQuery.toLowerCase();
-    return vehicles.filter(v =>
-      v.name?.toLowerCase().includes(q) || v.model?.toLowerCase().includes(q)
-    );
-  }, [vehicles, searchQuery]);
+    let result = vehicles;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(v =>
+        v.name?.toLowerCase().includes(q) ||
+        v.model?.toLowerCase().includes(q) ||
+        v.location?.toLowerCase().includes(q)
+      );
+    }
+
+    if (ownerFilters.statuses.length > 0) {
+      result = result.filter(v => ownerFilters.statuses.includes(v.status));
+    }
+
+    if (ownerFilters.fuels.length > 0) {
+      result = result.filter(v => ownerFilters.fuels.includes(v.fuel));
+    }
+
+    if (ownerFilters.minPrice) {
+      result = result.filter(v => (parseFloat(v.pricePerDay) || 0) >= Number(ownerFilters.minPrice));
+    }
+
+    if (ownerFilters.maxPrice) {
+      result = result.filter(v => (parseFloat(v.pricePerDay) || 0) <= Number(ownerFilters.maxPrice));
+    }
+
+    return result;
+  }, [vehicles, searchQuery, ownerFilters]);
 
   const openEdit = v => { setEditTarget(v); setShowEditModal(true); };
 
@@ -499,6 +600,10 @@ export default function OwnerDashboardScreen() {
             vehicles={vehicles} stats={stats}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             filtered={filtered} onEdit={openEdit} onDelete={handleDelete}
+            filters={ownerFilters}
+            onToggleFilter={toggleOwnerFilter}
+            onSetPriceFilter={setOwnerPriceFilter}
+            onClearFilters={clearOwnerFilters}
           />
         );
       case 'rentals':
@@ -598,6 +703,16 @@ const s = StyleSheet.create({
   filterTabActive:     { backgroundColor: C.primary, borderColor: C.primary },
   filterTabText:       { fontSize: 12, color: C.g500 },
   filterTabTextActive: { color: C.white, fontWeight: '700' },
+  filterPanel: { marginHorizontal: 16, marginBottom: 14, backgroundColor: C.white, borderRadius: 12, borderWidth: 1, borderColor: '#dbe3ee', padding: 12 },
+  filterPanelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  filterPanelTitle: { fontSize: 13, fontWeight: '700', color: C.g700 },
+  clearFilterText: { fontSize: 12, fontWeight: '700', color: C.primary },
+  filterLabel: { fontSize: 11, fontWeight: '700', color: C.g400, marginBottom: 6, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.6 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: '#dbe3ee', backgroundColor: C.white },
+  filterPillActive: { backgroundColor: C.primaryLt, borderColor: C.primary },
+  filterPillText: { fontSize: 12, color: C.g500, fontWeight: '600' },
+  filterPillTextActive: { color: C.primaryDk },
   empty:        { alignItems: 'center', padding: 48, backgroundColor: '#f6f9fd', borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: '#d5dfec' },
   emptyTitle:   { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 6 },
   emptySub:     { fontSize: 13, color: C.g400, textAlign: 'center' },

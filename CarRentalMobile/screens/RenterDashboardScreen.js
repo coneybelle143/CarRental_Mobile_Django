@@ -5,6 +5,7 @@ import {
   Modal, StyleSheet, Alert, Platform, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter }    from 'expo-router';
 import { useAuth }      from '../context/AuthContext';
 import { useBookings }  from '../context/BookingContext';
@@ -67,7 +68,7 @@ function DashboardHeader({ activeTab, userName }) {
   );
 }
 
-function VehicleCard({ vehicle, onRent }) {
+function VehicleCard({ vehicle, onRent, isSaved, onToggleSave }) {
   const available = vehicle.status === 'available';
   const vehicleName = vehicle.name || 'Unnamed Vehicle';
   const yearLabel = vehicle.year || '----';
@@ -115,15 +116,23 @@ function VehicleCard({ vehicle, onRent }) {
             ₱{parseFloat(vehicle.pricePerDay).toLocaleString()}
             <Text style={s.vehiclePricePer}>/day</Text>
           </Text>
-          <TouchableOpacity
-            onPress={() => onRent(vehicle)}
-            disabled={!available}
-            style={[s.rentBtn, !available && s.rentBtnDisabled]}
-          >
-            <Text style={[s.rentBtnText, !available && { color: C.g400 }]}>
-              {available ? 'Rent Now' : 'Taken'}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => onToggleSave(vehicle.id)}
+              style={[s.saveBtn, isSaved && s.saveBtnActive]}
+            >
+              <Text style={[s.saveBtnText, isSaved && s.saveBtnTextActive]}>{isSaved ? 'Saved' : 'Save'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => onRent(vehicle)}
+              disabled={!available}
+              style={[s.rentBtn, !available && s.rentBtnDisabled]}
+            >
+              <Text style={[s.rentBtnText, !available && { color: C.g400 }]}>
+                {available ? 'Rent Now' : 'Taken'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </View>
@@ -225,7 +234,7 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
   );
 }
 
-function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
+function HomeTab({ vehicles, bookings, onCreateBooking, user, savedVehicleIds, onToggleSave }) {
   const [search,     setSearch]     = useState('');
   const [filter,     setFilter]     = useState('all');
   const [rentModal,  setRentModal]  = useState(false);
@@ -234,6 +243,7 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
   const filtered = useMemo(() => {
     let list = vehicles;
     if (filter === 'available') list = list.filter(v => v.status === 'available');
+    if (filter === 'saved') list = list.filter(v => savedVehicleIds.includes(String(v.id)));
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(v =>
@@ -244,7 +254,7 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
       );
     }
     return list;
-  }, [vehicles, filter, search]);
+  }, [vehicles, filter, search, savedVehicleIds]);
 
   const openRent = v => { setSelVehicle(v); setRentModal(true); };
 
@@ -286,11 +296,11 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
           />
         </View>
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-          {['all', 'available'].map(f => (
+          {['all', 'available', 'saved'].map(f => (
             <TouchableOpacity key={f} onPress={() => setFilter(f)}
               style={[s.filterTab, filter === f && s.filterTabActive]}>
               <Text style={[s.filterTabText, filter === f && s.filterTabTextActive]}>
-                {f === 'all' ? 'All Vehicles' : 'Available Only'}
+                {f === 'all' ? 'All Vehicles' : f === 'available' ? 'Available Only' : `Saved (${savedVehicleIds.length})`}
               </Text>
             </TouchableOpacity>
           ))}
@@ -305,11 +315,19 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
         ) : filtered.length === 0 ? (
           <View style={s.empty}>
             <Text style={{ fontSize: 40, marginBottom: 10 }}>🔍</Text>
-            <Text style={s.emptyTitle}>No vehicles found</Text>
-            <Text style={s.emptySub}>Try adjusting your search filters.</Text>
+            <Text style={s.emptyTitle}>{filter === 'saved' ? 'No saved vehicles yet' : 'No vehicles found'}</Text>
+            <Text style={s.emptySub}>{filter === 'saved' ? 'Tap Save on a car to add it here.' : 'Try adjusting your search filters.'}</Text>
           </View>
         ) : (
-          filtered.map(v => <VehicleCard key={v.id} vehicle={v} onRent={openRent} />)
+          filtered.map(v => (
+            <VehicleCard
+              key={v.id}
+              vehicle={v}
+              onRent={openRent}
+              isSaved={savedVehicleIds.includes(String(v.id))}
+              onToggleSave={onToggleSave}
+            />
+          ))
         )}
       </View>
 
@@ -334,11 +352,46 @@ export default function RenterDashboardScreen() {
   }, [user, router]);
 
   const [activeTab, setActiveTab] = useState('home');
+  const [savedVehicleIds, setSavedVehicleIds] = useState([]);
   const userName  = user?.firstName || user?.fullName || 'Renter';
   const myRentals = getBookingsForRenter(user?.email);
 
   // Only show vehicles the admin has approved
   const approvedVehicles = getApprovedVehicles();
+
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!user?.email) {
+        if (mounted) setSavedVehicleIds([]);
+        return;
+      }
+      try {
+        const raw = await AsyncStorage.getItem(`carRental.savedVehicles.${user.email.toLowerCase()}`);
+        if (!mounted) return;
+        const parsed = raw ? JSON.parse(raw) : [];
+        setSavedVehicleIds(Array.isArray(parsed) ? parsed.map(String) : []);
+      } catch {
+        if (mounted) setSavedVehicleIds([]);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [user?.email]);
+
+  const toggleSaveVehicle = async (vehicleId) => {
+    if (!user?.email) return;
+    const id = String(vehicleId);
+    const next = savedVehicleIds.includes(id)
+      ? savedVehicleIds.filter(v => v !== id)
+      : [...savedVehicleIds, id];
+
+    setSavedVehicleIds(next);
+    try {
+      await AsyncStorage.setItem(`carRental.savedVehicles.${user.email.toLowerCase()}`, JSON.stringify(next));
+    } catch {
+      // Keep UI responsive even if persistence fails.
+    }
+  };
 
   const handleTabPress = tab => {
     if (tab === 'profile') { router.push('/profile'); return; }
@@ -354,6 +407,8 @@ export default function RenterDashboardScreen() {
             bookings={myRentals}
             onCreateBooking={addBooking}
             user={user}
+            savedVehicleIds={savedVehicleIds}
+            onToggleSave={toggleSaveVehicle}
           />
         );
       case 'bookings':
@@ -426,6 +481,10 @@ const s = StyleSheet.create({
   vehicleSub:          { fontSize: 12, color: C.g500, marginTop: 2 },
   vehiclePrice:        { fontSize: 20, color: C.primary, fontWeight: '800' },
   vehiclePricePer:     { fontSize: 12, color: C.primaryDk, fontWeight: '700' },
+  saveBtn:             { backgroundColor: C.white, borderRadius: 11, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.g200 },
+  saveBtnActive:       { backgroundColor: C.primaryLt, borderColor: C.primary },
+  saveBtnText:         { color: C.g600, fontSize: 13, fontWeight: '700' },
+  saveBtnTextActive:   { color: C.primaryDk },
   rentBtn:             { backgroundColor: C.primary, borderRadius: 11, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   rentBtnDisabled:     { backgroundColor: C.g100 },
   rentBtnText:         { color: C.white, fontSize: 13, fontWeight: '800' },
