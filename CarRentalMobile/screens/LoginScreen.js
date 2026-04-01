@@ -1,5 +1,5 @@
 // screens/LoginScreen.js  – with AuthContext integration
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator, Platform, StatusBar, KeyboardAvoidingView,
@@ -60,7 +60,7 @@ const ArrowIcon = () => (
 
 export default function LoginScreen() {
   const router    = useRouter();
-  const { login } = useAuth();   // ← NEW
+  const { login, user, loading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef(null);
   const pwInputRef = useRef(null);
@@ -74,6 +74,23 @@ export default function LoginScreen() {
 
   const fieldY = useRef({});
 
+  useEffect(() => {
+    if (authLoading || !user) return;
+    if (user.role === 'owner') {
+      router.replace('/dashboard');
+      return;
+    }
+    if (user.role === 'renter') {
+      router.replace('/renter');
+      return;
+    }
+    if (user.role === 'admin') {
+      router.replace('/admin');
+      return;
+    }
+    router.replace('/login');
+  }, [authLoading, user, router]);
+
   const scrollToField = (name) => {
     const y = fieldY.current[name];
     if (y != null && scrollRef.current) {
@@ -84,10 +101,12 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
+    if (loading || authLoading) return;
     setError('');
-    if (!email.trim() || !password.trim()) { setError('Please fill in all fields.'); return; }
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password.trim()) { setError('Please fill in all fields.'); return; }
     setLoading(true);
-    const result = await login(email, password);
+    const result = await login(normalizedEmail, password);
     setLoading(false);
 
     if (!result.ok) {
@@ -135,12 +154,24 @@ export default function LoginScreen() {
           <View style={s.logoBox}><CarIcon size={28} color={C.primary} /></View>
           <Text style={s.heroTitle}>Welcome Back</Text>
           <Text style={s.heroSub}>Sign in to continue to CarRental</Text>
+          <View style={s.heroMetaRow}>
+            <View style={s.heroMetaChip}><Text style={s.heroMetaText}>Secure Login</Text></View>
+            <View style={s.heroMetaChip}><Text style={s.heroMetaText}>Owner • Renter • Admin</Text></View>
+          </View>
         </View>
 
         {/* ── FORM CARD ── */}
         <View style={s.card}>
+          <View style={s.cardAccent} />
           <Text style={s.cardTitle}>Sign In</Text>
           <Text style={s.cardSub}>Enter your account details below</Text>
+
+          {authLoading && (
+            <View style={s.sessionBox}>
+              <ActivityIndicator color={C.primary} size="small" />
+              <Text style={s.sessionText}>Restoring your session...</Text>
+            </View>
+          )}
 
           {!!error && (
             <View style={s.errorBox}>
@@ -214,10 +245,10 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={[s.btn, loading && { opacity: 0.75 }]}
             onPress={handleLogin}
-            disabled={loading}
+            disabled={loading || authLoading}
             activeOpacity={0.87}
           >
-            {loading
+            {(loading || authLoading)
               ? <ActivityIndicator color={C.white} size="small" />
               : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Text style={s.btnText}>Sign In</Text><ArrowIcon />
@@ -250,14 +281,16 @@ const s = StyleSheet.create({
   logoBox: { width: 58, height: 58, borderRadius: 18, backgroundColor: C.white, alignItems: 'center', justifyContent: 'center', marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, elevation: 5 },
   heroTitle: { fontSize: 30, fontWeight: '800', color: C.white, letterSpacing: -0.5, marginBottom: 8 },
   heroSub:   { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 28, lineHeight: 20 },
-  demoHeading: { fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: '700', letterSpacing: 0.8, marginBottom: 10 },
-  demoRow:  { flexDirection: 'row', gap: 10 },
-  demoChip: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 999, backgroundColor: 'rgba(63,155,132,0.2)', borderWidth: 1, borderColor: 'rgba(63,155,132,0.4)' },
-  demoChipText: { fontSize: 13, fontWeight: '700', color: '#7dd3c0' },
+  heroMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  heroMetaChip: { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  heroMetaText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.88)' },
 
-  card: { backgroundColor: C.white, marginHorizontal: 16, marginTop: -24, borderRadius: 24, padding: 28, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 8 }, elevation: 10 },
+  card: { backgroundColor: C.white, marginHorizontal: 16, marginTop: -24, borderRadius: 24, padding: 28, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 8 }, elevation: 10, overflow: 'hidden' },
+  cardAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 6, backgroundColor: C.primary },
   cardTitle: { fontSize: 22, fontWeight: '800', color: C.g800, marginBottom: 4 },
   cardSub:   { fontSize: 14, color: C.g500, marginBottom: 24 },
+  sessionBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.primaryLt, borderRadius: 10, borderWidth: 1, borderColor: '#bbf7d0', padding: 12, marginBottom: 18 },
+  sessionText: { fontSize: 13, color: C.primaryDk, fontWeight: '600' },
 
   errorBox:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 10, padding: 12, marginBottom: 20 },
   errorText: { color: C.danger, fontSize: 13, fontWeight: '600', flex: 1 },

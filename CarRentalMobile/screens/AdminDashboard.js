@@ -61,7 +61,7 @@ const TABS = [
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const {
     vehicles,
     getPendingVehicles,
@@ -83,6 +83,8 @@ export default function AdminDashboard() {
       router.replace(user.role === 'owner' ? '/dashboard' : '/renter');
     }
   }, [router, user]);
+
+  if (!user || user.role !== 'admin') return null;
 
   const pendingVehicles  = getPendingVehicles();
   const approvedVehicles = getApprovedVehicles();
@@ -130,7 +132,10 @@ export default function AdminDashboard() {
 
   const toggleProfileMenu = () => setProfileMenuOpen(o => !o);
   const closeProfileMenu  = () => setProfileMenuOpen(false);
-  const onLogout = () => { closeProfileMenu(); router.replace('/login'); };
+  const onLogout = async () => {
+    closeProfileMenu();
+    await logout();
+  };
   const onProfile = () => { closeProfileMenu(); router.push('/profile'); };
   const onEmailLog = () => { closeProfileMenu(); router.push('/email-log'); };
 

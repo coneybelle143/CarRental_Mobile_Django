@@ -326,7 +326,7 @@ export default function RenterDashboardScreen() {
 
   React.useEffect(() => {
     if (!user) router.replace('/login');
-  }, [user]);
+  }, [user, router]);
 
   const [activeTab, setActiveTab] = useState('home');
   const userName  = user?.firstName || user?.fullName || 'Renter';
@@ -361,6 +361,8 @@ export default function RenterDashboardScreen() {
   };
 
   const pendingCount = myRentals.filter((booking) => booking.status === 'pending').length;
+
+  if (!user) return null;
 
   return (
     <View style={{ flex: 1, backgroundColor: '#edf1f7' }}>

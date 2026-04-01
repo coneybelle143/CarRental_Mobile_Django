@@ -1,5 +1,5 @@
 // screens/OwnerDashboardScreen.js
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Modal, StyleSheet, Alert, Platform, StatusBar, Image,
@@ -444,11 +444,13 @@ export default function OwnerDashboardScreen() {
   const { getBookingsForOwner, setBookingStatus } = useBookings();
   const { reports } = useLogReport();
   const { getOwnerVehicles, addVehicle, updateVehicle, deleteVehicle } = useVehicles();
+  const ownerId = user?.id || user?.email;
 
-  if (!user) {
-    router.replace('/login');
-    return null;
-  }
+  useEffect(() => {
+    if (!user) {
+      router.replace('/login');
+    }
+  }, [user, router]);
 
   const [activeTab,        setActiveTab]        = useState('home');
   const [pendingLogRental, setPendingLogRental]  = useState(null);
@@ -457,8 +459,8 @@ export default function OwnerDashboardScreen() {
   const [showEditModal,    setShowEditModal]     = useState(false);
   const [editTarget,       setEditTarget]        = useState(null);
 
-  const vehicles = getOwnerVehicles(user?.id || user?.email);
-  const rentalHistory = getBookingsForOwner(user?.id || user?.email);
+  const vehicles = getOwnerVehicles(ownerId);
+  const rentalHistory = getBookingsForOwner(ownerId);
   const userName     = user?.firstName || user?.fullName || 'Owner';
   const pendingCount = rentalHistory.filter(r => r.status === 'pending').length;
 
@@ -486,7 +488,17 @@ export default function OwnerDashboardScreen() {
   const openEdit = v => { setEditTarget(v); setShowEditModal(true); };
 
   const handleAdd = form => {
-    addVehicle(form, user);
+    if (!user) {
+      Alert.alert('Session expired', 'Please sign in again to continue.');
+      return;
+    }
+
+    const created = addVehicle(form, user);
+    if (!created) {
+      Alert.alert('Unable to add vehicle', 'Please sign in again and try once more.');
+      return;
+    }
+
     setShowAddModal(false);
     Alert.alert(
       'Submitted! ⏳',
@@ -495,6 +507,11 @@ export default function OwnerDashboardScreen() {
   };
 
   const handleEdit = form => {
+    if (!editTarget?.id) {
+      Alert.alert('No vehicle selected', 'Please choose a vehicle to edit first.');
+      return;
+    }
+
     updateVehicle(editTarget.id, form);
     setShowEditModal(false);
     setEditTarget(null);
@@ -549,6 +566,8 @@ export default function OwnerDashboardScreen() {
         return null;
     }
   };
+
+  if (!user) return null;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#e7eef6' }} edges={['top', 'bottom']}>

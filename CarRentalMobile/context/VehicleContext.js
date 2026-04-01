@@ -48,13 +48,26 @@ export function VehicleProvider({ children }) {
    *   'rejected' — admin rejected, not visible to renters
    */
   const addVehicle = (vehicleData, owner) => {
+    if (!owner) {
+      console.warn('[VehicleContext] addVehicle called without owner.');
+      return null;
+    }
+
+    const ownerId = owner?.id || owner?.email;
+    const ownerName = owner?.firstName
+      ? `${owner.firstName} ${owner.lastName || ''}`.trim()
+      : owner?.fullName || owner?.email || 'Unknown Owner';
+
+    if (!ownerId) {
+      console.warn('[VehicleContext] addVehicle missing owner identifier.');
+      return null;
+    }
+
     const newVehicle = {
       ...vehicleData,
       id: Date.now(),
-      ownerId: owner.id || owner.email,
-      ownerName: owner.firstName
-        ? `${owner.firstName} ${owner.lastName || ''}`.trim()
-        : owner.fullName || owner.email || 'Unknown Owner',
+      ownerId,
+      ownerName,
       approvalStatus: 'pending', // always starts pending
       approvalNote: '',          // admin can attach a rejection note
       submittedAt: new Date().toISOString(),

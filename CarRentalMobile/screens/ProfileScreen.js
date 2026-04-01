@@ -407,16 +407,14 @@ function PhotoModal({ visible, currentUri, onClose, onSave, onRemove }) {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, updateUser, updatePhoto, logout } = useAuth();
+  const u = user || {};
 
   React.useEffect(() => {
     if (!user) router.replace('/login');
   }, [router, user]);
 
-  if (!user) return null;
-  const u = user;
-
   const roleMeta    = ROLE_META[u.role] || ROLE_META.renter;
-  const displayName = u.fullName || `${u.firstName} ${u.lastName}`;
+  const displayName = u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'User';
 
   // ── Photo modal visibility ─────────────────────────────────────────────────
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
@@ -435,6 +433,16 @@ export default function ProfileScreen() {
     phone:      u.phone      || '',
     email:      u.email      || '',
   });
+
+  React.useEffect(() => {
+    setDraft({
+      firstName:  user?.firstName  || '',
+      lastName:   user?.lastName   || '',
+      middleName: user?.middleName || '',
+      phone:      user?.phone      || '',
+      email:      user?.email      || '',
+    });
+  }, [user]);
 
   const setD = (k, v) => setDraft(d => ({ ...d, [k]: v }));
 
@@ -475,7 +483,7 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: async () => { await logout(); router.replace('/login'); } },
+      { text: 'Log Out', style: 'destructive', onPress: async () => { await logout(); } },
     ]);
   };
 
@@ -488,6 +496,8 @@ export default function ProfileScreen() {
     : u.sex ? u.sex.charAt(0).toUpperCase() + u.sex.slice(1) : '';
 
   const inputStyle = (field) => [s.input, focused === field && s.inputFocused];
+
+  if (!user) return null;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.g50 }} edges={['top', 'bottom']}>
