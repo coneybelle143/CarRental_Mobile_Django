@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  Modal, StyleSheet, Alert, Platform, StatusBar, Image,
+  Modal, StyleSheet, Alert, Platform, StatusBar, Image, RefreshControl,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -226,7 +226,7 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
 }
 
 /* ── Rentals Tab ── */
-function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog }) {
+function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog, refreshing, onRefresh }) {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -306,7 +306,11 @@ function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog }) {
         <TextInput style={[s.searchInput, { marginLeft: 8 }]} placeholder="Search rentals…"
           placeholderTextColor={C.g400} value={search} onChangeText={setSearch} />
       </View>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 0, paddingBottom: 100 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 0, paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {filtered.length === 0 ? (
           <View style={s.empty}><Text style={s.emptyTitle}>No rentals found</Text></View>
         ) : (
@@ -360,12 +364,14 @@ function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog }) {
 }
 
 /* ── Home Tab ── */
-function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdit, onDelete, filters, onToggleFilter, onSetPriceFilter, onClearFilters }) {
+function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdit, onDelete, filters, onToggleFilter, onSetPriceFilter, onClearFilters, refreshing, onRefresh }) {
   const activeFilterCount =
     filters.statuses.length + filters.fuels.length + (filters.minPrice ? 1 : 0) + (filters.maxPrice ? 1 : 0);
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <View style={s.statsRow}>
         {[
           { label: 'Total',     value: stats.total,                            color: C.primary },
@@ -465,8 +471,8 @@ export default function OwnerDashboardScreen() {
   const { user } = useAuth();
   const { getBookingsForOwner, setBookingStatus } = useBookings();
   const { reports } = useLogReport();
-  const { getOwnerVehicles, addVehicle, updateVehicle, deleteVehicle } = useVehicles();
-  const ownerId = user?.id || user?.email;
+  const { getOwnerVehicles, addVehicle, updateVehicle, deleteVehicle, refreshVehicles } = useVehicles();
+  const ownerId = user?.id || user?.pk || user?.email;
 
   useEffect(() => {
     if (!user) {
@@ -498,8 +504,9 @@ export default function OwnerDashboardScreen() {
 
   const [showEditModal,    setShowEditModal]     = useState(false);
   const [editTarget,       setEditTarget]        = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const vehicles = getOwnerVehicles(ownerId);
+  const vehicles = getOwnerVehicles(ownerId, user?.email);
   const rentalHistory = getBookingsForOwner(ownerId);
   const userName     = user?.firstName || user?.fullName || 'Owner';
   const pendingCount = rentalHistory.filter(r => r.status === 'pending').length;
@@ -550,17 +557,14 @@ export default function OwnerDashboardScreen() {
       return;
     }
 
-    const created = await addVehicle(form, user);
-    if (!created) {
-      Alert.alert('Unable to add vehicle', 'Please sign in again and try once more.');
-      return;
+    try {
+      const created = await addVehicle(form, user);
+      setShowAddModal(false);
+      Alert.alert('Vehicle Added', 'Your vehicle listing is now live and visible to renters.');
+    } catch (error) {
+      console.warn('[OwnerDashboard] add vehicle failed', error);
+      Alert.alert('Unable to add vehicle', error?.message || 'Please try again later.');
     }
-
-    setShowAddModal(false);
-    Alert.alert(
-      'Vehicle Added',
-      'Your vehicle listing is now live and visible to renters.'
-    );
   };
 
   const handleEdit = async form => {
@@ -577,6 +581,17 @@ export default function OwnerDashboardScreen() {
 
     setShowEditModal(false);
     setEditTarget(null);
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      if (typeof refreshVehicles === 'function') await refreshVehicles();
+    } catch (e) {
+      console.warn('[OwnerDashboard] refresh failed', e);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleDelete = id => {
@@ -609,6 +624,8 @@ export default function OwnerDashboardScreen() {
             onToggleFilter={toggleOwnerFilter}
             onSetPriceFilter={setOwnerPriceFilter}
             onClearFilters={clearOwnerFilters}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
           />
         );
       case 'rentals':
@@ -618,6 +635,8 @@ export default function OwnerDashboardScreen() {
             onUpdateStatus={setBookingStatus}
             reports={reports}
             onRecordLog={handleRecordLog}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
           />
         );
       case 'logreport':

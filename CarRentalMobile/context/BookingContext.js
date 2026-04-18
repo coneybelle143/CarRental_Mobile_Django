@@ -93,6 +93,24 @@ export function BookingProvider({ children }) {
     return bookings.filter((item) => item.ownerId === ownerId);
   }, [bookings]);
 
+  const getRentersForOwner = useCallback((ownerId) => {
+    if (!ownerId) return [];
+    const ownerBookings = bookings.filter((b) => b.ownerId === ownerId && b.renterEmail);
+    const map = new Map();
+    ownerBookings.forEach((b) => {
+      const email = (b.renterEmail || '').toLowerCase();
+      if (!email) return;
+      if (!map.has(email)) {
+        map.set(email, {
+          email,
+          name: b.renterName || b.renterFullName || b.renter || '',
+          renterId: b.renterId || b.renterEmail || null,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [bookings]);
+
   const clearBookings = useCallback(() => persist([]), [persist]);
 
   return (
@@ -105,6 +123,7 @@ export function BookingProvider({ children }) {
         setBookingStatus,
         getBookingsForRenter,
         getBookingsForOwner,
+        getRentersForOwner,
         clearBookings,
       }}
     >

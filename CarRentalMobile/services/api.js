@@ -3,12 +3,11 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 
-const ACCESS_TOKEN_KEY = 'carRental.accessToken.v2';
-const USER_DATA_KEY = 'carRental.userData.v2';
+const SESSION_KEY = 'carRental.session.v2';
 
 const defaultBase = 'http://192.168.254.107:8000';
 
-function normalizeApiBase(rawBase) {
+function normalizeApiBase(rawBase)  {
   const trimmed = rawBase.trim().replace(/\/$/, '');
   const withProtocol = trimmed.match(/^[a-zA-Z][a-zA-Z\d+-.]*:\/\//)
     ? trimmed
@@ -55,19 +54,22 @@ function toErrorMessage(payload, fallback) {
 }
 
 export async function apiRequest(path, options = {}) {
-  const { token, body, headers = {}, ...rest } = options;
+  const { body, headers = {}, ...rest } = options;
   const url = `${API_BASE}${path}`;
+
+  const isFormData = body instanceof FormData;
+  const defaultHeaders = isFormData ? {} : { 'Content-Type': 'application/json' };
 
   let response;
   try {
     response = await fetch(url, {
+      credentials: 'omit',
       ...rest,
       headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...defaultHeaders,
         ...headers,
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
     });
   } catch (networkError) {
     const message = networkError?.message || String(networkError);
@@ -79,13 +81,13 @@ export async function apiRequest(path, options = {}) {
       console.warn('[apiRequest] retrying against expo packager host', fallbackUrl);
       try {
         response = await fetch(fallbackUrl, {
+          credentials: 'omit',
           ...rest,
           headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...defaultHeaders,
             ...headers,
           },
-          body: body !== undefined ? JSON.stringify(body) : undefined,
+          body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
         });
       } catch (fallbackError) {
         const fallbackMessage = fallbackError?.message || String(fallbackError);
@@ -109,7 +111,7 @@ export async function apiRequest(path, options = {}) {
   if (!response.ok) {
     if (response.status === 401) {
       console.warn('[apiRequest] unauthorized, clearing session and redirecting to login');
-      await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, USER_DATA_KEY]);
+      await AsyncStorage.removeItem(SESSION_KEY);
       router.replace('/login');
     }
     throw new Error(toErrorMessage(payload, `Request failed: ${response.status}`));

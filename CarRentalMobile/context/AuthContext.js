@@ -5,7 +5,6 @@ import { apiRequest } from '../services/api';
 const AuthContext = createContext(null);
 
 const SESSION_KEY = 'carRental.session.v2';
-const ACCESS_TOKEN_KEY = 'carRental.accessToken.v2';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -16,17 +15,16 @@ export function AuthProvider({ children }) {
 
     (async () => {
       try {
-        const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
-        if (!token) return;
+        const session = await AsyncStorage.getItem(SESSION_KEY);
+        if (!session) return;
 
-        const me = await apiRequest('/api/me/', { token });
+        const savedUser = JSON.parse(session);
         if (!mounted) return;
 
-        setUser(me);
-        await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(me));
+        setUser(savedUser);
       } catch {
         if (!mounted) return;
-        await AsyncStorage.multiRemove([SESSION_KEY, ACCESS_TOKEN_KEY]);
+        await AsyncStorage.removeItem(SESSION_KEY);
         setUser(null);
       } finally {
         if (mounted) setLoading(false);
@@ -38,12 +36,9 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const persistAuth = useCallback(async (nextUser, accessToken) => {
+  const persistAuth = useCallback(async (nextUser) => {
     setUser(nextUser);
-    await AsyncStorage.multiSet([
-      [SESSION_KEY, JSON.stringify(nextUser)],
-      [ACCESS_TOKEN_KEY, accessToken],
-    ]);
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
   }, []);
 
   const login = useCallback(async (email, password) => {
@@ -54,13 +49,9 @@ export function AuthProvider({ children }) {
         body: { username: normalizedEmail, password },
       });
 
-      const accessToken = loginData?.access;
-      if (!accessToken) {
-        return { ok: false, error: 'Login failed. Missing access token.' };
-      }
-
-      const me = await apiRequest('/api/me/', { token: accessToken });
-      await persistAuth(me, accessToken);
+      // Accept the login data directly as the user profile since tokens are removed
+      const me = loginData?.user || loginData;
+      await persistAuth(me);
       return { ok: true, user: me };
     } catch (error) {
       return { ok: false, error: error.message || 'Invalid email or password.' };
@@ -97,17 +88,13 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     setUser(null);
-    await AsyncStorage.multiRemove([SESSION_KEY, ACCESS_TOKEN_KEY]);
+    await AsyncStorage.removeItem(SESSION_KEY);
   }, []);
 
   const updateUser = useCallback(async (partial) => {
-    const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
-    if (!token) return;
-
     try {
       const updated = await apiRequest('/api/me/', {
         method: 'PATCH',
-        token,
         body: {
           firstName: partial?.firstName,
           lastName: partial?.lastName,
