@@ -544,13 +544,13 @@ export default function OwnerDashboardScreen() {
 
   const openEdit = v => { setEditTarget(v); setShowEditModal(true); };
 
-  const handleAdd = form => {
+  const handleAdd = async form => {
     if (!user) {
       Alert.alert('Session expired', 'Please sign in again to continue.');
       return;
     }
 
-    const created = addVehicle(form, user);
+    const created = await addVehicle(form, user);
     if (!created) {
       Alert.alert('Unable to add vehicle', 'Please sign in again and try once more.');
       return;
@@ -563,13 +563,18 @@ export default function OwnerDashboardScreen() {
     );
   };
 
-  const handleEdit = form => {
+  const handleEdit = async form => {
     if (!editTarget?.id) {
       Alert.alert('No vehicle selected', 'Please choose a vehicle to edit first.');
       return;
     }
 
-    updateVehicle(editTarget.id, form);
+    const updated = await updateVehicle(editTarget.id, form);
+    if (!updated) {
+      Alert.alert('Unable to update vehicle', 'Please try again later.');
+      return;
+    }
+
     setShowEditModal(false);
     setEditTarget(null);
   };

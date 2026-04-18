@@ -1,9 +1,42 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiRequest } from '../services/api';
+import { apiRequest, API_BASE } from '../services/api';
 
 const VehicleContext = createContext(null);
 const ACCESS_TOKEN_KEY = 'carRental.accessToken.v2';
+
+const resolvePhotoUri = (uri) => {
+  if (!uri) return null;
+  if (uri.startsWith('http://') || uri.startsWith('https://') || uri.startsWith('data:') || uri.startsWith('file:')) {
+    return uri;
+  }
+  if (uri.startsWith('//')) {
+    return `https:${uri}`;
+  }
+  if (uri.startsWith('/')) {
+    return `${API_BASE}${uri}`;
+  }
+  return `${API_BASE}/${uri}`;
+};
+
+const unwrapPhotoValue = (photoValue) => {
+  if (!photoValue) return null;
+  if (typeof photoValue === 'string') return photoValue;
+  if (typeof photoValue === 'object') {
+    return photoValue.url || photoValue.path || photoValue.uri || null;
+  }
+  return null;
+};
+
+const getVehiclePhotoUri = (vehicle) => {
+  const uri = unwrapPhotoValue(vehicle.photoUri)
+    || unwrapPhotoValue(vehicle.photo_url)
+    || unwrapPhotoValue(vehicle.image_url)
+    || unwrapPhotoValue(vehicle.photo)
+    || unwrapPhotoValue(vehicle.image)
+    || null;
+  return resolvePhotoUri(uri);
+};
 
 const fromApiVehicle = (vehicle) => {
   const price = Number(vehicle.pricePerDay ?? vehicle.daily_rate ?? 0);
@@ -13,6 +46,7 @@ const fromApiVehicle = (vehicle) => {
     id: Number(vehicle.id),
     name: vehicle.name || vehicle.model || '',
     model: vehicle.model || vehicle.name || '',
+    photoUri: getVehiclePhotoUri(vehicle),
     pricePerDay: Number.isNaN(price) ? 0 : price,
     available: status === 'available',
     status,
@@ -23,13 +57,23 @@ const fromApiVehicle = (vehicle) => {
 
 const toApiVehicle = (vehicleData) => {
   const rawPrice = Number(vehicleData.pricePerDay ?? vehicleData.price ?? 0);
-  return {
-    brand: vehicleData.brand || '',
-    model: vehicleData.model || vehicleData.name || '',
+  const payload = {
+    brand: vehicleData.brand || 'Unknown Brand',
+    model: vehicleData.model || vehicleData.name || 'Unknown Model',
     year: Number(vehicleData.year || new Date().getFullYear()),
     daily_rate: Number.isNaN(rawPrice) ? 0 : rawPrice,
     available: (vehicleData.status || 'available') === 'available',
   };
+
+  if (vehicleData.location) payload.location = vehicleData.location;
+  if (vehicleData.description) payload.description = vehicleData.description;
+  if (vehicleData.seats !== undefined && vehicleData.seats !== null && vehicleData.seats !== '') {
+    payload.seats = Number(vehicleData.seats) || vehicleData.seats;
+  }
+  if (vehicleData.fuel) payload.fuel = vehicleData.fuel;
+  if (vehicleData.photoUri) payload.photoUri = vehicleData.photoUri;
+
+  return payload;
 };
 
 export function VehicleProvider({ children }) {
@@ -83,18 +127,37 @@ export function VehicleProvider({ children }) {
 
   const updateVehicle = async (id, updates) => {
     const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
-    if (!token) return;
+    if (!token) return null;
 
     try {
+      const body = {};
+      if (updates.brand) body.brand = updates.brand;
+      if (updates.model || updates.name) body.model = updates.model || updates.name;
+      if (updates.year) body.year = Number(updates.year);
+      if (updates.pricePerDay || updates.price) {
+        const rawPrice = Number(updates.pricePerDay ?? updates.price);
+        body.daily_rate = Number.isNaN(rawPrice) ? 0 : rawPrice;
+      }
+      if (updates.status) body.available = updates.status === 'available';
+      if (updates.location) body.location = updates.location;
+      if (updates.description) body.description = updates.description;
+      if (updates.seats !== undefined && updates.seats !== null && updates.seats !== '') {
+        body.seats = Number(updates.seats) || updates.seats;
+      }
+      if (updates.fuel) body.fuel = updates.fuel;
+      if (updates.photoUri) body.photoUri = updates.photoUri;
+
       const updated = await apiRequest(`/api/cars/${id}/`, {
         method: 'PATCH',
         token,
-        body: toApiVehicle({ ...updates, model: updates.model || updates.name }),
+        body,
       });
       const normalized = fromApiVehicle(updated);
       setVehicles((prev) => prev.map((v) => (v.id === id ? normalized : v)));
+      return normalized;
     } catch (error) {
       console.warn('[VehicleContext] Failed to update vehicle', error);
+      return null;
     }
   };
 
