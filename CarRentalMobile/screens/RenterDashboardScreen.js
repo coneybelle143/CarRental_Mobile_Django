@@ -15,6 +15,7 @@ import BottomNav        from '../components/BottomNav';
 import ProfileAvatar    from '../components/ProfileAvatar';
 import LogReportScreen  from './LogReportScreen';
 import BookingsScreen   from './BookingsScreen';
+import CalendarPicker   from '../components/calendar-picker';
 
 const C = {
   primary:   '#3F9B84',
@@ -143,6 +144,21 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
   const [startDate, setStart] = useState('');
   const [endDate,   setEnd]   = useState('');
   const [notes,     setNotes] = useState('');
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [calendarTarget, setCalendarTarget] = useState(null); // 'start' | 'end'
+
+  // Helpers to avoid timezone shifts when converting between Date and Y-M-D strings.
+  const pad = (v) => String(v).padStart(2, '0');
+  const formatYMD = (d) => {
+    if (!(d instanceof Date)) d = new Date(d);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const parseYMD = (s) => {
+    if (!s) return null;
+    const [y, m, d] = String(s).split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
+  };
 
   React.useEffect(() => {
     if (visible) { setStart(''); setEnd(''); setNotes(''); }
@@ -150,7 +166,10 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
 
   const days = useMemo(() => {
     if (!startDate || !endDate) return 0;
-    const diff = new Date(endDate) - new Date(startDate);
+    const s = parseYMD(startDate);
+    const e = parseYMD(endDate);
+    if (!s || !e) return 0;
+    const diff = e - s;
     return Math.max(0, Math.ceil(diff / 86400000));
   }, [startDate, endDate]);
 
@@ -188,13 +207,28 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
           </View>
           <View style={{ marginBottom: 14 }}>
             <Text style={s.fieldLabel}>Start Date</Text>
-            <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor={C.g400}
-              value={startDate} onChangeText={setStart} />
+            <TouchableOpacity
+              onPress={() => { setCalendarTarget('start'); setCalendarVisible(true); }}
+              style={s.dateRow}
+            >
+              <Text style={s.dateIcon}>📅</Text>
+              <Text style={[s.dateInput, { color: startDate ? C.g900 : C.g400 }]}>
+                {startDate || 'Select start date'}
+              </Text>
+            </TouchableOpacity>
           </View>
+
           <View style={{ marginBottom: 14 }}>
             <Text style={s.fieldLabel}>End Date</Text>
-            <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor={C.g400}
-              value={endDate} onChangeText={setEnd} />
+            <TouchableOpacity
+              onPress={() => { setCalendarTarget('end'); setCalendarVisible(true); }}
+              style={s.dateRow}
+            >
+              <Text style={s.dateIcon}>📅</Text>
+              <Text style={[s.dateInput, { color: endDate ? C.g900 : C.g400 }]}>
+                {endDate || 'Select end date'}
+              </Text>
+            </TouchableOpacity>
           </View>
           <View style={{ marginBottom: 20 }}>
             <Text style={s.fieldLabel}>Notes (optional)</Text>
@@ -228,6 +262,17 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
           <TouchableOpacity onPress={handleConfirm} style={s.btnPrimary}>
             <Text style={s.btnPrimaryText}>Submit Rental Request</Text>
           </TouchableOpacity>
+          <CalendarPicker
+            visible={calendarVisible}
+            initialDate={(calendarTarget === 'start' && startDate) ? parseYMD(startDate) : (calendarTarget === 'end' && endDate) ? parseYMD(endDate) : new Date()}
+            onClose={() => setCalendarVisible(false)}
+            onSelect={(d) => {
+              const ymd = formatYMD(d);
+              if (calendarTarget === 'start') setStart(ymd);
+              else if (calendarTarget === 'end') setEnd(ymd);
+              setCalendarVisible(false);
+            }}
+          />
         </ScrollView>
       </View>
     </Modal>
@@ -496,6 +541,9 @@ const s = StyleSheet.create({
   modalClose:          { fontSize: 22, color: C.g400 },
   fieldLabel:          { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: C.g400, marginBottom: 6 },
   input:               { padding: 12, borderWidth: 1.5, borderColor: C.g200, borderRadius: 10, fontSize: 14, color: C.g900, backgroundColor: C.white },
+  dateRow:             { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 10, borderWidth: 1, borderColor: C.g200, paddingHorizontal: 10 },
+  dateIcon:            { fontSize: 18, marginRight: 8 },
+  dateInput:           { flex: 1, paddingVertical: 10, fontSize: 14, color: C.g900, paddingLeft: 0 },
   btnPrimary:          { backgroundColor: C.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', elevation: 3 },
   btnPrimaryText:      { color: C.white, fontSize: 14, fontWeight: '700' },
 });

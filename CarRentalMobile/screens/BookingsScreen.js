@@ -49,12 +49,27 @@ const IconBack     = ({ size = 20, color = C.g600 }) => (
 );
 
 // ─── Helpers ──────────────────────────────────────────────────────────
+function parseYMD(s) {
+  if (!s) return null;
+  if (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  const maybe = new Date(s);
+  return isNaN(maybe.getTime()) ? null : maybe;
+}
+
 function fmtDate(iso) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const d = parseYMD(iso) || new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
+
 function daysBetween(a, b) {
-  return Math.max(0, Math.round((new Date(b) - new Date(a)) / 86400000));
+  const da = parseYMD(a);
+  const db = parseYMD(b);
+  if (!da || !db) return 0;
+  return Math.max(0, Math.round((db - da) / 86400000));
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────
