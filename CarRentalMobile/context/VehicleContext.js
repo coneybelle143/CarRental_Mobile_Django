@@ -263,6 +263,11 @@ export function VehicleProvider({ children }) {
         payload.append('image', { uri, name: filename, type });
       }
 
+      if (payload instanceof FormData) {
+        console.warn('[VehicleContext] updateVehicle sending FormData payload for id=', id);
+      } else {
+        try { console.warn('[VehicleContext] updateVehicle payload', JSON.stringify(payload)); } catch { console.warn('[VehicleContext] updateVehicle payload (unserializable)'); }
+      }
       const updated = await apiRequest(`/api/cars/${id}/`, {
         method: 'PATCH',
         body: payload,

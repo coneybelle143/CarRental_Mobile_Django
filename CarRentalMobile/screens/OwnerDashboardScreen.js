@@ -118,11 +118,16 @@ function VehicleCard({ vehicle, onEdit, onDelete }) {
 
 /* ── Vehicle Form Modal ── */
 function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
-  const blank = { name: '', model: '', year: '', pricePerDay: '', location: '', description: '', status: 'available', seats: '', fuel: '' };
+  const blank = { brand: '', name: '', model: '', year: '', type: '', transmission: '', pricePerDay: '', location: '', description: '', status: 'available', seats: '', fuel: '' };
   const [form, setForm] = useState(initial || blank);
   const [photoUri, setPhotoUri] = useState((initial && initial.photoUri) || null);
-  React.useEffect(() => { if (visible) setForm(initial || blank); }, [visible]);
-  React.useEffect(() => { if (visible) setPhotoUri((initial && initial.photoUri) || null); }, [visible]);
+  // Ensure the form updates if `initial` is provided after `visible` changes
+  React.useEffect(() => {
+    if (visible) setForm(initial || blank);
+  }, [visible, initial]);
+  React.useEffect(() => {
+    if (visible) setPhotoUri((initial && initial.photoUri) || null);
+  }, [visible, initial]);
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const MEDIA_IMAGES = ImagePicker.MediaType?.Images || 'images';
   const PICKER_OPTIONS = { mediaTypes: [MEDIA_IMAGES], allowsEditing: true, aspect: [4,3], quality: 0.8 };
@@ -187,22 +192,31 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
               </View>
             </View>
           </View>
-          {[
-            { key: 'name',        label: 'Vehicle Name *',      placeholder: 'e.g. Toyota Vios' },
-            { key: 'model',       label: 'Model',               placeholder: 'e.g. 1.3 E CVT' },
-            { key: 'year',        label: 'Year',                placeholder: 'e.g. 2022', numeric: true },
-            { key: 'pricePerDay', label: 'Price per Day (₱) *', placeholder: 'e.g. 2500', numeric: true },
-            { key: 'location',    label: 'Pickup Location',     placeholder: 'e.g. Davao City' },
-            { key: 'seats',       label: 'Seats',               placeholder: 'e.g. 5', numeric: true },
-            { key: 'fuel',        label: 'Fuel Type',           placeholder: 'e.g. Gasoline' },
-          ].map(f => (
-            <View key={f.key} style={{ marginBottom: 14 }}>
-              <Text style={s.fieldLabel}>{f.label}</Text>
-              <TextInput style={s.input} placeholder={f.placeholder} placeholderTextColor={C.g400}
-                value={String(form[f.key] || '')} onChangeText={v => set(f.key, v)}
-                keyboardType={f.numeric ? 'numeric' : 'default'} />
+          <View style={s.gridRow}>
+            {[
+              { key: 'brand',       label: 'Brand *',             placeholder: 'e.g. Toyota' },
+              { key: 'name',        label: 'Model/Name *',        placeholder: 'e.g. Vios' },
+              { key: 'year',        label: 'Year',                placeholder: 'e.g. 2022', numeric: true },
+              { key: 'type',        label: 'Type',                placeholder: 'e.g. Hatchback' },
+              { key: 'transmission',label: 'Transmission',        placeholder: 'e.g. Manual' },
+              { key: 'fuel',        label: 'Fuel Type',           placeholder: 'e.g. Diesel' },
+              { key: 'seats',       label: 'Seats',               placeholder: 'e.g. 5', numeric: true },
+              { key: 'pricePerDay', label: 'Price per Day (₱) *', placeholder: 'e.g. 2500', numeric: true },
+              { key: 'location',    label: 'Pickup Location',     placeholder: 'e.g. Davao City' },
+            ].map(f => (
+              <View key={f.key} style={s.halfWrap}>
+                <Text style={s.fieldLabel}>{f.label}</Text>
+                <TextInput style={s.input} placeholder={f.placeholder} placeholderTextColor={C.g400}
+                  value={String(form[f.key] || '')} onChangeText={v => set(f.key, v)}
+                  keyboardType={f.numeric ? 'numeric' : 'default'} />
+              </View>
+            ))}
+            <View style={s.fullWrap}>
+              <Text style={s.fieldLabel}>Description</Text>
+              <TextInput style={[s.input, { height: 100, textAlignVertical: 'top' }]} placeholder="Description"
+                placeholderTextColor={C.g400} value={String(form.description || '')} onChangeText={v => set('description', v)} multiline />
             </View>
-          ))}
+          </View>
           <View style={{ marginBottom: 14 }}>
             <Text style={s.fieldLabel}>Status</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -748,6 +762,9 @@ const s = StyleSheet.create({
   modalClose:   { fontSize: 22, color: C.g400 },
   fieldLabel:   { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: C.g400, marginBottom: 6 },
   input:        { padding: 12, borderWidth: 1.5, borderColor: '#dbe3ee', borderRadius: 11, fontSize: 14, color: C.g900, backgroundColor: C.white },
+  gridRow:      { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  halfWrap:     { width: '48%', marginBottom: 14 },
+  fullWrap:     { width: '100%', marginBottom: 14 },
   pillBtn:      { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, borderColor: '#dbe3ee', backgroundColor: C.white },
   pillBtnText:  { fontSize: 13, fontWeight: '600', color: C.g500 },
   btnPrimary:   { backgroundColor: C.primary, borderRadius: 11, paddingVertical: 13, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },

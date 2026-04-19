@@ -114,6 +114,12 @@ export async function apiRequest(path, options = {}) {
       await AsyncStorage.removeItem(SESSION_KEY);
       router.replace('/login');
     }
+    // Log full response for server (5xx) errors to aid debugging
+    if (response.status >= 500) {
+      console.warn('[apiRequest] server error', { url, status: response.status, statusText: response.statusText, bodyText: text, parsed: payload });
+    } else {
+      console.warn('[apiRequest] client error', { url, status: response.status, body: payload });
+    }
     throw new Error(toErrorMessage(payload, `Request failed: ${response.status}`));
   }
 
