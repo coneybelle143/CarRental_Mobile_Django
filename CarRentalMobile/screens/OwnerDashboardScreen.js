@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  Modal, StyleSheet, Alert, Platform, StatusBar, Image,
+  Modal, StyleSheet, Alert, Platform, StatusBar, Image, RefreshControl,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -116,16 +116,85 @@ function VehicleCard({ vehicle, onEdit, onDelete }) {
   );
 }
 
+/* ── Dropdown Selector ── */
+function DropdownField({ label, value, options, onSelect, placeholder }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View>
+      <Text style={s.fieldLabel}>{label}</Text>
+      <TouchableOpacity
+        onPress={() => setOpen(true)}
+        style={[s.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+      >
+        <Text style={{ fontSize: 14, color: value ? C.g900 : C.g400, flex: 1 }}>
+          {value || placeholder}
+        </Text>
+        <Text style={{ color: C.g400, fontSize: 12 }}>▼</Text>
+      </TouchableOpacity>
+      <Modal visible={open} transparent animationType="fade">
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', paddingHorizontal: 32 }}
+          activeOpacity={1}
+          onPress={() => setOpen(false)}
+        >
+          <View style={{ backgroundColor: C.white, borderRadius: 14, overflow: 'hidden', maxHeight: 320 }}>
+            <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: C.navy }}>{label}</Text>
+            </View>
+            <ScrollView>
+              {options.map(opt => (
+                <TouchableOpacity
+                  key={opt}
+                  onPress={() => { onSelect(opt); setOpen(false); }}
+                  style={{
+                    padding: 14,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#f3f4f6',
+                    backgroundColor: value === opt ? C.primaryLt : C.white,
+                  }}
+                >
+                  <Text style={{ fontSize: 14, color: value === opt ? C.primaryDk : C.g900, fontWeight: value === opt ? '700' : '400' }}>
+                    {opt}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+
 /* ── Vehicle Form Modal ── */
+const VEHICLE_TYPES        = ['Sedan','SUV','Hatchback','Pickup','Van','MPV','Crossover','Coupe','Sports'];
+const TRANSMISSION_OPTIONS = ['Automatic', 'Manual', 'CVT'];
+const FUEL_OPTIONS         = ['Gasoline', 'Diesel', 'Hybrid', 'Electric'];
+const LOCATION_OPTIONS     = [
+  'Manila', 'Quezon City', 'Cebu City', 'Davao City',
+  'Makati', 'Taguig', 'Pasig', 'Parañaque', 'Caloocan', 'Antipolo',
+];
+
 function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
-  const blank = { name: '', model: '', year: '', pricePerDay: '', location: '', description: '', status: 'available', seats: '', fuel: '' };
-  const [form, setForm] = useState(initial || blank);
+  const blank = {
+    brand: '', name: '', model: '', year: String(new Date().getFullYear()),
+    type: '', transmission: '', pricePerDay: '', location: '',
+    description: '', status: 'available', seats: '5', fuel: '',
+  };
+  const [form, setForm]       = useState(initial || blank);
   const [photoUri, setPhotoUri] = useState((initial && initial.photoUri) || null);
-  React.useEffect(() => { if (visible) setForm(initial || blank); }, [visible]);
-  React.useEffect(() => { if (visible) setPhotoUri((initial && initial.photoUri) || null); }, [visible]);
+
+  React.useEffect(() => {
+    if (visible) setForm(initial || blank);
+  }, [visible, initial]);
+  React.useEffect(() => {
+    if (visible) setPhotoUri((initial && initial.photoUri) || null);
+  }, [visible, initial]);
+
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
-  const MEDIA_IMAGES = ImagePicker.MediaType?.Images || 'images';
-  const PICKER_OPTIONS = { mediaTypes: [MEDIA_IMAGES], allowsEditing: true, aspect: [4,3], quality: 0.8 };
+
+  const MEDIA_IMAGES   = ImagePicker.MediaType?.Images || 'images';
+  const PICKER_OPTIONS = { mediaTypes: [MEDIA_IMAGES], allowsEditing: true, aspect: [4, 3], quality: 0.8 };
 
   async function ensurePermission(type) {
     if (type === 'camera') {
@@ -151,11 +220,16 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
   };
 
   const handleSave = () => {
-    if (!form.name.trim())  { Alert.alert('Required', 'Vehicle name is required.'); return; }
-    if (!form.pricePerDay)  { Alert.alert('Required', 'Price per day is required.'); return; }
-    const payload = { ...form, photoUri };
-    onSave(payload);
+    if (!form.brand.trim())      { Alert.alert('Required', 'Brand is required.');             return; }
+    if (!form.name.trim())       { Alert.alert('Required', 'Model/Name is required.');        return; }
+    if (!form.type)              { Alert.alert('Required', 'Vehicle type is required.');       return; }
+    if (!form.transmission)      { Alert.alert('Required', 'Transmission is required.');       return; }
+    if (!form.fuel)              { Alert.alert('Required', 'Fuel type is required.');          return; }
+    if (!form.location)          { Alert.alert('Required', 'Location is required.');           return; }
+    if (!form.pricePerDay)       { Alert.alert('Required', 'Price per day is required.');      return; }
+    onSave({ ...form, photoUri });
   };
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <View style={{ flex: 1, backgroundColor: C.white }}>
@@ -163,9 +237,11 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
           <Text style={s.modalTitle}>{isEdit ? 'Edit Vehicle' : 'Add New Vehicle'}</Text>
           <TouchableOpacity onPress={onClose}><Text style={s.modalClose}>✕</Text></TouchableOpacity>
         </View>
+
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-          {/* Image upload */}
-          <View style={{ marginBottom: 14 }} key="photo">
+
+          {/* Vehicle Photo */}
+          <View style={{ marginBottom: 18 }}>
             <Text style={s.fieldLabel}>Vehicle Photo</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               {photoUri ? (
@@ -173,8 +249,8 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
                   <Image source={{ uri: photoUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                 </View>
               ) : (
-                <View style={{ width: 100, height: 74, borderRadius: 8, backgroundColor: '#f3f6fb', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: C.g400 }}>No photo</Text>
+                <View style={{ width: 100, height: 74, borderRadius: 8, backgroundColor: '#f3f6fb', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#dbe3ee' }}>
+                  <Text style={{ color: C.g400, fontSize: 11 }}>No photo</Text>
                 </View>
               )}
               <View style={{ flex: 1 }}>
@@ -187,23 +263,101 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
               </View>
             </View>
           </View>
-          {[
-            { key: 'name',        label: 'Vehicle Name *',      placeholder: 'e.g. Toyota Vios' },
-            { key: 'model',       label: 'Model',               placeholder: 'e.g. 1.3 E CVT' },
-            { key: 'year',        label: 'Year',                placeholder: 'e.g. 2022', numeric: true },
-            { key: 'pricePerDay', label: 'Price per Day (₱) *', placeholder: 'e.g. 2500', numeric: true },
-            { key: 'location',    label: 'Pickup Location',     placeholder: 'e.g. Davao City' },
-            { key: 'seats',       label: 'Seats',               placeholder: 'e.g. 5', numeric: true },
-            { key: 'fuel',        label: 'Fuel Type',           placeholder: 'e.g. Gasoline' },
-          ].map(f => (
-            <View key={f.key} style={{ marginBottom: 14 }}>
-              <Text style={s.fieldLabel}>{f.label}</Text>
-              <TextInput style={s.input} placeholder={f.placeholder} placeholderTextColor={C.g400}
-                value={String(form[f.key] || '')} onChangeText={v => set(f.key, v)}
-                keyboardType={f.numeric ? 'numeric' : 'default'} />
+
+          {/* Row: Brand / Model Name */}
+          <View style={s.gridRow}>
+            <View style={s.halfWrap}>
+              <Text style={s.fieldLabel}>Brand *</Text>
+              <TextInput style={s.input} placeholder="e.g. Toyota" placeholderTextColor={C.g400}
+                value={form.brand} onChangeText={v => set('brand', v)} />
             </View>
-          ))}
-          <View style={{ marginBottom: 14 }}>
+            <View style={s.halfWrap}>
+              <Text style={s.fieldLabel}>Model/Name *</Text>
+              <TextInput style={s.input} placeholder="e.g. Vios" placeholderTextColor={C.g400}
+                value={form.name} onChangeText={v => { set('name', v); set('model', v); }} />
+            </View>
+          </View>
+
+          {/* Row: Year / Type */}
+          <View style={s.gridRow}>
+            <View style={s.halfWrap}>
+              <Text style={s.fieldLabel}>Year *</Text>
+              <TextInput style={s.input} placeholder="e.g. 2022" placeholderTextColor={C.g400}
+                value={String(form.year || '')} onChangeText={v => set('year', v)} keyboardType="numeric" />
+            </View>
+            <View style={s.halfWrap}>
+              <DropdownField
+                label="Type *"
+                value={form.type}
+                options={VEHICLE_TYPES}
+                onSelect={v => set('type', v)}
+                placeholder="Select Type"
+              />
+            </View>
+          </View>
+
+          {/* Row: Transmission / Fuel Type */}
+          <View style={s.gridRow}>
+            <View style={s.halfWrap}>
+              <DropdownField
+                label="Transmission *"
+                value={form.transmission}
+                options={TRANSMISSION_OPTIONS}
+                onSelect={v => set('transmission', v)}
+                placeholder="Select Transmission"
+              />
+            </View>
+            <View style={s.halfWrap}>
+              <DropdownField
+                label="Fuel Type *"
+                value={form.fuel}
+                options={FUEL_OPTIONS}
+                onSelect={v => set('fuel', v)}
+                placeholder="Select Fuel Type"
+              />
+            </View>
+          </View>
+
+          {/* Row: Seats / Price Per Day */}
+          <View style={s.gridRow}>
+            <View style={s.halfWrap}>
+              <Text style={s.fieldLabel}>Seats *</Text>
+              <TextInput style={s.input} placeholder="e.g. 5" placeholderTextColor={C.g400}
+                value={String(form.seats || '')} onChangeText={v => set('seats', v)} keyboardType="numeric" />
+            </View>
+            <View style={s.halfWrap}>
+              <Text style={s.fieldLabel}>Price Per Day (₱) *</Text>
+              <TextInput style={s.input} placeholder="e.g. 2500" placeholderTextColor={C.g400}
+                value={String(form.pricePerDay || '')} onChangeText={v => set('pricePerDay', v)} keyboardType="numeric" />
+            </View>
+          </View>
+
+          {/* Location dropdown — full width */}
+          <View style={s.fullWrap}>
+            <DropdownField
+              label="Location *"
+              value={form.location}
+              options={LOCATION_OPTIONS}
+              onSelect={v => set('location', v)}
+              placeholder="Select Location"
+            />
+          </View>
+
+          {/* Description — full width */}
+          <View style={s.fullWrap}>
+            <Text style={s.fieldLabel}>Description</Text>
+            <TextInput
+              style={[s.input, { height: 100, textAlignVertical: 'top' }]}
+              placeholder="Description"
+              placeholderTextColor={C.g400}
+              value={String(form.description || '')}
+              onChangeText={v => set('description', v)}
+              multiline
+            />
+          </View>
+
+          {/* Status toggle */}
+          <View style={{ marginBottom: 20 }}>
             <Text style={s.fieldLabel}>Status</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {['available', 'unavailable'].map(st => (
@@ -216,9 +370,11 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
               ))}
             </View>
           </View>
+
           <TouchableOpacity onPress={handleSave} style={s.btnPrimary}>
             <Text style={s.btnPrimaryText}>{isEdit ? 'Save Changes' : 'Add Vehicle'}</Text>
           </TouchableOpacity>
+
         </ScrollView>
       </View>
     </Modal>
@@ -226,7 +382,7 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
 }
 
 /* ── Rentals Tab ── */
-function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog }) {
+function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog, refreshing, onRefresh }) {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -306,7 +462,11 @@ function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog }) {
         <TextInput style={[s.searchInput, { marginLeft: 8 }]} placeholder="Search rentals…"
           placeholderTextColor={C.g400} value={search} onChangeText={setSearch} />
       </View>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingTop: 0, paddingBottom: 100 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingTop: 0, paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {filtered.length === 0 ? (
           <View style={s.empty}><Text style={s.emptyTitle}>No rentals found</Text></View>
         ) : (
@@ -360,10 +520,14 @@ function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog }) {
 }
 
 /* ── Home Tab ── */
-function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdit, onDelete }) {
-  // Summary counts for approval statuses
+function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdit, onDelete, filters, onToggleFilter, onSetPriceFilter, onClearFilters, refreshing, onRefresh }) {
+  const activeFilterCount =
+    filters.statuses.length + filters.fuels.length + (filters.minPrice ? 1 : 0) + (filters.maxPrice ? 1 : 0);
+
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <View style={s.statsRow}>
         {[
           { label: 'Total',     value: stats.total,                            color: C.primary },
@@ -383,6 +547,64 @@ function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdi
         <TextInput style={[s.searchInput, { marginLeft: 8 }]} placeholder="Search your vehicles…"
           placeholderTextColor={C.g400} value={searchQuery} onChangeText={setSearchQuery} />
       </View>
+
+      <View style={s.filterPanel}>
+        <View style={s.filterPanelHeader}>
+          <Text style={s.filterPanelTitle}>Filters</Text>
+          {activeFilterCount > 0 && (
+            <TouchableOpacity onPress={onClearFilters}>
+              <Text style={s.clearFilterText}>Clear ({activeFilterCount})</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <Text style={s.filterLabel}>Status</Text>
+        <View style={s.filterRow}>
+          {['available', 'rented', 'unavailable'].map(st => {
+            const active = filters.statuses.includes(st);
+            return (
+              <TouchableOpacity key={st} onPress={() => onToggleFilter('statuses', st)} style={[s.filterPill, active && s.filterPillActive]}>
+                <Text style={[s.filterPillText, active && s.filterPillTextActive]}>
+                  {st.charAt(0).toUpperCase() + st.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={s.filterLabel}>Fuel</Text>
+        <View style={s.filterRow}>
+          {['Gasoline', 'Diesel', 'Hybrid', 'Electric'].map(fuel => {
+            const active = filters.fuels.includes(fuel);
+            return (
+              <TouchableOpacity key={fuel} onPress={() => onToggleFilter('fuels', fuel)} style={[s.filterPill, active && s.filterPillActive]}>
+                <Text style={[s.filterPillText, active && s.filterPillTextActive]}>{fuel}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={s.filterLabel}>Price / Day</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TextInput
+            style={[s.input, { flex: 1 }]}
+            keyboardType="numeric"
+            placeholder="Min"
+            placeholderTextColor={C.g400}
+            value={filters.minPrice}
+            onChangeText={v => onSetPriceFilter('minPrice', v.replace(/[^0-9]/g, ''))}
+          />
+          <TextInput
+            style={[s.input, { flex: 1 }]}
+            keyboardType="numeric"
+            placeholder="Max"
+            placeholderTextColor={C.g400}
+            value={filters.maxPrice}
+            onChangeText={v => onSetPriceFilter('maxPrice', v.replace(/[^0-9]/g, ''))}
+          />
+        </View>
+      </View>
+
       <View style={{ paddingHorizontal: 16 }}>
         {filtered.length === 0 ? (
           <View style={s.empty}>
@@ -405,8 +627,8 @@ export default function OwnerDashboardScreen() {
   const { user } = useAuth();
   const { getBookingsForOwner, setBookingStatus } = useBookings();
   const { reports } = useLogReport();
-  const { getOwnerVehicles, addVehicle, updateVehicle, deleteVehicle } = useVehicles();
-  const ownerId = user?.id || user?.email;
+  const { getOwnerVehicles, addVehicle, updateVehicle, deleteVehicle, refreshVehicles } = useVehicles();
+  const ownerId = user?.id || user?.pk || user?.email;
 
   useEffect(() => {
     if (!user) {
@@ -417,11 +639,30 @@ export default function OwnerDashboardScreen() {
   const [activeTab,        setActiveTab]        = useState('home');
   const [pendingLogRental, setPendingLogRental]  = useState(null);
   const [searchQuery,      setSearchQuery]       = useState('');
+  const [ownerFilters,     setOwnerFilters]      = useState({ statuses: [], fuels: [], minPrice: '', maxPrice: '' });
   const [showAddModal,     setShowAddModal]      = useState(false);
+    const toggleOwnerFilter = (key, value) => {
+      setOwnerFilters(prev => ({
+        ...prev,
+        [key]: prev[key].includes(value)
+          ? prev[key].filter(v => v !== value)
+          : [...prev[key], value],
+      }));
+    };
+
+    const setOwnerPriceFilter = (key, value) => {
+      setOwnerFilters(prev => ({ ...prev, [key]: value }));
+    };
+
+    const clearOwnerFilters = () => {
+      setOwnerFilters({ statuses: [], fuels: [], minPrice: '', maxPrice: '' });
+    };
+
   const [showEditModal,    setShowEditModal]     = useState(false);
   const [editTarget,       setEditTarget]        = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const vehicles = getOwnerVehicles(ownerId);
+  const vehicles = getOwnerVehicles(ownerId, user?.email);
   const rentalHistory = getBookingsForOwner(ownerId);
   const userName     = user?.firstName || user?.fullName || 'Owner';
   const pendingCount = rentalHistory.filter(r => r.status === 'pending').length;
@@ -434,43 +675,79 @@ export default function OwnerDashboardScreen() {
   }), [vehicles]);
 
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return vehicles;
-    const q = searchQuery.toLowerCase();
-    return vehicles.filter(v =>
-      v.name?.toLowerCase().includes(q) || v.model?.toLowerCase().includes(q)
-    );
-  }, [vehicles, searchQuery]);
+    let result = vehicles;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(v =>
+        v.name?.toLowerCase().includes(q) ||
+        v.model?.toLowerCase().includes(q) ||
+        v.location?.toLowerCase().includes(q)
+      );
+    }
+
+    if (ownerFilters.statuses.length > 0) {
+      result = result.filter(v => ownerFilters.statuses.includes(v.status));
+    }
+
+    if (ownerFilters.fuels.length > 0) {
+      result = result.filter(v => ownerFilters.fuels.includes(v.fuel));
+    }
+
+    if (ownerFilters.minPrice) {
+      result = result.filter(v => (parseFloat(v.pricePerDay) || 0) >= Number(ownerFilters.minPrice));
+    }
+
+    if (ownerFilters.maxPrice) {
+      result = result.filter(v => (parseFloat(v.pricePerDay) || 0) <= Number(ownerFilters.maxPrice));
+    }
+
+    return result;
+  }, [vehicles, searchQuery, ownerFilters]);
 
   const openEdit = v => { setEditTarget(v); setShowEditModal(true); };
 
-  const handleAdd = form => {
+  const handleAdd = async form => {
     if (!user) {
       Alert.alert('Session expired', 'Please sign in again to continue.');
       return;
     }
 
-    const created = addVehicle(form, user);
-    if (!created) {
-      Alert.alert('Unable to add vehicle', 'Please sign in again and try once more.');
-      return;
+    try {
+      const created = await addVehicle(form, user);
+      setShowAddModal(false);
+      Alert.alert('Vehicle Added', 'Your vehicle listing is now live and visible to renters.');
+    } catch (error) {
+      console.warn('[OwnerDashboard] add vehicle failed', error);
+      Alert.alert('Unable to add vehicle', error?.message || 'Please try again later.');
     }
-
-    setShowAddModal(false);
-    Alert.alert(
-      'Vehicle Added',
-      'Your vehicle listing is now live and visible to renters.'
-    );
   };
 
-  const handleEdit = form => {
+  const handleEdit = async form => {
     if (!editTarget?.id) {
       Alert.alert('No vehicle selected', 'Please choose a vehicle to edit first.');
       return;
     }
 
-    updateVehicle(editTarget.id, form);
+    const updated = await updateVehicle(editTarget.id, form);
+    if (!updated) {
+      Alert.alert('Unable to update vehicle', 'Please try again later.');
+      return;
+    }
+
     setShowEditModal(false);
     setEditTarget(null);
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      if (typeof refreshVehicles === 'function') await refreshVehicles();
+    } catch (e) {
+      console.warn('[OwnerDashboard] refresh failed', e);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleDelete = id => {
@@ -499,6 +776,12 @@ export default function OwnerDashboardScreen() {
             vehicles={vehicles} stats={stats}
             searchQuery={searchQuery} setSearchQuery={setSearchQuery}
             filtered={filtered} onEdit={openEdit} onDelete={handleDelete}
+            filters={ownerFilters}
+            onToggleFilter={toggleOwnerFilter}
+            onSetPriceFilter={setOwnerPriceFilter}
+            onClearFilters={clearOwnerFilters}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
           />
         );
       case 'rentals':
@@ -508,6 +791,8 @@ export default function OwnerDashboardScreen() {
             onUpdateStatus={setBookingStatus}
             reports={reports}
             onRecordLog={handleRecordLog}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
           />
         );
       case 'logreport':
@@ -598,6 +883,16 @@ const s = StyleSheet.create({
   filterTabActive:     { backgroundColor: C.primary, borderColor: C.primary },
   filterTabText:       { fontSize: 12, color: C.g500 },
   filterTabTextActive: { color: C.white, fontWeight: '700' },
+  filterPanel: { marginHorizontal: 16, marginBottom: 14, backgroundColor: C.white, borderRadius: 12, borderWidth: 1, borderColor: '#dbe3ee', padding: 12 },
+  filterPanelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  filterPanelTitle: { fontSize: 13, fontWeight: '700', color: C.g700 },
+  clearFilterText: { fontSize: 12, fontWeight: '700', color: C.primary },
+  filterLabel: { fontSize: 11, fontWeight: '700', color: C.g400, marginBottom: 6, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.6 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: '#dbe3ee', backgroundColor: C.white },
+  filterPillActive: { backgroundColor: C.primaryLt, borderColor: C.primary },
+  filterPillText: { fontSize: 12, color: C.g500, fontWeight: '600' },
+  filterPillTextActive: { color: C.primaryDk },
   empty:        { alignItems: 'center', padding: 48, backgroundColor: '#f6f9fd', borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: '#d5dfec' },
   emptyTitle:   { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 6 },
   emptySub:     { fontSize: 13, color: C.g400, textAlign: 'center' },
@@ -609,6 +904,9 @@ const s = StyleSheet.create({
   modalClose:   { fontSize: 22, color: C.g400 },
   fieldLabel:   { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: C.g400, marginBottom: 6 },
   input:        { padding: 12, borderWidth: 1.5, borderColor: '#dbe3ee', borderRadius: 11, fontSize: 14, color: C.g900, backgroundColor: C.white },
+  gridRow:      { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  halfWrap:     { width: '48%', marginBottom: 14 },
+  fullWrap:     { width: '100%', marginBottom: 14 },
   pillBtn:      { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, borderColor: '#dbe3ee', backgroundColor: C.white },
   pillBtnText:  { fontSize: 13, fontWeight: '600', color: C.g500 },
   btnPrimary:   { backgroundColor: C.primary, borderRadius: 11, paddingVertical: 13, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
