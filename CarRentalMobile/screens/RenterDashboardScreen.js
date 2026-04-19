@@ -4,6 +4,8 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   Modal, StyleSheet, Alert, Platform, Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter }    from 'expo-router';
 import { useAuth }      from '../context/AuthContext';
 import { useBookings }  from '../context/BookingContext';
@@ -13,6 +15,7 @@ import BottomNav        from '../components/BottomNav';
 import ProfileAvatar    from '../components/ProfileAvatar';
 import LogReportScreen  from './LogReportScreen';
 import BookingsScreen   from './BookingsScreen';
+import CalendarPicker   from '../components/calendar-picker';
 
 const C = {
   primary:   '#3F9B84',
@@ -57,6 +60,7 @@ function DashboardHeader({ activeTab, userName }) {
   return (
     <View style={s.header}>
       <View style={{ flex: 1 }}>
+        <Text style={s.headerKicker}>RENTER PORTAL</Text>
         <Text style={s.headerTitle}>{config.title}</Text>
         <Text style={s.headerSub}>{subtitle}</Text>
       </View>
@@ -65,54 +69,73 @@ function DashboardHeader({ activeTab, userName }) {
   );
 }
 
-function VehicleCard({ vehicle, onRent }) {
+function VehicleCard({ vehicle, onRent, isSaved, onToggleSave }) {
   const available = vehicle.status === 'available';
+  const vehicleName = vehicle.name || 'Unnamed Vehicle';
+  const yearLabel = vehicle.year || '----';
+  const modelLabel = vehicle.model || 'Vehicle';
+  const seatsLabel = vehicle.seats ? `${vehicle.seats} seats` : 'Seats n/a';
+  const fuelLabel = vehicle.fuel || 'Fuel n/a';
+  const ownerLabel = vehicle.ownerName || 'Owner n/a';
+
   return (
     <View style={s.vehicleCard}>
-      <View style={{ flex: 1 }}>
-        <View style={s.vehicleMediaRow}>
-          {vehicle.photoUri ? (
-            <Image source={{ uri: vehicle.photoUri }} style={s.vehicleThumb} resizeMode="cover" />
-          ) : (
-            <View style={[s.vehicleThumb, s.vehicleThumbFallback]}>
-              <Text style={s.vehicleThumbFallbackText}>No Image</Text>
-            </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <Text style={s.vehicleName}>{vehicle.name}</Text>
-              <View style={{
-                backgroundColor: available ? '#d1fae5' : '#fef3c7',
-                borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2,
-              }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: available ? '#065f46' : '#92400e' }}>
-                  {available ? 'Available' : 'Rented'}
-                </Text>
-              </View>
-            </View>
-            <Text style={s.vehicleSub}>{vehicle.model} · {vehicle.year}</Text>
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
-              {vehicle.location  && <Text style={{ fontSize: 12, color: C.g500 }}>📍 {vehicle.location}</Text>}
-              {vehicle.seats     && <Text style={{ fontSize: 12, color: C.g500 }}>👥 {vehicle.seats} seats</Text>}
-              {vehicle.fuel      && <Text style={{ fontSize: 12, color: C.g500 }}>⛽ {vehicle.fuel}</Text>}
-              {vehicle.ownerName && <Text style={{ fontSize: 12, color: C.g500 }}>🧑‍💼 {vehicle.ownerName}</Text>}
-            </View>
-            <Text style={s.vehiclePrice}>
-              ₱{parseFloat(vehicle.pricePerDay).toLocaleString()}
-              <Text style={{ fontSize: 12, fontWeight: '400', color: C.g500 }}>/day</Text>
-            </Text>
+      <View style={s.vehicleImageWrap}>
+        {vehicle.photoUri ? (
+          <Image source={{ uri: vehicle.photoUri }} style={s.vehicleImage} resizeMode="cover" />
+        ) : (
+          <View style={[s.vehicleImage, s.vehicleThumbFallback]}>
+            <Text style={s.vehicleThumbFallbackText}>No Image</Text>
+          </View>
+        )}
+        <View style={[s.vehicleStatusPill, { backgroundColor: available ? '#d1fae5' : '#fef3c7' }]}>
+          <Text style={[s.vehicleStatusPillText, { color: available ? '#065f46' : '#92400e' }]}>
+            {available ? 'Available' : 'Rented'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={s.vehicleBody}>
+        <View style={s.vehicleTopRow}>
+          <Text style={s.vehicleName}>{vehicleName}</Text>
+          <View style={s.yearPill}><Text style={s.yearPillText}>{yearLabel}</Text></View>
+        </View>
+
+        <View style={s.vehicleChipRow}>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{modelLabel}</Text></View>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{seatsLabel}</Text></View>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{fuelLabel}</Text></View>
+          <View style={s.vehicleInfoChip}><Text style={s.vehicleInfoChipText}>{ownerLabel}</Text></View>
+        </View>
+
+        {vehicle.location ? <Text style={s.vehicleLocation}>{vehicle.location}</Text> : null}
+
+        <View style={s.vehicleDivider} />
+
+        <View style={s.vehicleFooter}>
+          <Text style={s.vehiclePrice}>
+            ₱{parseFloat(vehicle.pricePerDay).toLocaleString()}
+            <Text style={s.vehiclePricePer}>/day</Text>
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => onToggleSave(vehicle.id)}
+              style={[s.saveBtn, isSaved && s.saveBtnActive]}
+            >
+              <Text style={[s.saveBtnText, isSaved && s.saveBtnTextActive]}>{isSaved ? 'Saved' : 'Save'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => onRent(vehicle)}
+              disabled={!available}
+              style={[s.rentBtn, !available && s.rentBtnDisabled]}
+            >
+              <Text style={[s.rentBtnText, !available && { color: C.g400 }]}>
+                {available ? 'Rent Now' : 'Taken'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
-      <TouchableOpacity
-        onPress={() => onRent(vehicle)}
-        disabled={!available}
-        style={[s.rentBtn, !available && s.rentBtnDisabled]}
-      >
-        <Text style={[s.rentBtnText, !available && { color: C.g400 }]}>
-          {available ? 'Rent' : 'Taken'}
-        </Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -121,6 +144,21 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
   const [startDate, setStart] = useState('');
   const [endDate,   setEnd]   = useState('');
   const [notes,     setNotes] = useState('');
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [calendarTarget, setCalendarTarget] = useState(null); // 'start' | 'end'
+
+  // Helpers to avoid timezone shifts when converting between Date and Y-M-D strings.
+  const pad = (v) => String(v).padStart(2, '0');
+  const formatYMD = (d) => {
+    if (!(d instanceof Date)) d = new Date(d);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const parseYMD = (s) => {
+    if (!s) return null;
+    const [y, m, d] = String(s).split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
+  };
 
   React.useEffect(() => {
     if (visible) { setStart(''); setEnd(''); setNotes(''); }
@@ -128,7 +166,10 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
 
   const days = useMemo(() => {
     if (!startDate || !endDate) return 0;
-    const diff = new Date(endDate) - new Date(startDate);
+    const s = parseYMD(startDate);
+    const e = parseYMD(endDate);
+    if (!s || !e) return 0;
+    const diff = e - s;
     return Math.max(0, Math.ceil(diff / 86400000));
   }, [startDate, endDate]);
 
@@ -166,13 +207,28 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
           </View>
           <View style={{ marginBottom: 14 }}>
             <Text style={s.fieldLabel}>Start Date</Text>
-            <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor={C.g400}
-              value={startDate} onChangeText={setStart} />
+            <TouchableOpacity
+              onPress={() => { setCalendarTarget('start'); setCalendarVisible(true); }}
+              style={s.dateRow}
+            >
+              <Text style={s.dateIcon}>📅</Text>
+              <Text style={[s.dateInput, { color: startDate ? C.g900 : C.g400 }]}>
+                {startDate || 'Select start date'}
+              </Text>
+            </TouchableOpacity>
           </View>
+
           <View style={{ marginBottom: 14 }}>
             <Text style={s.fieldLabel}>End Date</Text>
-            <TextInput style={s.input} placeholder="YYYY-MM-DD" placeholderTextColor={C.g400}
-              value={endDate} onChangeText={setEnd} />
+            <TouchableOpacity
+              onPress={() => { setCalendarTarget('end'); setCalendarVisible(true); }}
+              style={s.dateRow}
+            >
+              <Text style={s.dateIcon}>📅</Text>
+              <Text style={[s.dateInput, { color: endDate ? C.g900 : C.g400 }]}>
+                {endDate || 'Select end date'}
+              </Text>
+            </TouchableOpacity>
           </View>
           <View style={{ marginBottom: 20 }}>
             <Text style={s.fieldLabel}>Notes (optional)</Text>
@@ -206,13 +262,24 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
           <TouchableOpacity onPress={handleConfirm} style={s.btnPrimary}>
             <Text style={s.btnPrimaryText}>Submit Rental Request</Text>
           </TouchableOpacity>
+          <CalendarPicker
+            visible={calendarVisible}
+            initialDate={(calendarTarget === 'start' && startDate) ? parseYMD(startDate) : (calendarTarget === 'end' && endDate) ? parseYMD(endDate) : new Date()}
+            onClose={() => setCalendarVisible(false)}
+            onSelect={(d) => {
+              const ymd = formatYMD(d);
+              if (calendarTarget === 'start') setStart(ymd);
+              else if (calendarTarget === 'end') setEnd(ymd);
+              setCalendarVisible(false);
+            }}
+          />
         </ScrollView>
       </View>
     </Modal>
   );
 }
 
-function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
+function HomeTab({ vehicles, bookings, onCreateBooking, user, savedVehicleIds, onToggleSave }) {
   const [search,     setSearch]     = useState('');
   const [filter,     setFilter]     = useState('all');
   const [rentModal,  setRentModal]  = useState(false);
@@ -221,6 +288,7 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
   const filtered = useMemo(() => {
     let list = vehicles;
     if (filter === 'available') list = list.filter(v => v.status === 'available');
+    if (filter === 'saved') list = list.filter(v => savedVehicleIds.includes(String(v.id)));
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(v =>
@@ -231,7 +299,7 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
       );
     }
     return list;
-  }, [vehicles, filter, search]);
+  }, [vehicles, filter, search, savedVehicleIds]);
 
   const openRent = v => { setSelVehicle(v); setRentModal(true); };
 
@@ -260,27 +328,8 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
     Alert.alert('Request Sent! 🎉', 'Your rental request has been submitted and is awaiting approval from the owner.');
   };
 
-  const activeBooking = bookings.find(r => r.status === 'approved');
-
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
-      <View style={{ backgroundColor: C.navy, paddingHorizontal: 20, paddingBottom: 24, paddingTop: 4 }}>
-        <Text style={{ fontSize: 14, color: 'rgba(255,255,255,.7)' }}>Find your next ride</Text>
-        {activeBooking && (
-          <View style={{
-            backgroundColor: 'rgba(63,155,132,.3)', borderRadius: 12,
-            padding: 12, marginTop: 12,
-            borderWidth: 1, borderColor: 'rgba(63,155,132,.5)',
-          }}>
-            <Text style={{ fontSize: 12, color: '#6ee7b7', fontWeight: '600', marginBottom: 2 }}>✓ Active Rental</Text>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: C.white }}>{activeBooking.vehicleName}</Text>
-            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,.7)', marginTop: 2 }}>
-              {activeBooking.startDate} → {activeBooking.endDate}
-            </Text>
-          </View>
-        )}
-      </View>
-
       <View style={{ padding: 16 }}>
         <View style={s.searchWrap}>
           <TextInput
@@ -292,11 +341,11 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
           />
         </View>
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-          {['all', 'available'].map(f => (
+          {['all', 'available', 'saved'].map(f => (
             <TouchableOpacity key={f} onPress={() => setFilter(f)}
               style={[s.filterTab, filter === f && s.filterTabActive]}>
               <Text style={[s.filterTabText, filter === f && s.filterTabTextActive]}>
-                {f === 'all' ? 'All Vehicles' : 'Available Only'}
+                {f === 'all' ? 'All Vehicles' : f === 'available' ? 'Available Only' : `Saved (${savedVehicleIds.length})`}
               </Text>
             </TouchableOpacity>
           ))}
@@ -311,11 +360,19 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user }) {
         ) : filtered.length === 0 ? (
           <View style={s.empty}>
             <Text style={{ fontSize: 40, marginBottom: 10 }}>🔍</Text>
-            <Text style={s.emptyTitle}>No vehicles found</Text>
-            <Text style={s.emptySub}>Try adjusting your search filters.</Text>
+            <Text style={s.emptyTitle}>{filter === 'saved' ? 'No saved vehicles yet' : 'No vehicles found'}</Text>
+            <Text style={s.emptySub}>{filter === 'saved' ? 'Tap Save on a car to add it here.' : 'Try adjusting your search filters.'}</Text>
           </View>
         ) : (
-          filtered.map(v => <VehicleCard key={v.id} vehicle={v} onRent={openRent} />)
+          filtered.map(v => (
+            <VehicleCard
+              key={v.id}
+              vehicle={v}
+              onRent={openRent}
+              isSaved={savedVehicleIds.includes(String(v.id))}
+              onToggleSave={onToggleSave}
+            />
+          ))
         )}
       </View>
 
@@ -340,11 +397,46 @@ export default function RenterDashboardScreen() {
   }, [user, router]);
 
   const [activeTab, setActiveTab] = useState('home');
+  const [savedVehicleIds, setSavedVehicleIds] = useState([]);
   const userName  = user?.firstName || user?.fullName || 'Renter';
   const myRentals = getBookingsForRenter(user?.email);
 
   // Only show vehicles the admin has approved
   const approvedVehicles = getApprovedVehicles();
+
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!user?.email) {
+        if (mounted) setSavedVehicleIds([]);
+        return;
+      }
+      try {
+        const raw = await AsyncStorage.getItem(`carRental.savedVehicles.${user.email.toLowerCase()}`);
+        if (!mounted) return;
+        const parsed = raw ? JSON.parse(raw) : [];
+        setSavedVehicleIds(Array.isArray(parsed) ? parsed.map(String) : []);
+      } catch {
+        if (mounted) setSavedVehicleIds([]);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [user?.email]);
+
+  const toggleSaveVehicle = async (vehicleId) => {
+    if (!user?.email) return;
+    const id = String(vehicleId);
+    const next = savedVehicleIds.includes(id)
+      ? savedVehicleIds.filter(v => v !== id)
+      : [...savedVehicleIds, id];
+
+    setSavedVehicleIds(next);
+    try {
+      await AsyncStorage.setItem(`carRental.savedVehicles.${user.email.toLowerCase()}`, JSON.stringify(next));
+    } catch {
+      // Keep UI responsive even if persistence fails.
+    }
+  };
 
   const handleTabPress = tab => {
     if (tab === 'profile') { router.push('/profile'); return; }
@@ -360,6 +452,8 @@ export default function RenterDashboardScreen() {
             bookings={myRentals}
             onCreateBooking={addBooking}
             user={user}
+            savedVehicleIds={savedVehicleIds}
+            onToggleSave={toggleSaveVehicle}
           />
         );
       case 'bookings':
@@ -372,52 +466,73 @@ export default function RenterDashboardScreen() {
   };
 
   const pendingCount = myRentals.filter((booking) => booking.status === 'pending').length;
-
   if (!user) return null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#edf1f7' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#edf1f7' }} edges={['top', 'bottom']}>
       <DashboardHeader activeTab={activeTab} userName={userName} />
-      <View style={{ flex: 1 }}>{renderContent()}</View>
+      <View style={s.bodyWrap}>
+        <View style={s.contentShell}>{renderContent()}</View>
+      </View>
       <BottomNav
         role="renter"
         activeTab={activeTab}
         onTabPress={handleTabPress}
         badges={{ bookings: pendingCount }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   header: {
     backgroundColor: C.navy,
-    paddingTop: Platform.OS === 'ios' ? 56 : 44,
-    paddingBottom: 20,
+    paddingTop: Platform.OS === 'ios' ? 56 : 34,
+    paddingBottom: 14,
     paddingHorizontal: 20,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
+  headerKicker:        { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,.6)', letterSpacing: 1.1 },
   headerTitle:         { fontSize: 22, fontWeight: '800', color: C.white },
   headerSub:           { fontSize: 13, color: 'rgba(255,255,255,.65)', marginTop: 2 },
+  bodyWrap:            { flex: 1, marginTop: -4, backgroundColor: '#e7eef6' },
+  contentShell:        { flex: 1, width: '100%', maxWidth: 430, alignSelf: 'center' },
   searchWrap:          { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 10, borderWidth: 1, borderColor: C.g200, paddingHorizontal: 12, marginBottom: 12 },
   searchInput:         { flex: 1, paddingVertical: 10, fontSize: 14, color: C.g900 },
   filterTab:           { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.g200 },
   filterTabActive:     { backgroundColor: C.primary, borderColor: C.primary },
   filterTabText:       { fontSize: 13, color: C.g500 },
   filterTabTextActive: { color: C.white, fontWeight: '700' },
-  vehicleCard:         { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: C.g200, elevation: 2 },
-  vehicleMediaRow:     { flexDirection: 'row', gap: 14 },
-  vehicleThumb:        { width: 112, height: 84, borderRadius: 12, backgroundColor: '#f3f6fb' },
+  vehicleCard:         { backgroundColor: C.white, borderRadius: 18, marginBottom: 14, borderWidth: 1, borderColor: '#dfe7f3', elevation: 2, overflow: 'hidden' },
+  vehicleImageWrap:    { position: 'relative', backgroundColor: '#f3f6fb' },
+  vehicleImage:        { width: '100%', height: 184, backgroundColor: '#f3f6fb' },
+  vehicleStatusPill:   { position: 'absolute', top: 12, left: 12, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  vehicleStatusPillText:{ fontSize: 12, fontWeight: '800' },
+  vehicleBody:         { padding: 14 },
+  vehicleTopRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  yearPill:            { backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#e5e7eb' },
+  yearPillText:        { fontSize: 12, color: C.g500, fontWeight: '700' },
+  vehicleChipRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  vehicleInfoChip:     { backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
+  vehicleInfoChipText: { fontSize: 11, color: C.g700, fontWeight: '600' },
+  vehicleLocation:     { fontSize: 13, color: C.g500, marginTop: 12 },
+  vehicleDivider:      { height: 1, backgroundColor: '#e5e7eb', marginTop: 14, marginBottom: 12 },
+  vehicleFooter:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   vehicleThumbFallback:{ alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.g200 },
   vehicleThumbFallbackText: { fontSize: 10, color: C.g400, fontWeight: '600' },
-  vehicleName:         { fontSize: 15, fontWeight: '700', color: C.navy },
+  vehicleName:         { fontSize: 19, fontWeight: '800', color: C.navy, flex: 1 },
   vehicleSub:          { fontSize: 12, color: C.g500, marginTop: 2 },
-  vehiclePrice:        { fontSize: 14, color: C.primary, fontWeight: '700', marginTop: 6 },
-  rentBtn:             { backgroundColor: C.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
+  vehiclePrice:        { fontSize: 20, color: C.primary, fontWeight: '800' },
+  vehiclePricePer:     { fontSize: 12, color: C.primaryDk, fontWeight: '700' },
+  saveBtn:             { backgroundColor: C.white, borderRadius: 11, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.g200 },
+  saveBtnActive:       { backgroundColor: C.primaryLt, borderColor: C.primary },
+  saveBtnText:         { color: C.g600, fontSize: 13, fontWeight: '700' },
+  saveBtnTextActive:   { color: C.primaryDk },
+  rentBtn:             { backgroundColor: C.primary, borderRadius: 11, paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   rentBtnDisabled:     { backgroundColor: C.g100 },
-  rentBtnText:         { color: C.white, fontSize: 13, fontWeight: '700' },
+  rentBtnText:         { color: C.white, fontSize: 13, fontWeight: '800' },
   empty:               { alignItems: 'center', padding: 48, backgroundColor: C.g50, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: C.g200 },
   emptyTitle:          { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 6 },
   emptySub:            { fontSize: 13, color: C.g400, textAlign: 'center' },
@@ -426,6 +541,9 @@ const s = StyleSheet.create({
   modalClose:          { fontSize: 22, color: C.g400 },
   fieldLabel:          { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: C.g400, marginBottom: 6 },
   input:               { padding: 12, borderWidth: 1.5, borderColor: C.g200, borderRadius: 10, fontSize: 14, color: C.g900, backgroundColor: C.white },
+  dateRow:             { flexDirection: 'row', alignItems: 'center', backgroundColor: C.white, borderRadius: 10, borderWidth: 1, borderColor: C.g200, paddingHorizontal: 10 },
+  dateIcon:            { fontSize: 18, marginRight: 8 },
+  dateInput:           { flex: 1, paddingVertical: 10, fontSize: 14, color: C.g900, paddingLeft: 0 },
   btnPrimary:          { backgroundColor: C.primary, borderRadius: 10, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', elevation: 3 },
   btnPrimaryText:      { color: C.white, fontSize: 14, fontWeight: '700' },
 });

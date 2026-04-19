@@ -1,5 +1,5 @@
 // screens/ProfileScreen.js
-// Unified profile screen — works for both owner and renter roles.
+// Unified profile screen — works for owner, renter, and admin roles.
 // Reads/writes via AuthContext so changes persist within the session.
 //
 // Profile picture CRUD
@@ -688,7 +688,9 @@ export default function ProfileScreen() {
               <View style={[s.quickIcon, { backgroundColor: 'rgba(63,155,132,0.1)' }]}>
                 <IconCar size={16} color={C.primary} />
               </View>
-              <Text style={s.quickLabel}>{u.role === 'owner' ? 'My Dashboard' : 'Browse Vehicles'}</Text>
+              <Text style={s.quickLabel}>
+                {u.role === 'owner' ? 'My Dashboard' : u.role === 'admin' ? 'Admin Dashboard' : 'Browse Vehicles'}
+              </Text>
               <IconGo size={14} color={C.g400} />
             </TouchableOpacity>
 
@@ -745,7 +747,7 @@ export default function ProfileScreen() {
             <View style={s.cardHeader}>
               <View style={[s.cardHeaderDot, { backgroundColor: roleMeta.dot }]} />
               <Text style={s.cardHeaderTitle}>
-                {u.role === 'owner' ? 'Owner Details' : 'Renter Details'}
+                {u.role === 'owner' ? 'Owner Details' : u.role === 'admin' ? 'Admin Details' : 'Renter Details'}
               </Text>
             </View>
             <View style={{ padding: 16 }}>
@@ -758,6 +760,17 @@ export default function ProfileScreen() {
                   <View style={[s.roleInfoChip, { backgroundColor: 'rgba(63,155,132,0.08)', borderColor: 'rgba(63,155,132,0.2)' }]}>
                     <IconCar size={14} color={C.primary} />
                     <Text style={[s.roleInfoChipText, { color: C.primaryDk }]}>Active fleet management</Text>
+                  </View>
+                </>
+              ) : u.role === 'admin' ? (
+                <>
+                  <Text style={s.roleInfoText}>
+                    As an <Text style={s.roleInfoBold}>Administrator</Text>, you can monitor platform
+                    analytics and oversee system-level activity for the mobile app.
+                  </Text>
+                  <View style={[s.roleInfoChip, { backgroundColor: 'rgba(168,85,247,0.08)', borderColor: 'rgba(168,85,247,0.2)' }]}>
+                    <IconUser size={14} color="#7e22ce" />
+                    <Text style={[s.roleInfoChipText, { color: '#6b21a8' }]}>Analytics and operations</Text>
                   </View>
                 </>
               ) : (

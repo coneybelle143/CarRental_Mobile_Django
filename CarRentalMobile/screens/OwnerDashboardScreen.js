@@ -190,7 +190,6 @@ function VehicleFormModal({ visible, onClose, onSave, initial, isEdit }) {
   React.useEffect(() => {
     if (visible) setPhotoUri((initial && initial.photoUri) || null);
   }, [visible, initial]);
-
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const MEDIA_IMAGES   = ImagePicker.MediaType?.Images || 'images';

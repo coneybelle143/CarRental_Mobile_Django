@@ -20,6 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": true,
       "package": "com.sanggre.CarRentalMobile"
     },
     "web": {
@@ -44,6 +45,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "830fdce1-68fe-4c2f-acb2-a768e1f98fd6"
+      }
+    },
+    "owner": "sanggre"
   }
 }

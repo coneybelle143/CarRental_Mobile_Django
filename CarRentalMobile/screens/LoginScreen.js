@@ -58,6 +58,8 @@ const ArrowIcon = () => (
   </Svg>
 );
 
+// Demo accounts removed
+
 export default function LoginScreen() {
   const router    = useRouter();
   const { login, user, loading: authLoading } = useAuth();
@@ -100,6 +102,8 @@ export default function LoginScreen() {
     }
   };
 
+  // demo helper removed
+
   const handleLogin = async () => {
     if (loading || authLoading) return;
     setError('');
@@ -132,11 +136,11 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.navy }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.g50 }} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: C.navy }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.top + 10}
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 10 : 0}
       >
         <StatusBar barStyle="light-content" backgroundColor={C.navy} />
 
@@ -146,7 +150,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         bounces={false}
-        keyboardDismissMode="interactive"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       >
         {/* ── HERO ── */}
         <View style={s.hero}>
@@ -264,6 +268,8 @@ export default function LoginScreen() {
           <TouchableOpacity style={s.outlineBtn} onPress={() => router.push('/register')} activeOpacity={0.85}>
             <Text style={s.outlineBtnText}>Create an Account</Text>
           </TouchableOpacity>
+
+          {/* Demo credentials removed */}
         </View>
 
         <View style={{ height: 120 }} />
@@ -289,6 +295,7 @@ const s = StyleSheet.create({
   cardAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 6, backgroundColor: C.primary },
   cardTitle: { fontSize: 22, fontWeight: '800', color: C.g800, marginBottom: 4 },
   cardSub:   { fontSize: 14, color: C.g500, marginBottom: 24 },
+  /* demo styles removed */
   sessionBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.primaryLt, borderRadius: 10, borderWidth: 1, borderColor: '#bbf7d0', padding: 12, marginBottom: 18 },
   sessionText: { fontSize: 13, color: C.primaryDk, fontWeight: '600' },
 

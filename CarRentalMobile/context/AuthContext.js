@@ -1,81 +1,31 @@
-// context/AuthContext.js
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiRequest } from '../services/api';
 
 const AuthContext = createContext(null);
-const USERS_KEY = 'carRental.users.v1';
-const SESSION_KEY = 'carRental.session.v1';
 
-const DEMO_USERS = [
-  {
-    id: 'demo-admin-1',
-    firstName: 'Demo',
-    lastName: 'Admin',
-    fullName: 'Demo Admin',
-    email: 'admin@demo.com',
-    password: 'admin123',
-    role: 'admin',
-    joinedAt: '2026-01-01T00:00:00.000Z',
-    photoUri: null,
-  },
-  {
-    id: 'demo-owner-1',
-    firstName: 'Demo',
-    lastName: 'Owner',
-    fullName: 'Demo Owner',
-    email: 'owner@demo.com',
-    password: 'owner123',
-    role: 'owner',
-    joinedAt: '2026-01-01T00:00:00.000Z',
-    photoUri: null,
-  },
-  {
-    id: 'demo-renter-1',
-    firstName: 'Demo',
-    lastName: 'Renter',
-    fullName: 'Demo Renter',
-    email: 'renter@demo.com',
-    password: 'renter123',
-    role: 'renter',
-    joinedAt: '2026-01-01T00:00:00.000Z',
-    photoUri: null,
-  },
-];
-
-function ensureDemoUsers(users) {
-  const byEmail = new Set((users || []).map((item) => (item.email || '').toLowerCase()));
-  const missing = DEMO_USERS.filter((demo) => !byEmail.has(demo.email.toLowerCase()));
-  return missing.length ? [...users, ...missing] : users;
-}
+const SESSION_KEY = 'carRental.session.v2';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       try {
-        const [rawUsers, rawSession] = await Promise.all([
-          AsyncStorage.getItem(USERS_KEY),
-          AsyncStorage.getItem(SESSION_KEY),
-        ]);
+        const session = await AsyncStorage.getItem(SESSION_KEY);
+        if (!session) return;
 
+        const savedUser = JSON.parse(session);
         if (!mounted) return;
 
-        const parsedUsers = rawUsers ? JSON.parse(rawUsers) : [];
-        const baseUsers = Array.isArray(parsedUsers) ? parsedUsers : [];
-        const nextUsers = ensureDemoUsers(baseUsers);
-
-        setUsers(nextUsers);
-        if (nextUsers.length !== baseUsers.length) {
-          await AsyncStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
-        }
-
-        if (rawSession) setUser(JSON.parse(rawSession));
-      } catch (error) {
-        console.warn('[AuthContext] Failed to load auth data', error);
+        setUser(savedUser);
+      } catch {
+        if (!mounted) return;
+        await AsyncStorage.removeItem(SESSION_KEY);
+        setUser(null);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -86,104 +36,90 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const persistUsers = useCallback(async (nextUsers) => {
-    setUsers(nextUsers);
-    await AsyncStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
-  }, []);
-
-  const persistSession = useCallback(async (nextUser) => {
+  const persistAuth = useCallback(async (nextUser) => {
     setUser(nextUser);
-    if (nextUser) {
-      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
-    } else {
-      await AsyncStorage.removeItem(SESSION_KEY);
-    }
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
   }, []);
 
   const login = useCallback(async (email, password) => {
-    const normalizedEmail = (email || '').trim().toLowerCase();
-    const found = users.find(
-      (item) => item.email === normalizedEmail && item.password === password
-    );
+    try {
+      const normalizedEmail = (email || '').trim().toLowerCase();
+      const loginData = await apiRequest('/api/login/', {
+        method: 'POST',
+        body: { username: normalizedEmail, password },
+      });
 
-    if (!found) {
-      return { ok: false, error: 'Invalid email or password.' };
+      // Accept the login data directly as the user profile since tokens are removed
+      const me = loginData?.user || loginData;
+      await persistAuth(me);
+      return { ok: true, user: me };
+    } catch (error) {
+      return { ok: false, error: error.message || 'Invalid email or password.' };
     }
-
-    const { password: _pw, ...safeUser } = found;
-    await persistSession(safeUser);
-    return { ok: true, user: safeUser };
-  }, [persistSession, users]);
+  }, [persistAuth]);
 
   const register = useCallback(async (userData, password) => {
-    const normalizedEmail = (userData?.email || '').trim().toLowerCase();
-    if (!normalizedEmail || !password) {
-      return { ok: false, error: 'Email and password are required.' };
+    try {
+      const normalizedEmail = (userData?.email || '').trim().toLowerCase();
+      if (!normalizedEmail || !password) {
+        return { ok: false, error: 'Email and password are required.' };
+      }
+
+      await apiRequest('/api/register/', {
+        method: 'POST',
+        body: {
+          email: normalizedEmail,
+          username: normalizedEmail,
+          password,
+          firstName: userData?.firstName || '',
+          lastName: userData?.lastName || '',
+          middleName: userData?.middleName || '',
+          role: userData?.role || 'renter',
+          sex: userData?.sex || '',
+          dateOfBirth: userData?.dateOfBirth || null,
+        },
+      });
+
+      return await login(normalizedEmail, password);
+    } catch (error) {
+      return { ok: false, error: error.message || 'Registration failed.' };
     }
-
-    if (users.some((item) => item.email === normalizedEmail)) {
-      return { ok: false, error: 'Email is already registered.' };
-    }
-
-    const account = {
-      ...userData,
-      email: normalizedEmail,
-      password,
-      photoUri: userData?.photoUri || null,
-    };
-
-    const nextUsers = [...users, account];
-    await persistUsers(nextUsers);
-
-    const { password: _pw, ...safeUser } = account;
-    await persistSession(safeUser);
-    return { ok: true, user: safeUser };
-  }, [persistSession, persistUsers, users]);
+  }, [login]);
 
   const logout = useCallback(async () => {
-    await persistSession(null);
-  }, [persistSession]);
+    setUser(null);
+    await AsyncStorage.removeItem(SESSION_KEY);
+  }, []);
 
   const updateUser = useCallback(async (partial) => {
-    if (!user) return;
-
-    const nextUser = { ...user, ...partial };
-    setUser(nextUser);
-
     try {
-      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
+      const updated = await apiRequest('/api/me/', {
+        method: 'PATCH',
+        body: {
+          firstName: partial?.firstName,
+          lastName: partial?.lastName,
+          middleName: partial?.middleName,
+          sex: partial?.sex,
+          dateOfBirth: partial?.dateOfBirth,
+        },
+      });
 
-      const nextUsers = users.map((item) =>
-        item.email === user.email ? { ...item, ...partial } : item
-      );
-      setUsers(nextUsers);
-      await AsyncStorage.setItem(USERS_KEY, JSON.stringify(nextUsers));
+      setUser(updated);
+      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated));
     } catch (error) {
       console.warn('[AuthContext] Failed to update user', error);
     }
-  }, [user, users]);
+  }, []);
 
-  /**
-   * Set or clear the profile photo.
-   * Pass a local URI string (from expo-image-picker) to set it,
-   * or null / undefined to remove it.
-   *
-   * @param {string|null} uri
-   */
-  const updatePhoto = useCallback((uri) =>
-    updateUser({ photoUri: uri ?? null }),
-  [updateUser]);
+  const updatePhoto = useCallback((uri) => updateUser({ photoUri: uri ?? null }), [updateUser]);
 
   return (
-    <AuthContext.Provider
-      value={{ user, users, loading, login, register, logout, updateUser, updatePhoto }}
-    >
+    <AuthContext.Provider value={{ user, users: [], loading, login, register, logout, updateUser, updatePhoto }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-/** Convenience hook — throws if used outside <AuthProvider>. */
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
