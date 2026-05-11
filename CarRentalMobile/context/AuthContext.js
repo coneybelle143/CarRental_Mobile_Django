@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiRequest } from '../services/api';
 
 const AuthContext = createContext(null);
+const USER_STORAGE_KEY = 'auth_user_data';
+const PHOTO_KEY_PREFIX = 'profile_photo_';
 
 const SESSION_KEY = 'carRental.session.v2';
 
