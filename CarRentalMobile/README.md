@@ -9,20 +9,25 @@ npx expo start
 
 ## Backend Connection
 
-The app now calls the Django backend API.
+The app now reads the backend base URL from the `EXPO_PUBLIC_API_URL` environment variable.
 
-- Default API base URL on Android emulator: `http://10.0.2.2:8000`
-- Default API base URL on iOS simulator: `http://127.0.0.1:8000`
-- Override with env var: `EXPO_PUBLIC_API_URL`
+- Default API base URL for Expo Go is configured in `.env` as your local network IP.
+- For Android emulator, the app will still use `http://10.0.2.2:8000` when `EXPO_PUBLIC_API_URL` points to localhost.
+- For iOS simulator, the app will still use `http://127.0.0.1:8000` when `EXPO_PUBLIC_API_URL` points to localhost.
 
-Examples:
+Create or update `.env` in the project root with your local LAN IP, for example:
+
+```env
+EXPO_PUBLIC_API_URL=http://192.168.254.107:8000
+```
+
+Then start Expo normally:
 
 ```bash
-set EXPO_PUBLIC_API_URL=http://127.0.0.1:8000
 npx expo start
 ```
 
-For a physical device, use your computer LAN IP, for example:
+If you want to override it at runtime, set the variable in your shell before launching Expo:
 
 ```bash
 set EXPO_PUBLIC_API_URL=http://192.168.1.50:8000
