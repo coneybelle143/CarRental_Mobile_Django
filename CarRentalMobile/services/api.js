@@ -6,6 +6,8 @@ import { router } from 'expo-router';
 const SESSION_KEY = 'carRental.session.v2';
 
 const defaultBase = 'http://192.168.254.107:8000';
+const expoApiUrl = Constants.expoConfig?.extra?.apiUrl || Constants.manifest?.extra?.apiUrl;
+const apiSource = process.env.EXPO_PUBLIC_API_URL || expoApiUrl || defaultBase;
 
 function normalizeApiBase(rawBase)  {
   const trimmed = rawBase.trim().replace(/\/$/, '');
@@ -39,7 +41,7 @@ function getExpoPackagerHost() {
 
 const expoPackagerHost = getExpoPackagerHost();
 const expoHostBase = expoPackagerHost ? normalizeApiBase(`${expoPackagerHost}:8000`) : null;
-export const API_BASE = normalizeApiBase(process.env.EXPO_PUBLIC_API_URL || defaultBase);
+export const API_BASE = normalizeApiBase(apiSource);
 
 function toErrorMessage(payload, fallback) {
   if (!payload) return fallback;
