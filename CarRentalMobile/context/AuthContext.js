@@ -98,20 +98,24 @@ export function AuthProvider({ children }) {
       const updated = await apiRequest('/api/me/', {
         method: 'PATCH',
         body: {
+          email: user?.email,
+          username: user?.username || user?.email,
           firstName: partial?.firstName,
           lastName: partial?.lastName,
           middleName: partial?.middleName,
           sex: partial?.sex,
           dateOfBirth: partial?.dateOfBirth,
+          photoUri: partial?.photoUri,
         },
       });
 
-      setUser(updated);
-      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(updated));
+      const nextUser = updated?.user || updated;
+      setUser(nextUser);
+      await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
     } catch (error) {
       console.warn('[AuthContext] Failed to update user', error);
     }
-  }, []);
+  }, [user]);
 
   const updatePhoto = useCallback((uri) => updateUser({ photoUri: uri ?? null }), [updateUser]);
 
