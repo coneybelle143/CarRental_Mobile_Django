@@ -1,3 +1,4 @@
+/* global __dirname */
 const fs = require('fs');
 const path = require('path');
 const appJson = require('./app.json');
@@ -18,7 +19,7 @@ const env = fs.existsSync(envPath)
   ? parseDotEnv(fs.readFileSync(envPath, 'utf8'))
   : {};
 
-const apiUrl = process.env.EXPO_PUBLIC_API_URL || env.EXPO_PUBLIC_API_URL || 'http://192.168.254.107:8000';
+const apiUrl = process.env.EXPO_PUBLIC_API_URL || env.EXPO_PUBLIC_API_URL;
 
 module.exports = {
   ...appJson,

@@ -9,11 +9,7 @@ npx expo start
 
 ## Backend Connection
 
-The app now reads the backend base URL from the `EXPO_PUBLIC_API_URL` environment variable.
-
-- Default API base URL for Expo Go is configured in `.env` as your local network IP.
-- For Android emulator, the app will still use `http://10.0.2.2:8000` when `EXPO_PUBLIC_API_URL` points to localhost.
-- For iOS simulator, the app will still use `http://127.0.0.1:8000` when `EXPO_PUBLIC_API_URL` points to localhost.
+The app reads the backend base URL from the `EXPO_PUBLIC_API_URL` environment variable. If that is not set, the client falls back to the current Expo host or the appropriate simulator/emulator localhost address.
 
 Create or update `.env` in the project root with your local LAN IP, for example:
 

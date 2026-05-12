@@ -5,9 +5,7 @@ import { router } from 'expo-router';
 
 const SESSION_KEY = 'carRental.session.v2';
 
-const defaultBase = 'http://192.168.254.107:8000';
 const expoApiUrl = Constants.expoConfig?.extra?.apiUrl || Constants.manifest?.extra?.apiUrl;
-const apiSource = process.env.EXPO_PUBLIC_API_URL || expoApiUrl || defaultBase;
 
 function normalizeApiBase(rawBase)  {
   const trimmed = rawBase.trim().replace(/\/$/, '');
@@ -30,6 +28,23 @@ function normalizeApiBase(rawBase)  {
   }
 }
 
+function getDefaultApiBase() {
+  const expoPackagerHost = getExpoPackagerHost();
+  if (expoPackagerHost) {
+    return normalizeApiBase(`${expoPackagerHost}:8000`);
+  }
+
+  if (Platform.OS === 'android' && !Constants.isDevice) {
+    return 'http://10.0.2.2:8000';
+  }
+
+  if (Platform.OS === 'ios' && !Constants.isDevice) {
+    return 'http://127.0.0.1:8000';
+  }
+
+  return 'http://localhost:8000';
+}
+
 function getExpoPackagerHost() {
   const manifest = Constants.manifest || Constants.expoConfig;
   const rawHost = manifest?.debuggerHost || manifest?.packagerOpts?.hostUri || manifest?.hostUri;
@@ -41,6 +56,7 @@ function getExpoPackagerHost() {
 
 const expoPackagerHost = getExpoPackagerHost();
 const expoHostBase = expoPackagerHost ? normalizeApiBase(`${expoPackagerHost}:8000`) : null;
+const apiSource = process.env.EXPO_PUBLIC_API_URL || expoApiUrl || getDefaultApiBase();
 export const API_BASE = normalizeApiBase(apiSource);
 
 function toErrorMessage(payload, fallback) {
