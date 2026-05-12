@@ -24,37 +24,39 @@ export function LogReportProvider({ children }) {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const loadReports = useCallback(async () => {
+    try {
+      // 1) load local cache
+      if (AsyncStorage) {
+        const raw = await AsyncStorage.getItem(LOG_KEY);
+        if (raw) setReports(JSON.parse(raw));
+      }
+
+      // 2) try to fetch remote reports from several possible endpoints
+      const endpoints = ['/api/log-reports/', '/api/logs/', '/api/reports/'];
+      for (const ep of endpoints) {
+        try {
+          const data = await apiRequest(ep, { method: 'GET' });
+          if (Array.isArray(data)) {
+            setReports(data.map(d => ({ id: d.id ?? d.pk ?? `lr_${Date.now()}`, ...d })));
+            if (AsyncStorage) AsyncStorage.setItem(LOG_KEY, JSON.stringify(data)).catch(()=>{});
+            break;
+          }
+        } catch (e) {
+          // try next
+        }
+      }
+    } catch (e) {
+      console.warn('[LogReportContext] load error', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   /* Load persisted reports on mount */
   useEffect(() => {
-    (async () => {
-      try {
-        // 1) load local cache
-        if (AsyncStorage) {
-          const raw = await AsyncStorage.getItem(LOG_KEY);
-          if (raw) setReports(JSON.parse(raw));
-        }
-
-        // 2) try to fetch remote reports from several possible endpoints
-        const endpoints = ['/api/log-reports/', '/api/logs/', '/api/reports/'];
-        for (const ep of endpoints) {
-          try {
-            const data = await apiRequest(ep, { method: 'GET' });
-            if (Array.isArray(data)) {
-              setReports(data.map(d => ({ id: d.id ?? d.pk ?? `lr_${Date.now()}`, ...d })));
-              if (AsyncStorage) AsyncStorage.setItem(LOG_KEY, JSON.stringify(data)).catch(()=>{});
-              break;
-            }
-          } catch (e) {
-            // try next
-          }
-        }
-      } catch (e) {
-        console.warn('[LogReportContext] load error', e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+    loadReports();
+  }, [loadReports]);
 
   /* Persist helper */
   const persist = useCallback(async (next) => {
@@ -201,6 +203,7 @@ export function LogReportProvider({ children }) {
     updateReport,
     deleteReport,
     addComment,
+    refreshReports: loadReports,
   };
 
   return (

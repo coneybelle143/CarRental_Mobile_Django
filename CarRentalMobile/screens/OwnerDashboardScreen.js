@@ -7,11 +7,12 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { useRouter }     from 'expo-router';
-import { useAuth }       from '../context/AuthContext';
-import { useBookings }   from '../context/BookingContext';
-import { useLogReport }  from '../context/LogReportContext';
-import { useVehicles }   from '../context/VehicleContext';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
+import { useBookings } from '../context/BookingContext';
+import { useLogReport } from '../context/LogReportContext';
+import { useVehicles } from '../context/VehicleContext';
 import BottomNav         from '../components/BottomNav';
 import ProfileAvatar     from '../components/ProfileAvatar';
 import LogReportScreen   from './LogReportScreen';
@@ -748,6 +749,12 @@ export default function OwnerDashboardScreen() {
       setRefreshing(false);
     }
   };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      handleRefresh();
+    }, [])
+  );
 
   const handleDelete = id => {
     Alert.alert('Delete Vehicle?', 'This will permanently remove the vehicle listing.', [

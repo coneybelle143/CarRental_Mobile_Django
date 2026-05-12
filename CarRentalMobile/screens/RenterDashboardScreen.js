@@ -2,8 +2,9 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  Modal, StyleSheet, Alert, Platform, Image,
+  Modal, StyleSheet, Alert, Platform, Image, RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter }    from 'expo-router';
@@ -279,7 +280,7 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
   );
 }
 
-function HomeTab({ vehicles, bookings, onCreateBooking, user, savedVehicleIds, onToggleSave }) {
+function HomeTab({ vehicles, bookings, onCreateBooking, user, savedVehicleIds, onToggleSave, refreshing, onRefresh }) {
   const [search,     setSearch]     = useState('');
   const [filter,     setFilter]     = useState('all');
   const [rentModal,  setRentModal]  = useState(false);
@@ -329,7 +330,11 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user, savedVehicleIds, o
   };
 
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScrollView 
+      style={{ flex: 1 }} 
+      contentContainerStyle={{ paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <View style={{ padding: 16 }}>
         <View style={s.searchWrap}>
           <TextInput
@@ -389,8 +394,23 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user, savedVehicleIds, o
 export default function RenterDashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { addBooking, getBookingsForRenter } = useBookings();
-  const { getApprovedVehicles } = useVehicles(); // ← only approved vehicles
+  const { addBooking, getBookingsForRenter, refreshBookings } = useBookings();
+  const { getApprovedVehicles, refreshVehicles } = useVehicles(); // ← only approved vehicles
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    if (typeof refreshVehicles === 'function') await refreshVehicles();
+    if (typeof refreshBookings === 'function') await refreshBookings();
+    setRefreshing(false);
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      handleRefresh();
+    }, [])
+  );
 
   React.useEffect(() => {
     if (!user) router.replace('/login');
@@ -454,6 +474,8 @@ export default function RenterDashboardScreen() {
             user={user}
             savedVehicleIds={savedVehicleIds}
             onToggleSave={toggleSaveVehicle}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
           />
         );
       case 'bookings':

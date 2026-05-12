@@ -2,10 +2,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  TextInput, StatusBar, FlatList, Alert, Modal, Image,
+  TextInput, StatusBar, FlatList, Alert, Modal, Image, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect, Polyline, Line } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';
 import { useVehicles } from '../context/VehicleContext';
@@ -59,10 +60,23 @@ const TABS = [
 export default function AdminDashboard() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { vehicles } = useVehicles();
+  const { vehicles, refreshVehicles } = useVehicles();
 
   const [activeTab,       setActiveTab]       = useState('overview');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [refreshing,      setRefreshing]      = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    if (typeof refreshVehicles === 'function') await refreshVehicles();
+    setRefreshing(false);
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      handleRefresh();
+    }, [])
+  );
 
   React.useEffect(() => {
     if (!user) { router.replace('/login'); return; }

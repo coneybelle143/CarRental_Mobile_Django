@@ -7,10 +7,12 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useBookings } from '../context/BookingContext';
 
@@ -76,10 +78,23 @@ function daysBetween(a, b) {
 export default function BookingsScreen({ hideHeader = false }) {
   const router   = useRouter();
   const { user } = useAuth();
-  const { getBookingsForOwner, getBookingsForRenter } = useBookings();
+  const { getBookingsForOwner, getBookingsForRenter, refreshBookings } = useBookings();
   const [activeTab, setActiveTab] = useState('all');
   const [query,     setQuery]     = useState('');
   const [expanded,  setExpanded]  = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    if (typeof refreshBookings === 'function') await refreshBookings();
+    setRefreshing(false);
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      handleRefresh();
+    }, [])
+  );
 
   const baseData = useMemo(() => {
     if (user?.role === 'owner')  return getBookingsForOwner(user?.id || user?.email);
@@ -123,6 +138,7 @@ export default function BookingsScreen({ hideHeader = false }) {
           style={{ flex: 1 }}
           contentContainerStyle={s.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         >
 
           {/* ── Stats — matches BookingsTab stat cards ── */}

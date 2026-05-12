@@ -8,9 +8,11 @@ import {
   ScrollView,
   StatusBar,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import Svg, { G, Path, Circle } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';
 
@@ -70,6 +72,20 @@ export default function EmailLogScreen() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // Simulate network delay since logs are static
+    await new Promise(resolve => setTimeout(resolve, 800));
+    setRefreshing(false);
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      handleRefresh();
+    }, [])
+  );
 
   const filtered = useMemo(() => {
     let list = EMAIL_LOGS;
@@ -108,7 +124,11 @@ export default function EmailLogScreen() {
   return (
     <SafeAreaView style={s.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={C.white} />
-      <ScrollView contentContainerStyle={s.root} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={s.root} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      >
         {/* Header Section */}
         <View style={s.header}>
           <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
