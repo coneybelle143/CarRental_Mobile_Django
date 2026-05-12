@@ -9,66 +9,64 @@ export function BookingProvider({ children }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadBookings = useCallback(async () => {
     let mounted = true;
-    (async () => {
-      try {
-        // 1) Load local cache first
-        const raw = await AsyncStorage.getItem(BOOKINGS_KEY);
-        if (!mounted) return;
-        const localBookings = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(localBookings) && localBookings.length > 0) {
-          setBookings(localBookings);
-        }
-
-        // 2) Try fetching from backend (multiple possible endpoints)
-        const endpoints = ['/api/bookings/', '/api/rentals/', '/api/reservations/'];
-        let remote = null;
-        for (const ep of endpoints) {
-          try {
-            const data = await apiRequest(ep, { method: 'GET' });
-            if (Array.isArray(data)) { remote = data; break; }
-          } catch (e) {
-            // try next
-          }
-        }
-
-        if (!mounted) return;
-        if (Array.isArray(remote)) {
-          // Normalize remote items into local shape (best-effort)
-          const normalized = remote.map((b) => ({
-            id: b.id ?? b.pk ?? `bk_${Date.now()}`,
-            renterEmail: b.renterEmail ?? b.renter_email ?? b.user_email ?? b.user?.email,
-            renterName: b.renterName ?? b.renter_name ?? b.user?.name ?? b.user?.username,
-            vehicleId: b.vehicle ?? b.vehicleId ?? b.vehicle_id ?? b.car ?? b.carId,
-            startDate: b.startDate ?? b.start_date ?? b.from ?? null,
-            endDate: b.endDate ?? b.end_date ?? b.to ?? null,
-            totalPrice: b.totalPrice ?? b.total_price ?? b.amount ?? b.price ?? null,
-            status: b.status ?? 'pending',
-            createdAt: b.createdAt ?? b.created_at ?? b.timestamp ?? new Date().toISOString(),
-            ...b,
-          }));
-
-          // Merge remote and local (remote authoritative)
-          const byId = new Map();
-          normalized.forEach(r => byId.set(String(r.id), r));
-          (localBookings || []).forEach(l => { if (!byId.has(String(l.id))) byId.set(String(l.id), l); });
-          const merged = Array.from(byId.values());
-          setBookings(merged);
-          // persist merged cache
-          AsyncStorage.setItem(BOOKINGS_KEY, JSON.stringify(merged)).catch(() => {});
-        }
-      } catch (error) {
-        console.warn('[BookingContext] Failed to load bookings', error);
-      } finally {
-        if (mounted) setLoading(false);
+    try {
+      // 1) Load local cache first
+      const raw = await AsyncStorage.getItem(BOOKINGS_KEY);
+      if (!mounted) return;
+      const localBookings = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(localBookings) && localBookings.length > 0) {
+        setBookings(localBookings);
       }
-    })();
 
-    return () => {
-      mounted = false;
-    };
+      // 2) Try fetching from backend (multiple possible endpoints)
+      const endpoints = ['/api/bookings/', '/api/rentals/', '/api/reservations/'];
+      let remote = null;
+      for (const ep of endpoints) {
+        try {
+          const data = await apiRequest(ep, { method: 'GET' });
+          if (Array.isArray(data)) { remote = data; break; }
+        } catch (e) {
+          // try next
+        }
+      }
+
+      if (!mounted) return;
+      if (Array.isArray(remote)) {
+        // Normalize remote items into local shape (best-effort)
+        const normalized = remote.map((b) => ({
+          id: b.id ?? b.pk ?? `bk_${Date.now()}`,
+          renterEmail: b.renterEmail ?? b.renter_email ?? b.user_email ?? b.user?.email,
+          renterName: b.renterName ?? b.renter_name ?? b.user?.name ?? b.user?.username,
+          vehicleId: b.vehicle ?? b.vehicleId ?? b.vehicle_id ?? b.car ?? b.carId,
+          startDate: b.startDate ?? b.start_date ?? b.from ?? null,
+          endDate: b.endDate ?? b.end_date ?? b.to ?? null,
+          totalPrice: b.totalPrice ?? b.total_price ?? b.amount ?? b.price ?? null,
+          status: b.status ?? 'pending',
+          createdAt: b.createdAt ?? b.created_at ?? b.timestamp ?? new Date().toISOString(),
+          ...b,
+        }));
+
+        // Merge remote and local (remote authoritative)
+        const byId = new Map();
+        normalized.forEach(r => byId.set(String(r.id), r));
+        (localBookings || []).forEach(l => { if (!byId.has(String(l.id))) byId.set(String(l.id), l); });
+        const merged = Array.from(byId.values());
+        setBookings(merged);
+        // persist merged cache
+        AsyncStorage.setItem(BOOKINGS_KEY, JSON.stringify(merged)).catch(() => {});
+      }
+    } catch (error) {
+      console.warn('[BookingContext] Failed to load bookings', error);
+    } finally {
+      if (mounted) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadBookings();
+  }, [loadBookings]);
 
   const persist = useCallback(async (next) => {
     setBookings(next);
@@ -327,6 +325,7 @@ export function BookingProvider({ children }) {
         getBookingsForOwner,
         getRentersForOwner,
         clearBookings,
+        refreshBookings: loadBookings,
       }}
     >
       {children}
