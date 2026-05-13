@@ -1,3 +1,4 @@
+// screens/BookingsScreen.js
 import React, { useMemo, useState } from 'react';
 import {
   View,
@@ -8,24 +9,24 @@ import {
   StyleSheet,
   Platform,
   RefreshControl,
+  Image,
+  Alert,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useBookings } from '../context/BookingContext';
 
-// ─── Theme (matches RenterDashboardScreen exactly) ────────────────────
 const C = {
-  primary:   '#3F9B84',
+  primary: '#3F9B84',
   primaryDk: '#2d7a67',
   primaryLt: '#ecfdf5',
-  navy:      '#1a2c5e',
-  danger:    '#ef4444',
-  warning:   '#f59e0b',
-  success:   '#22c55e',
-  g50:  '#f9fafb',
+  navy: '#1a2c5e',
+  danger: '#ef4444',
+  warning: '#f59e0b',
+  success: '#22c55e',
+  g50: '#f9fafb',
   g100: '#f3f4f6',
   g200: '#e5e7eb',
   g300: '#d1d5db',
@@ -36,394 +37,162 @@ const C = {
   white: '#ffffff',
 };
 
-// ─── Status badge config ──────────────────────────────────────────────
 const BADGE = {
-  pending:   { bg: '#fef3c7', col: '#92400e' },
-  approved:  { bg: '#d1fae5', col: '#065f46' },
-  completed: { bg: '#dbeafe', col: '#1e40af' },
-  rejected:  { bg: '#fee2e2', col: '#991b1b' },
+  pending:   { bg: '#fef3c7', col: '#92400e', label: 'Pending' },
+  approved:  { bg: '#d1fae5', col: '#065f46', label: 'Active' },
+  completed: { bg: '#dbeafe', col: '#1e40af', label: 'Completed' },
+  rejected:  { bg: '#fee2e2', col: '#991b1b', label: 'Rejected' },
 };
 
-const IconBack     = ({ size = 20, color = C.g600 }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <Path d="M15 19l-7-7 7-7" />
-  </Svg>
-);
+function BookingCard({ item, isExpanded, onToggle, userRole }) {
+  const { returnVehicle } = useBookings();
+  const bc = BADGE[item.status] || BADGE.pending;
+  const days = Math.max(0, Math.round((new Date(item.endDate) - new Date(item.startDate)) / 86400000));
+  const dailyRate = days > 0 ? Math.round(item.totalPrice / days) : 0;
 
-// ─── Helpers ──────────────────────────────────────────────────────────
-function parseYMD(s) {
-  if (!s) return null;
-  if (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    const [y, m, d] = s.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  }
-  const maybe = new Date(s);
-  return isNaN(maybe.getTime()) ? null : maybe;
-}
-
-function fmtDate(iso) {
-  if (!iso) return '—';
-  const d = parseYMD(iso) || new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function daysBetween(a, b) {
-  const da = parseYMD(a);
-  const db = parseYMD(b);
-  if (!da || !db) return 0;
-  return Math.max(0, Math.round((db - da) / 86400000));
-}
-
-// ─── Main Screen ──────────────────────────────────────────────────────
-export default function BookingsScreen({ hideHeader = false }) {
-  const router   = useRouter();
-  const { user } = useAuth();
-  const { getBookingsForOwner, getBookingsForRenter, refreshBookings } = useBookings();
-  const [activeTab, setActiveTab] = useState('all');
-  const [query,     setQuery]     = useState('');
-  const [expanded,  setExpanded]  = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    if (typeof refreshBookings === 'function') await refreshBookings();
-    setRefreshing(false);
+  const handleCancel = () => {
+    Alert.alert('Cancel Booking?', 'Are you sure you want to cancel this booking?', [
+      { text: 'No', style: 'cancel' },
+      { text: 'Yes, Cancel', style: 'destructive', onPress: () => {
+          // Add your cancel logic here (update booking status)
+          Alert.alert('Cancelled', 'Booking has been cancelled.');
+        }}
+    ]);
   };
 
-  useFocusEffect(
-    React.useCallback(() => {
-      handleRefresh();
-    }, [])
-  );
+  const handleReturnVehicle = () => {
+    Alert.alert(
+      'Return Vehicle?',
+      'Are you sure you want to mark this vehicle as returned? This will complete the booking.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm Return',
+          style: 'default',
+          onPress: () => {
+            returnVehicle(item.id, {
+              returnedAt: new Date().toISOString(),
+              returnNotes: '',
+            });
+            Alert.alert('Success', 'Vehicle return has been recorded and the booking is now complete.');
+          },
+        },
+      ]
+    );
+  };
 
-  const baseData = useMemo(() => {
-    if (user?.role === 'owner')  return getBookingsForOwner(user?.id || user?.email);
-    if (user?.role === 'renter') return getBookingsForRenter(user?.email);
-    return [];
-  }, [getBookingsForOwner, getBookingsForRenter, user]);
-
-  const stats = useMemo(() => ({
-    total:     baseData.length,
-    pending:   baseData.filter(x => x.status === 'pending').length,
-    approved:  baseData.filter(x => x.status === 'approved').length,
-    completed: baseData.filter(x => x.status === 'completed').length,
-  }), [baseData]);
-
-  const filtered = useMemo(() => {
-    let list = activeTab === 'all' ? baseData : baseData.filter(i => i.status === activeTab);
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      list = list.filter(i =>
-        i.vehicleName.toLowerCase().includes(q) ||
-        i.ownerName.toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [activeTab, baseData, query]);
-
-  const TABS = [
-    { key: 'all',       label: 'All'       },
-    { key: 'pending',   label: 'Pending'   },
-    { key: 'approved',  label: 'Active'    },
-    { key: 'completed', label: 'Completed' },
-    { key: 'rejected',  label: 'Rejected'  },
-  ];
-
-  const roleTitle = user?.role === 'owner' ? 'Rental Requests' : 'My Bookings';
-
-  if (hideHeader) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#edf1f7' }}>
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={s.scrollContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-        >
-
-          {/* ── Stats — matches BookingsTab stat cards ── */}
-          <View style={s.statsRow}>
-            {[
-              { label: 'Total',   value: stats.total,     color: C.primary  },
-              { label: 'Pending', value: stats.pending,   color: C.warning  },
-              { label: 'Active',  value: stats.approved,  color: C.success  },
-              { label: 'Done',    value: stats.completed, color: '#3b82f6'  },
-            ].map(st => (
-              <View key={st.label} style={[s.statCard, { borderLeftColor: st.color }]}>
-                <Text style={[s.statValue, { color: st.color }]}>{st.value}</Text>
-                <Text style={s.statLabel}>{st.label}</Text>
+  return (
+    <View style={s.bookingCard}>
+      <TouchableOpacity onPress={onToggle} activeOpacity={0.9}>
+        {/* Image + Info Row */}
+        <View style={s.cardHeader}>
+          <View style={s.imageContainer}>
+            {item.vehiclePhotoUri ? (
+              <Image source={{ uri: item.vehiclePhotoUri }} style={s.vehicleImage} resizeMode="cover" />
+            ) : (
+              <View style={[s.vehicleImage, s.fallbackImage]}>
+                <Text style={s.fallbackText}>🚗</Text>
               </View>
-            ))}
-          </View>
-
-          {/* ── Search — matches dashboard searchWrap ── */}
-          <View style={s.searchWrap}>
-            <TextInput
-              style={s.searchInput}
-              placeholder="Search vehicle or owner…"
-              placeholderTextColor={C.g400}
-              value={query}
-              onChangeText={setQuery}
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery('')} activeOpacity={0.7}>
-                <Text style={s.clearBtn}>{'✕'}</Text>
-              </TouchableOpacity>
             )}
           </View>
 
-          {/* ── Filter tabs — matches dashboard filterTab ── */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={s.tabsScroll}
-            contentContainerStyle={s.tabsContent}
-          >
-            {TABS.map(tab => {
-              const active = activeTab === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  onPress={() => setActiveTab(tab.key)}
-                  style={[s.filterTab, active && s.filterTabActive, { marginHorizontal: 1.7 }]}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[s.filterTabText, active && s.filterTabTextActive]}>
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* ── Cards — matches rentalCard style ── */}
-          {filtered.length === 0 ? (
-            <View style={s.empty}>
-              <Text style={s.emptyIcon}>📭</Text>
-              <Text style={s.emptyTitle}>No bookings found</Text>
-              <Text style={s.emptySub}>
-                {activeTab === 'all'
-                  ? "You haven't made any bookings yet."
-                  : 'No ' + activeTab + ' bookings.'}
-              </Text>
+          <View style={s.cardInfo}>
+            <View style={s.titleRow}>
+              <Text style={s.vehicleName} numberOfLines={1}>{item.vehicleName}</Text>
+              <View style={[s.badge, { backgroundColor: bc.bg }]}>
+                <Text style={[s.badgeText, { color: bc.col }]}>{bc.label}</Text>
+              </View>
             </View>
-          ) : (
-            filtered.map(item => (
-              <BookingCard
-                key={item.id}
-                item={item}
-                isExpanded={expanded === item.id}
-                onToggle={() => setExpanded(expanded === item.id ? null : item.id)}
-              />
-            ))
-          )}
 
-        </ScrollView>
-      </View>
-    );
-  }
+            <Text style={s.modelText}>{item.vehicleModel} • {item.year || ''}</Text>
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#edf1f7' }} edges={['top', 'bottom']}>
-      {/* Only show header if hideHeader is false */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7}>
-          <IconBack size={20} color={C.white} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>{roleTitle}</Text>
-          <Text style={s.headerSub}>
-            {user?.role === 'owner' ? 'Manage incoming requests' : 'Track your rentals'}
-          </Text>
-        </View>
-      </View>
-
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={s.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-
-        {/* ── Stats — matches BookingsTab stat cards ── */}
-        <View style={s.statsRow}>
-          {[
-            { label: 'Total',   value: stats.total,     color: C.primary  },
-            { label: 'Pending', value: stats.pending,   color: C.warning  },
-            { label: 'Active',  value: stats.approved,  color: C.success  },
-            { label: 'Done',    value: stats.completed, color: '#3b82f6'  },
-          ].map(st => (
-            <View key={st.label} style={[s.statCard, { borderLeftColor: st.color }]}>
-              <Text style={[s.statValue, { color: st.color }]}>{st.value}</Text>
-              <Text style={s.statLabel}>{st.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* ── Search — matches dashboard searchWrap ── */}
-        <View style={s.searchWrap}>
-          <TextInput
-            style={s.searchInput}
-            placeholder="Search vehicle or owner…"
-            placeholderTextColor={C.g400}
-            value={query}
-            onChangeText={setQuery}
-          />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')} activeOpacity={0.7}>
-              <Text style={s.clearBtn}>{'✕'}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ── Filter tabs — matches dashboard filterTab ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={s.tabsScroll}
-          contentContainerStyle={s.tabsContent}
-        >
-          {TABS.map(tab => {
-            const active = activeTab === tab.key;
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                onPress={() => setActiveTab(tab.key)}
-                style={[s.filterTab, active && s.filterTabActive, { marginHorizontal: 1.7 }]}
-                activeOpacity={0.7}
-              >
-                <Text style={[s.filterTabText, active && s.filterTabTextActive]}>
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {/* ── Cards — matches rentalCard style ── */}
-        {filtered.length === 0 ? (
-          <View style={s.empty}>
-            <Text style={s.emptyIcon}>📭</Text>
-            <Text style={s.emptyTitle}>No bookings found</Text>
-            <Text style={s.emptySub}>
-              {activeTab === 'all'
-                ? "You haven't made any bookings yet."
-                : 'No ' + activeTab + ' bookings.'}
+            <Text style={s.metaText}>
+              {userRole === 'renter' ? `Owner: ${item.ownerName}` : `Renter: ${item.renterName}`}
             </Text>
-          </View>
-        ) : (
-          filtered.map(item => (
-            <BookingCard
-              key={item.id}
-              item={item}
-              isExpanded={expanded === item.id}
-              onToggle={() => setExpanded(expanded === item.id ? null : item.id)}
-            />
-          ))
-        )}
 
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-// ─── BookingCard ──────────────────────────────────────────────────────
-function BookingCard({ item, isExpanded, onToggle }) {
-  const bc   = BADGE[item.status] || BADGE.pending;
-  const days = daysBetween(item.startDate, item.endDate);
-  const pd   = Math.round(item.totalPrice / (days || 1));
-
-  return (
-    <View style={s.rentalCard}>
-
-      <TouchableOpacity onPress={onToggle} activeOpacity={0.7}>
-        {/* Name + badge */}
-        <View style={s.cardTopRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.cardVehicleName}>{item.vehicleName}</Text>
-            <Text style={{ fontSize: 12, color: C.g500 }}>{item.vehicleModel}</Text>
-          </View>
-          <View style={[s.badge, { backgroundColor: bc.bg }]}>
-            <Text style={[s.badgeText, { color: bc.col }]}>{item.status.toUpperCase()}</Text>
+            <View style={s.dateRow}>
+              <Text style={s.dateText}>
+                📅 {new Date(item.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} 
+                {' → '} 
+                {new Date(item.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </Text>
+              <Text style={s.duration}>• {days} day{days !== 1 ? 's' : ''}</Text>
+            </View>
           </View>
         </View>
 
-        {/* Meta */}
-        <Text style={s.cardMeta}>
-          {'Owner: '}
-          <Text style={{ color: C.g700, fontWeight: '600' }}>{item.ownerName}</Text>
-        </Text>
-        <Text style={[s.cardMeta, { marginTop: 2 }]}>
-          {'📅 '}
-          {fmtDate(item.startDate)}
-          {'  –  '}
-          {fmtDate(item.endDate)}
-          {'  ·  '}
-          {days}
-          {days !== 1 ? ' days' : ' day'}
-        </Text>
-
-        {/* Price + chevron */}
-        <View style={s.cardPriceRow}>
-          <Text style={s.cardPrice}>{'₱' + item.totalPrice.toLocaleString()}</Text>
-          <Text style={s.cardPerDay}>{'₱' + pd.toLocaleString() + '/day'}</Text>
+        {/* Price Row */}
+        <View style={s.priceRow}>
+          <View>
+            <Text style={s.totalPrice}>₱{item.totalPrice.toLocaleString()}</Text>
+            <Text style={s.dailyRate}>₱{dailyRate.toLocaleString()}/day</Text>
+          </View>
           <Text style={s.chevron}>{isExpanded ? '▲' : '▼'}</Text>
         </View>
       </TouchableOpacity>
 
-      {/* ── Expanded section ── */}
+      {/* Expanded Content */}
       {isExpanded && (
-        <View style={s.expandWrap}>
+        <View style={s.expandedContent}>
           <View style={s.divider} />
 
-          {/* Detail grid */}
           <View style={s.detailGrid}>
-            <DetailItem label="Start Date" value={fmtDate(item.startDate)} />
-            <DetailItem label="End Date"   value={fmtDate(item.endDate)}   />
-            <DetailItem label="Duration"   value={days + (days !== 1 ? ' days' : ' day')} />
-            <DetailItem label="Daily Rate" value={'₱' + pd.toLocaleString()} />
+            <DetailItem label="Start Date" value={new Date(item.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} />
+            <DetailItem label="End Date" value={new Date(item.endDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} />
+            <DetailItem label="Duration" value={`${days} day${days !== 1 ? 's' : ''}`} />
+            <DetailItem label="Daily Rate" value={`₱${dailyRate.toLocaleString()}`} />
           </View>
 
-          {/* Total — matches modal price summary */}
-          <View style={s.totalRow}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: C.navy }}>Total</Text>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: C.primary }}>
-              {'₱' + item.totalPrice.toLocaleString()}
-            </Text>
-          </View>
+          {item.notes && (
+            <View style={{ marginTop: 12 }}>
+              <Text style={s.fieldLabel}>Notes</Text>
+              <Text style={s.notesText}>{item.notes}</Text>
+            </View>
+          )}
 
-          {/* Action buttons */}
-          {item.status === 'pending' && (
-            <View style={s.actionRow}>
-              <TouchableOpacity style={s.btnOutlineDanger} activeOpacity={0.8}>
-                <Text style={s.btnOutlineDangerText}>Cancel</Text>
+          {/* Action Buttons */}
+          <View style={s.actionContainer}>
+            {item.status === 'pending' && (
+              <TouchableOpacity style={s.btnDanger} onPress={handleCancel}>
+                <Text style={s.btnDangerText}>Cancel Request</Text>
               </TouchableOpacity>
-            </View>
-          )}
-          {item.status === 'completed' && (
-            <View style={s.actionRow}>
-              <TouchableOpacity style={s.btnOutline} activeOpacity={0.8}>
-                <Text style={s.btnOutlineText}>Leave Review</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.btnPrimary, { flex: 1 }]} activeOpacity={0.8}>
-                <Text style={s.btnPrimaryText}>Book Again</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {item.status === 'rejected' && item.rejectionReason ? (
-            <View style={s.rejectionBox}>
-              <Text style={s.rejectionText}>
-                <Text style={{ fontWeight: '700' }}>{'Reason: '}</Text>
-                {item.rejectionReason}
-              </Text>
-            </View>
-          ) : null}
+            )}
+
+            {item.status === 'approved' && (
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity style={s.btnPrimary} onPress={handleReturnVehicle}>
+                  <Text style={s.btnPrimaryText}>Return Vehicle</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.btnOutline}>
+                  <Text style={s.btnOutlineText}>Contact Owner</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {item.status === 'completed' && (
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity style={s.btnOutline} onPress={() => Alert.alert('Review', 'Review feature coming soon')}>
+                  <Text style={s.btnOutlineText}>Leave Review</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.btnPrimary, { flex: 1 }]}>
+                  <Text style={s.btnPrimaryText}>Book Again</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {item.status === 'rejected' && item.rejectionReason && (
+              <View style={s.rejectionBox}>
+                <Text style={s.rejectionTitle}>Rejection Reason</Text>
+                <Text style={s.rejectionText}>{item.rejectionReason}</Text>
+              </View>
+            )}
+          </View>
         </View>
       )}
     </View>
   );
 }
 
-// ─── DetailItem ───────────────────────────────────────────────────────
 function DetailItem({ label, value }) {
   return (
     <View style={s.detailItem}>
@@ -433,189 +202,336 @@ function DetailItem({ label, value }) {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#edf1f7' },
+export default function BookingsScreen({ hideHeader = false }) {
+  const router = useRouter();
+  const { user } = useAuth();
+  const { getBookingsForOwner, getBookingsForRenter, refreshBookings } = useBookings();
 
-  // Header — identical to dashboard
+  const [activeTab, setActiveTab] = useState('all');
+  const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    if (typeof refreshBookings === 'function') await refreshBookings();
+    setRefreshing(false);
+  };
+
+  useFocusEffect(React.useCallback(() => { handleRefresh(); }, []));
+
+  const baseData = useMemo(() => {
+    if (user?.role === 'owner') return getBookingsForOwner(user?.id || user?.email);
+    if (user?.role === 'renter') return getBookingsForRenter(user?.email);
+    return [];
+  }, [user, getBookingsForOwner, getBookingsForRenter]);
+
+  const stats = useMemo(() => ({
+    total: baseData.length,
+    pending: baseData.filter(x => x.status === 'pending').length,
+    approved: baseData.filter(x => x.status === 'approved').length,
+    completed: baseData.filter(x => x.status === 'completed').length,
+  }), [baseData]);
+
+  const filtered = useMemo(() => {
+    let list = activeTab === 'all' ? baseData : baseData.filter(i => i.status === activeTab);
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter(i =>
+        (i.vehicleName?.toLowerCase().includes(q)) ||
+        (i.ownerName?.toLowerCase().includes(q)) ||
+        (i.renterName?.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [activeTab, baseData, query]);
+
+  const TABS = [
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'approved', label: 'Active' },
+    { key: 'completed', label: 'Completed' },
+    { key: 'rejected', label: 'Rejected' },
+  ];
+
+  const roleTitle = user?.role === 'owner' ? 'Rental Requests' : 'My Bookings';
+
+  const content = (
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={s.scrollContent}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+    >
+      {/* Stats */}
+      <View style={s.statsRow}>
+        {[
+          { label: 'Total', value: stats.total, color: C.primary },
+          { label: 'Pending', value: stats.pending, color: C.warning },
+          { label: 'Active', value: stats.approved, color: C.success },
+          { label: 'Done', value: stats.completed, color: '#3b82f6' },
+        ].map(st => (
+          <View key={st.label} style={[s.statCard, { borderLeftColor: st.color }]}>
+            <Text style={[s.statValue, { color: st.color }]}>{st.value}</Text>
+            <Text style={s.statLabel}>{st.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Search */}
+      <View style={s.searchWrap}>
+        <TextInput
+          style={s.searchInput}
+          placeholder="Search vehicle, owner or renter..."
+          placeholderTextColor={C.g400}
+          value={query}
+          onChangeText={setQuery}
+        />
+        {query.length > 0 && (
+          <TouchableOpacity onPress={() => setQuery('')}>
+            <Text style={s.clearBtn}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Tabs */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabsScroll}>
+        {TABS.map(tab => {
+          const active = activeTab === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              onPress={() => setActiveTab(tab.key)}
+              style={[s.filterTab, active && s.filterTabActive]}
+            >
+              <Text style={[s.filterTabText, active && s.filterTabTextActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* Bookings List */}
+      {filtered.length === 0 ? (
+        <View style={s.empty}>
+          <Text style={s.emptyIcon}>📭</Text>
+          <Text style={s.emptyTitle}>No bookings found</Text>
+          <Text style={s.emptySub}>
+            {activeTab === 'all' ? "You don't have any bookings yet." : `No ${activeTab} bookings.`}
+          </Text>
+        </View>
+      ) : (
+        filtered.map(item => (
+          <BookingCard
+            key={item.id}
+            item={item}
+            isExpanded={expanded === item.id}
+            onToggle={() => setExpanded(expanded === item.id ? null : item.id)}
+            userRole={user?.role}
+          />
+        ))
+      )}
+    </ScrollView>
+  );
+
+  if (hideHeader) {
+    return <View style={{ flex: 1, backgroundColor: '#edf1f7' }}>{content}</View>;
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#edf1f7' }} edges={['top', 'bottom']}>
+      <View style={s.header}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+          <Text style={{ color: C.white, fontSize: 18 }}>←</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={s.headerTitle}>{roleTitle}</Text>
+          <Text style={s.headerSub}>
+            {user?.role === 'owner' ? 'Manage incoming rental requests' : 'Track all your rentals'}
+          </Text>
+        </View>
+      </View>
+
+      {content}
+    </SafeAreaView>
+  );
+}
+
+/* ==================== STYLES ==================== */
+const s = StyleSheet.create({
+  scrollContent: { padding: 16, paddingBottom: 100 },
+
+  // Stats
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  statCard: {
+    flex: 1,
+    backgroundColor: C.white,
+    borderRadius: 12,
+    padding: 12,
+    borderLeftWidth: 4,
+    elevation: 2,
+  },
+  statValue: { fontSize: 20, fontWeight: '800' },
+  statLabel: { fontSize: 11, color: C.g500, marginTop: 2 },
+
+  // Search & Tabs
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.g200,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  searchInput: { flex: 1, paddingVertical: 12, fontSize: 15, color: C.g900 },
+  clearBtn: { fontSize: 16, color: C.g400, padding: 4, fontWeight: '600' },
+
+  tabsScroll: { marginBottom: 16 },
+  filterTab: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.g200,
+    marginRight: 8,
+  },
+  filterTabActive: { backgroundColor: C.primary, borderColor: C.primary },
+  filterTabText: { fontSize: 13.5, color: C.g500, fontWeight: '600' },
+  filterTabTextActive: { color: C.white, fontWeight: '700' },
+
+  // Booking Card
+  bookingCard: {
+    backgroundColor: C.white,
+    borderRadius: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#e5e9f0',
+    overflow: 'hidden',
+    elevation: 3,
+  },
+  cardHeader: { flexDirection: 'row', padding: 14 },
+  imageContainer: { width: 110, height: 78, borderRadius: 12, overflow: 'hidden', marginRight: 12 },
+  vehicleImage: { width: '100%', height: '100%' },
+  fallbackImage: { backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' },
+  fallbackText: { fontSize: 32 },
+
+  cardInfo: { flex: 1 },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+  vehicleName: { fontSize: 17, fontWeight: '700', color: C.navy, flex: 1, marginRight: 8 },
+  modelText: { fontSize: 13, color: C.g500, marginBottom: 6 },
+  metaText: { fontSize: 13, color: C.g600, marginBottom: 4 },
+  dateRow: { flexDirection: 'row', alignItems: 'center' },
+  dateText: { fontSize: 13, color: C.g700 },
+  duration: { fontSize: 13, color: C.g500, marginLeft: 6 },
+
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    borderTopWidth: 1,
+    borderTopColor: C.g100,
+  },
+  totalPrice: { fontSize: 19, fontWeight: '800', color: C.primary },
+  dailyRate: { fontSize: 12, color: C.g500 },
+  chevron: { fontSize: 18, color: C.g400, fontWeight: '600' },
+
+  // Expanded
+  expandedContent: { padding: 14, paddingTop: 0 },
+  divider: { height: 1, backgroundColor: C.g200, marginVertical: 12 },
+  detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  detailItem: {
+    flex: 1,
+    minWidth: '47%',
+    backgroundColor: C.g50,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.g100,
+  },
+  detailLabel: { fontSize: 10, fontWeight: '700', color: C.g400, textTransform: 'uppercase' },
+  detailValue: { fontSize: 14, fontWeight: '600', color: C.g900, marginTop: 2 },
+
+  fieldLabel: { fontSize: 11, fontWeight: '700', color: C.g400, marginBottom: 6, textTransform: 'uppercase' },
+  notesText: { fontSize: 14, color: C.g700, lineHeight: 20 },
+
+  actionContainer: { marginTop: 16, gap: 10 },
+
+  btnPrimary: {
+    backgroundColor: C.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  btnPrimaryText: { color: C.white, fontWeight: '700', fontSize: 14 },
+
+  btnOutline: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: C.g300,
+    alignItems: 'center',
+  },
+  btnOutlineText: { fontWeight: '600', color: C.g700 },
+
+  btnDanger: {
+    backgroundColor: '#fee2e2',
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  btnDangerText: { color: C.danger, fontWeight: '700' },
+
+  rejectionBox: {
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  rejectionTitle: { fontWeight: '700', color: C.danger, marginBottom: 4 },
+  rejectionText: { color: '#b91c1c', fontSize: 13.5 },
+
+  // Empty
+  empty: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    backgroundColor: C.g50,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: C.g200,
+  },
+  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: C.g700 },
+  emptySub: { fontSize: 14, color: C.g400, textAlign: 'center', marginTop: 6 },
+
+  // Header
   header: {
     backgroundColor: C.navy,
     paddingTop: Platform.OS === 'ios' ? 56 : 44,
     paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   backBtn: {
-    width: 36, height: 36,
-    backgroundColor: 'rgba(255,255,255,0.13)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backArrow:   { color: C.white, fontSize: 18, fontWeight: '700' },
   headerTitle: { fontSize: 22, fontWeight: '800', color: C.white },
-  headerSub:   { fontSize: 13, color: 'rgba(255,255,255,.65)', marginTop: 2 },
-
-  scrollContent: { padding: 16, paddingBottom: 100 },
-
-  // Stats — identical to BookingsTab
-  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  statCard: {
-    flex: 1,
-    backgroundColor: C.white,
-    borderRadius: 10,
-    padding: 10,
-    borderLeftWidth: 3,
-    elevation: 2,
-  },
-  statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: { fontSize: 10, color: C.g500 },
-
-  // Search — identical to dashboard searchWrap
-  searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: C.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.g200,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 14, color: C.g900 },
-  clearBtn:    { fontSize: 13, color: C.g400, paddingHorizontal: 4, fontWeight: '700' },
-
-  // Filter tabs — identical to dashboard filterTab
-  tabsScroll:  { marginBottom: 14 },
-  tabsContent: { flexDirection: 'row', gap: 4 },
-  filterTab: {
-    paddingHorizontal: 15.7,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: C.white,
-    borderWidth: 1,
-    borderColor: C.g200,
-  },
-  filterTabActive:     { backgroundColor: C.primary, borderColor: C.primary },
-  filterTabText:       { fontSize: 13, color: C.g500 },
-  filterTabTextActive: { color: C.white, fontWeight: '700' },
-
-  // Card — identical to dashboard rentalCard
-  rentalCard: {
-    backgroundColor: C.white,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: C.g200,
-    elevation: 2,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  cardVehicleName: { fontSize: 15, fontWeight: '700', color: C.navy },
-  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start' },
-  badgeText:    { fontSize: 11, fontWeight: '700' },
-  cardMeta:     { fontSize: 13, color: C.g500 },
-  cardPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  cardPrice:    { fontSize: 14, color: C.primary, fontWeight: '700' },
-  cardPerDay:   { fontSize: 12, color: C.g400, flex: 1 },
-  chevron:      { fontSize: 11, color: C.g400 },
-
-  // Expanded
-  expandWrap: { marginTop: 10 },
-  divider:    { height: 1, backgroundColor: C.g200, marginBottom: 12 },
-  detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  detailItem: {
-    width: '47.5%',
-    backgroundColor: C.g50,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: C.g200,
-    padding: 10,
-  },
-  detailLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    color: C.g400,
-    marginBottom: 3,
-  },
-  detailValue: { fontSize: 13, fontWeight: '700', color: C.navy },
-
-  // Total row — matches modal price summary style
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: C.g50,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.g200,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 10,
-  },
-
-  actionRow: { flexDirection: 'row', gap: 8 },
-
-  // Buttons — identical to dashboard btnPrimary
-  btnPrimary: {
-    backgroundColor: C.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 3,
-  },
-  btnPrimaryText: { color: C.white, fontSize: 13, fontWeight: '700' },
-  btnOutline: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: C.g300,
-    alignItems: 'center',
-  },
-  btnOutlineText: { fontSize: 13, fontWeight: '700', color: C.g700 },
-  btnOutlineDanger: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#fecaca',
-    backgroundColor: '#fef2f2',
-    alignItems: 'center',
-  },
-  btnOutlineDangerText: { fontSize: 13, fontWeight: '700', color: C.danger },
-
-  rejectionBox: {
-    backgroundColor: '#fef2f2',
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  rejectionText: { fontSize: 12, color: '#dc2626' },
-
-  // Empty state
-  empty: {
-    alignItems: 'center',
-    padding: 48,
-    backgroundColor: C.g50,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: C.g200,
-  },
-  emptyIcon:  { fontSize: 40, marginBottom: 10 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: C.g700, marginBottom: 6 },
-  emptySub:   { fontSize: 13, color: C.g400, textAlign: 'center' },
+  headerSub: { fontSize: 13.5, color: 'rgba(255,255,255,0.7)' },
 });

@@ -311,6 +311,43 @@ export function BookingProvider({ children }) {
     return Array.from(map.values());
   }, [bookings]);
 
+  const returnVehicle = useCallback((bookingId, returnData = {}) => {
+    // update locally with returned status and return info
+    mutateBookings((prev) =>
+      prev.map((item) =>
+        item.id === bookingId
+          ? {
+              ...item,
+              status: 'completed',
+              returnedAt: returnData.returnedAt || new Date().toISOString(),
+              returnNotes: returnData.returnNotes || '',
+              updatedAt: new Date().toISOString(),
+            }
+          : item
+      )
+    );
+
+    // attempt to persist return on backend
+    (async () => {
+      const payload = {
+        status: 'completed',
+        returnedAt: returnData.returnedAt || new Date().toISOString(),
+        returnNotes: returnData.returnNotes || '',
+      };
+
+      const endpoints = [`/api/bookings/${bookingId}/`, `/api/rentals/${bookingId}/`, `/api/reservations/${bookingId}/`];
+      for (const ep of endpoints) {
+        try {
+          await apiRequest(ep, { method: 'PATCH', body: payload });
+          console.log('[BookingContext] Vehicle return recorded successfully', bookingId);
+          break;
+        } catch (e) {
+          console.warn('[BookingContext] Failed to record vehicle return', e);
+        }
+      }
+    })();
+  }, [mutateBookings]);
+
   const clearBookings = useCallback(() => persist([]), [persist]);
 
   return (
@@ -321,6 +358,7 @@ export function BookingProvider({ children }) {
         addBooking,
         updateBooking,
         setBookingStatus,
+        returnVehicle,
         getBookingsForRenter,
         getBookingsForOwner,
         getRentersForOwner,
