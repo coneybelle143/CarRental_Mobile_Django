@@ -71,7 +71,7 @@ export function LogReportProvider({ children }) {
   /* ── CRUD ── */
 
   /** Create a new check-in report */
-  const addReport = useCallback(async (report) => {
+  const createCheckin = useCallback(async (report) => {
     const newReport = {
       ...report,
       id: report.id || `lr_${Date.now()}`,
@@ -116,7 +116,7 @@ export function LogReportProvider({ children }) {
   }, []);
 
   /** Add / update check-out on an existing report */
-  const addCheckout = useCallback(async (reportId, checkoutData) => {
+  const addCheckoutReport = useCallback(async (reportId, checkoutData) => {
     setReports(prev => {
       const next = prev.map(r =>
         r.id === reportId
@@ -140,7 +140,7 @@ export function LogReportProvider({ children }) {
   }, []);
 
   /** Update check-in fields on an existing report */
-  const updateReport = useCallback(async (reportId, updates) => {
+  const editCheckin = useCallback(async (reportId, updates) => {
     setReports(prev => {
       const next = prev.map(r => r.id === reportId ? { ...r, ...updates } : r);
       if (AsyncStorage) AsyncStorage.setItem(LOG_KEY, JSON.stringify(next)).catch(() => {});
@@ -159,7 +159,7 @@ export function LogReportProvider({ children }) {
   }, []);
 
   /** Delete a report */
-  const deleteReport = useCallback(async (reportId) => {
+  const removeReport = useCallback(async (reportId) => {
     setReports(prev => {
       const next = prev.filter(r => r.id !== reportId);
       if (AsyncStorage) AsyncStorage.setItem(LOG_KEY, JSON.stringify(next)).catch(() => {});
@@ -175,7 +175,7 @@ export function LogReportProvider({ children }) {
   }, []);
 
   /** Add a comment to a report */
-  const addComment = useCallback(async (reportId, comment) => {
+  const postComment = useCallback(async (reportId, comment) => {
     setReports(prev => {
       const next = prev.map(r =>
         r.id === reportId
@@ -198,11 +198,13 @@ export function LogReportProvider({ children }) {
   const value = {
     reports,
     loading,
-    addReport,
-    addCheckout,
-    updateReport,
-    deleteReport,
-    addComment,
+    createCheckin,
+    editCheckin,
+    addCheckoutReport,
+    editCheckout: addCheckoutReport,
+    removeReport,
+    postComment,
+    refresh: loadReports,
     refreshReports: loadReports,
   };
 
