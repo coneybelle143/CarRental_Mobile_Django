@@ -780,7 +780,45 @@ function NewEntryForm({ rental, onSave, onCancel }) {
 ═══════════════════════════════════════════ */
 export default function LogReportScreen({ hideHeader = false, pendingRental, onClearPendingRental }) {
   const { user }                                                        = useAuth();
-  const { reports, addReport, updateReport, deleteReport, addComment } = useLogReport();
+  const {
+    reports,
+    createCheckin,
+    editCheckin,
+    addCheckoutReport,
+    editCheckout,
+    removeReport,
+    postComment,
+    refresh,
+  } = useLogReport();
+
+  // Adapter aliases so the rest of this screen works unchanged
+  const addReport = async ({ rental, checkin }) => createCheckin({
+    vehicleId:   rental?.vehicleId ?? rental?.vehicle,
+    vehicleName: rental?.vehicleName ?? rental?.vehicle_name,
+    rentalId:    rental?.id,
+    renterName:  rental?.renterName ?? rental?.renter_name,
+    startDate:   rental?.startDate  ?? rental?.start_date,
+    endDate:     rental?.endDate    ?? rental?.end_date,
+    amount:      rental?.amount     ?? rental?.totalPrice,
+    // checkin fields
+    ...checkin,
+    // keep a rental ref for the detail view
+    rental,
+  });
+  const updateReport = async (id, updates) => {
+    if (updates.checkout && updates.checkout !== null) {
+      // Determine if adding new checkout or editing existing
+      const existing = reports.find(r => r.id === id);
+      if (existing?.checkout) {
+        return editCheckout(id, updates.checkout);
+      } else {
+        return addCheckoutReport(id, updates.checkout);
+      }
+    }
+    return editCheckin(id, updates);
+  };
+  const deleteReport = (id) => removeReport(id);
+  const addComment   = (reportId, comment) => postComment(reportId, comment);
 
   const isOwner  = user?.role === 'owner';
   const isRenter = user?.role === 'renter';
@@ -816,7 +854,10 @@ export default function LogReportScreen({ hideHeader = false, pendingRental, onC
 
   const myReports = useMemo(() => {
     if (isOwner)  return reports;
-    if (isRenter) return reports.filter(r => r.rental?.renterId === user?.id);
+    if (isRenter) return reports.filter(r =>
+      String(r.renterId ?? r.renter_id ?? r.rental?.renterId ?? '') === String(user?.id ?? '') ||
+      String(r.renterName ?? r.renter_name ?? '') === String(user?.fullName ?? user?.firstName ?? '')
+    );
     return [];
   }, [reports, user]);
 
@@ -852,6 +893,8 @@ export default function LogReportScreen({ hideHeader = false, pendingRental, onC
 
   const handleUpdateReport = async (id, updates) => {
     await updateReport(id, updates);
+    // Refresh from context so detail view gets the updated data
+    if (typeof refresh === 'function') refresh();
     setSelected(prev => prev ? { ...prev, ...updates } : prev);
   };
 

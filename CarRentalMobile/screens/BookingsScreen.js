@@ -40,12 +40,13 @@ const C = {
 const BADGE = {
   pending:   { bg: '#fef3c7', col: '#92400e', label: 'Pending' },
   approved:  { bg: '#d1fae5', col: '#065f46', label: 'Active' },
+  active:    { bg: '#d1fae5', col: '#065f46', label: 'Active' },
   completed: { bg: '#dbeafe', col: '#1e40af', label: 'Completed' },
   rejected:  { bg: '#fee2e2', col: '#991b1b', label: 'Rejected' },
 };
 
 function BookingCard({ item, isExpanded, onToggle, userRole }) {
-  const { returnVehicle } = useBookings();
+  const { setBookingStatus } = useBookings();
   const bc = BADGE[item.status] || BADGE.pending;
   const days = Math.max(0, Math.round((new Date(item.endDate) - new Date(item.startDate)) / 86400000));
   const dailyRate = days > 0 ? Math.round(item.totalPrice / days) : 0;
@@ -70,11 +71,10 @@ function BookingCard({ item, isExpanded, onToggle, userRole }) {
           text: 'Confirm Return',
           style: 'default',
           onPress: () => {
-            returnVehicle(item.id, {
-              returnedAt: new Date().toISOString(),
-              returnNotes: '',
-            });
-            Alert.alert('Success', 'Vehicle return has been recorded and the booking is now complete.');
+            if (typeof setBookingStatus === 'function') {
+              setBookingStatus(item.id, 'completed');
+            }
+            Alert.alert('Success', 'Vehicle return has been recorded. The owner can now add a check-out report.');
           },
         },
       ]
@@ -158,12 +158,12 @@ function BookingCard({ item, isExpanded, onToggle, userRole }) {
               </TouchableOpacity>
             )}
 
-            {item.status === 'approved' && (
+            {(item.status === 'approved' || item.status === 'active') && (
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TouchableOpacity style={s.btnPrimary} onPress={handleReturnVehicle}>
-                  <Text style={s.btnPrimaryText}>Return Vehicle</Text>
+                  <Text style={s.btnPrimaryText}>Request Return</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.btnOutline}>
+                <TouchableOpacity style={s.btnOutline} onPress={() => Alert.alert('Contact Owner', `Contact ${item.ownerName || 'the owner'} to coordinate vehicle return.`)}>
                   <Text style={s.btnOutlineText}>Contact Owner</Text>
                 </TouchableOpacity>
               </View>
@@ -229,12 +229,15 @@ export default function BookingsScreen({ hideHeader = false }) {
   const stats = useMemo(() => ({
     total: baseData.length,
     pending: baseData.filter(x => x.status === 'pending').length,
-    approved: baseData.filter(x => x.status === 'approved').length,
+    approved: baseData.filter(x => x.status === 'approved' || x.status === 'active').length,
     completed: baseData.filter(x => x.status === 'completed').length,
   }), [baseData]);
 
   const filtered = useMemo(() => {
-    let list = activeTab === 'all' ? baseData : baseData.filter(i => i.status === activeTab);
+    let list = activeTab === 'all' ? baseData : baseData.filter(i => {
+      if (activeTab === 'approved') return i.status === 'approved' || i.status === 'active';
+      return i.status === activeTab;
+    });
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter(i =>
