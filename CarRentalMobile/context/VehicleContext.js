@@ -100,6 +100,7 @@ const toApiVehicle = (vehicleData) => {
 export function VehicleProvider({ children }) {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [rentalHistory, setRentalHistory] = useState([]);
 
   // Helper to update both React State and Local Storage at the same time
   const mutateVehicles = useCallback((updater) => {
@@ -148,11 +149,34 @@ export function VehicleProvider({ children }) {
     }
   }, [mutateVehicles]);
 
+  const loadBookings = useCallback(async () => {
+    try {
+      const data = await apiRequest('/api/bookings/');
+      if (Array.isArray(data)) {
+        const normalized = data.map(b => ({
+          ...b,
+          id: b.id ?? b.pk,
+          vehicleId: b.vehicleId ?? b.vehicle ?? b.car,
+          renterName: b.renterName ?? b.renter_name ?? b.user?.name ?? b.user?.username ?? 'Renter',
+          renterEmail: b.renterEmail ?? b.renter_email ?? b.user?.email,
+          startDate: b.startDate ?? b.start_date ?? b.from,
+          endDate: b.endDate ?? b.end_date ?? b.to,
+          totalPrice: b.totalPrice ?? b.total_price ?? b.amount ?? b.price,
+          status: b.status ?? 'pending',
+        }));
+        setRentalHistory(normalized);
+      }
+    } catch (error) {
+      console.warn('[VehicleContext] Failed to load bookings', error);
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       await loadVehicles();
+      await loadBookings();
       if (mounted) setLoading(false);
     })();
 
@@ -292,8 +316,68 @@ export function VehicleProvider({ children }) {
     }
   };
 
-  const approveVehicle = useCallback(() => {}, []);
-  const rejectVehicle = useCallback(() => {}, []);
+  /** Approve a rental request (booking) */
+  const approveBooking = useCallback(async (bookingId, vehicleId) => {
+    try {
+      await apiRequest(`/api/bookings/${bookingId}/`, {
+        method: 'PATCH',
+        body: { status: 'active' },
+      });
+
+      if (vehicleId) {
+        await updateVehicle(vehicleId, { status: 'rented' });
+      }
+      
+      await loadBookings();
+      return true;
+    } catch (error) {
+      console.warn('[VehicleContext] approveBooking failed', error);
+      return false;
+    }
+  }, [updateVehicle, loadBookings]);
+
+  /** Reject a rental request (booking) */
+  const rejectBooking = useCallback(async (bookingId, vehicleId) => {
+    try {
+      await apiRequest(`/api/bookings/${bookingId}/`, {
+        method: 'PATCH',
+        body: { status: 'rejected' },
+      });
+
+      if (vehicleId) {
+        await updateVehicle(vehicleId, { status: 'available' });
+      }
+      
+      await loadBookings();
+      return true;
+    } catch (error) {
+      console.warn('[VehicleContext] rejectBooking failed', error);
+      return false;
+    }
+  }, [updateVehicle, loadBookings]);
+
+  /** Accept vehicle return */
+  const acceptReturn = useCallback(async (bookingId, vehicleId) => {
+    try {
+      await apiRequest(`/api/bookings/${bookingId}/`, {
+        method: 'PATCH',
+        body: { 
+          status: 'returned', 
+          endDate: new Date().toISOString() 
+        },
+      });
+
+      if (vehicleId) {
+        await updateVehicle(vehicleId, { status: 'available' });
+      }
+      
+      await loadBookings();
+      return true;
+    } catch (error) {
+      console.warn('[VehicleContext] acceptReturn failed', error);
+      return false;
+    }
+  }, [updateVehicle, loadBookings]);
 
   const getOwnerVehicles = useCallback((ownerId, ownerEmail) =>
     vehicles.filter((v) => {
@@ -302,6 +386,11 @@ export function VehicleProvider({ children }) {
       return matchId || matchEmail;
     }),
   [vehicles]);
+
+  const getOwnerRentals = useCallback((ownerId) => {
+    const ownerVehicleIds = new Set(vehicles.filter(v => String(v.ownerId) === String(ownerId)).map(v => v.id));
+    return rentalHistory.filter(b => ownerVehicleIds.has(Number(b.vehicleId ?? b.vehicle)));
+  }, [vehicles, rentalHistory]);
 
   const getPendingVehicles = useCallback(() => [], []);
 
@@ -312,14 +401,19 @@ export function VehicleProvider({ children }) {
   return (
     <VehicleContext.Provider value={{
       vehicles,
+      rentalHistory,
       loading,
       addVehicle,
       updateVehicle,
       deleteVehicle,
-      refreshVehicles: loadVehicles,
-      approveVehicle,
-      rejectVehicle,
+      refreshVehicles: () => { loadVehicles(); loadBookings(); },
+      approveBooking,
+      rejectBooking,
+      acceptReturn,
+      approveVehicle: approveBooking,
+      rejectVehicle: rejectBooking,
       getOwnerVehicles,
+      getOwnerRentals,
       getPendingVehicles,
       getApprovedVehicles,
     }}>
