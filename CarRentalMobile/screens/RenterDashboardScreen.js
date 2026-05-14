@@ -367,6 +367,7 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user, savedVehicleIds, o
       <RentModal
         visible={rentModal}
         vehicle={selVehicle}
+        user={user}
         onClose={() => setRentModal(false)}
         onConfirm={handleConfirmRent}
       />
@@ -386,24 +387,24 @@ function HomeTab({ vehicles, bookings, onCreateBooking, user, savedVehicleIds, o
 }
 
 // ==================== RentModal (unchanged) ====================
-function RentModal({ visible, vehicle, onClose, onConfirm }) {
+const pad = (v) => String(v).padStart(2, '0');
+const formatYMD = (d) => {
+  if (!(d instanceof Date)) d = new Date(d);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+const parseYMD = (s) => {
+  if (!s) return null;
+  const [y, m, d] = String(s).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+};
+
+function RentModal({ visible, vehicle, user, onClose, onConfirm }) {
   const [startDate, setStart] = useState('');
   const [endDate, setEnd] = useState('');
   const [notes, setNotes] = useState('');
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [calendarTarget, setCalendarTarget] = useState(null);
-
-  const pad = (v) => String(v).padStart(2, '0');
-  const formatYMD = (d) => {
-    if (!(d instanceof Date)) d = new Date(d);
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  };
-  const parseYMD = (s) => {
-    if (!s) return null;
-    const [y, m, d] = String(s).split('-').map(Number);
-    if (!y || !m || !d) return null;
-    return new Date(y, m - 1, d);
-  };
 
   React.useEffect(() => {
     if (visible) { setStart(''); setEnd(''); setNotes(''); }
@@ -414,7 +415,7 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
     const s = parseYMD(startDate);
     const e = parseYMD(endDate);
     if (!s || !e) return 0;
-    const diff = e - s;
+    const diff = e - s; // Difference in milliseconds
     return Math.max(0, Math.ceil(diff / 86400000));
   }, [startDate, endDate]);
 
@@ -444,6 +445,9 @@ function RentModal({ visible, vehicle, onClose, onConfirm }) {
           }}>
             <Text style={{ fontSize: 16, fontWeight: '800', color: C.navy }}>{vehicle.name}</Text>
             <Text style={{ fontSize: 13, color: C.g500, marginTop: 2 }}>{vehicle.model} · {vehicle.year}</Text>
+            {vehicle.ownerName && (
+              <Text style={{ fontSize: 12, color: C.g500, marginTop: 2 }}>Renter: {user?.fullName || user?.email || 'Unknown'}</Text>
+            )}
             {vehicle.ownerName && (
               <Text style={{ fontSize: 12, color: C.g500, marginTop: 2 }}>Owner: {vehicle.ownerName}</Text>
             )}

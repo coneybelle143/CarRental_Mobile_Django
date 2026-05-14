@@ -403,7 +403,7 @@ function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog, refre
   const stats = useMemo(() => ({
     total:     rentalHistory.length,
     pending:   rentalHistory.filter(r => r.status === 'pending').length,
-    approved:  rentalHistory.filter(r => r.status === 'approved').length,
+    approved:  rentalHistory.filter(r => r.status === 'approved' || r.status === 'active').length,
     completed: rentalHistory.filter(r => r.status === 'completed').length,
   }), [rentalHistory]);
 
@@ -412,6 +412,7 @@ function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog, refre
   const BC = {
     pending:   { bg: '#fef3c7', color: '#92400e' },
     approved:  { bg: '#d1fae5', color: '#065f46' },
+    active:    { bg: '#d1fae5', color: '#065f46' },
     completed: { bg: '#dbeafe', color: '#1e40af' },
     rejected:  { bg: '#fee2e2', color: '#991b1b' },
   };
@@ -420,13 +421,13 @@ function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog, refre
   const handleApprove = rental => {
     Alert.alert('Approve Rental?', `Approve for ${rental.vehicleName}?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Approve', onPress: () => onUpdateStatus(rental.id, 'approved') },
+      { text: 'Approve', onPress: () => onUpdateStatus(rental.id, 'approved', rental.vehicleId) },
     ]);
   };
   const handleReject = rental => {
     Alert.alert('Reject Rental?', '', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Reject', style: 'destructive', onPress: () => onUpdateStatus(rental.id, 'rejected') },
+      { text: 'Reject', style: 'destructive', onPress: () => onUpdateStatus(rental.id, 'rejected', rental.vehicleId) },
     ]);
   };
 
@@ -473,7 +474,7 @@ function RentalsTab({ rentalHistory, onUpdateStatus, reports, onRecordLog, refre
           filtered.map((rental, i) => {
             const bc     = BC[rental.status] || BC.pending;
             const logged = isLogged(rental);
-            const canLog = rental.status === 'approved' || rental.status === 'completed';
+            const canLog = rental.status === 'approved' || rental.status === 'active' || rental.status === 'completed';
             return (
               <View key={rental.id || i} style={s.rentalCard}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -625,9 +626,18 @@ function HomeTab({ vehicles, stats, searchQuery, setSearchQuery, filtered, onEdi
 export default function OwnerDashboardScreen() {
   const router  = useRouter();
   const { user } = useAuth();
-  const { getBookingsForOwner, setBookingStatus } = useBookings();
+  const { setBookingStatus } = useBookings();
   const { reports } = useLogReport();
-  const { getOwnerVehicles, addVehicle, updateVehicle, deleteVehicle, refreshVehicles } = useVehicles();
+  const { 
+    getOwnerVehicles, 
+    addVehicle, 
+    updateVehicle, 
+    deleteVehicle, 
+    refreshVehicles,
+    getOwnerRentals,
+    approveVehicle,
+    rejectVehicle,
+  } = useVehicles();
   const ownerId = user?.id || user?.pk || user?.email;
 
   useEffect(() => {
@@ -663,7 +673,7 @@ export default function OwnerDashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const vehicles = getOwnerVehicles(ownerId, user?.email);
-  const rentalHistory = getBookingsForOwner(ownerId);
+  const rentalHistory = getOwnerRentals(ownerId);
   const userName     = user?.firstName || user?.fullName || 'Owner';
   const pendingCount = rentalHistory.filter(r => r.status === 'pending').length;
 
@@ -774,6 +784,12 @@ export default function OwnerDashboardScreen() {
     setActiveTab(tab);
   };
 
+  const handleUpdateRentalStatus = async (bookingId, status, vehicleId) => {
+    if (status === 'approved') await approveVehicle(bookingId, vehicleId);
+    else if (status === 'rejected') await rejectVehicle(bookingId, vehicleId);
+    else await setBookingStatus(bookingId, status);
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'home':
@@ -794,7 +810,7 @@ export default function OwnerDashboardScreen() {
         return (
           <RentalsTab
             rentalHistory={rentalHistory}
-            onUpdateStatus={setBookingStatus}
+            onUpdateStatus={handleUpdateRentalStatus}
             reports={reports}
             onRecordLog={handleRecordLog}
             refreshing={refreshing}
