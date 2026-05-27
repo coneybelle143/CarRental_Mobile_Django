@@ -732,11 +732,17 @@ function DetailView({ report, onBack, onUpdateReport, isOwner, currentUser, onAd
                 <TouchableOpacity onPress={() => setView('editCI')} style={[st.btnSecondary, { flex: 1 }]}>
                   <Text style={st.btnSecondaryText}>Edit Check-in</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setView('addCO')} style={[st.btnPrimary, { flex: 1 }]}>
+
+                <TouchableOpacity
+                  onPress={canAddCheckout ? () => setView('addCO') : () => Alert.alert('Not allowed', 'You cannot add check-out until the return vehicle is accepted by the owner.')}
+                  disabled={!canAddCheckout}
+                  style={[st.btnPrimary, { flex: 1, opacity: canAddCheckout ? 1 : 0.5 }]}
+                >
                   <Text style={st.btnPrimaryText}>Add Check-out</Text>
                 </TouchableOpacity>
               </View>
             )}
+
             {report.checkin && (
               <ConditionColumn title="Check-in Record" data={report.checkin} onEdit={isOwner ? () => setView('editCI') : null} isOwner={isOwner} />
             )}
@@ -828,6 +834,17 @@ export default function LogReportScreen({ hideHeader = false, pendingRental, onC
   const [selected, setSelected] = useState(null);
   const [newEntry, setNewEntry] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Backend ultimately enforces the rule.
+  // Keep UI gate conservative: only owners can add checkout after return_accepted exists.
+  const canAddCheckout = useMemo(() => {
+    if (!selected) return false;
+    return reports.some(r =>
+      r.rentalId === selected.rentalId &&
+      r.vehicleId === selected.vehicleId &&
+      r.type === 'return_accepted'
+    );
+  }, [selected, reports]);
 
   // Refresh on screen focus
   useFocusEffect(
@@ -926,6 +943,7 @@ export default function LogReportScreen({ hideHeader = false, pendingRental, onC
         onAddComment={addComment}
         isOwner={isOwner}
         currentUser={user}
+        canAddCheckout={canAddCheckout}
       />
     );
   }
